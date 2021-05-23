@@ -2747,7 +2747,8 @@ void engine_numa_policies(int rank, int verbose) {
   cpu_set_t *entry_affinity = engine_entry_affinity();
 
   /* Now convert the affinity mask into NUMA nodemask. */
-  unsigned long nodemask = 0L;
+  struct bitmask *nodemask = numa_allocate_nodemask();
+  
   int nnuma = numa_num_configured_nodes();
   int usednodes[256];
   for (int i = 0; i < 256; i++) usednodes[i] = -1;
@@ -2756,7 +2757,7 @@ void engine_numa_policies(int rank, int verbose) {
     /* If in the affinity mask we set NUMA node of CPU bit. */
     if (CPU_ISSET(i, entry_affinity)) {
       int numanode = numa_node_of_cpu(i);
-      nodemask |= (1<<numanode);
+      numa_bitmask_setbit(nodemask, numanode);
       usednodes[numanode] = numanode;
     }
   }
@@ -2775,7 +2776,8 @@ void engine_numa_policies(int rank, int verbose) {
   fflush(stdout);
 
   /* And set. */
-  set_mempolicy(MPOL_INTERLEAVE, &nodemask, nnuma);
+  set_mempolicy(MPOL_INTERLEAVE, nodemask->maskp, nodemask->size+1);
+  numa_free_nodemask(nodemask);
 
 #endif
 }
