@@ -23,6 +23,10 @@ on the user to choose wisely how they want to compress their data.*
 
 The filters are not applied when using parallel-hdf5.
 
+The name of any filter applied is carried by each individual field in
+the snapshot using the meta-data attribute ``Lossy compression
+filter``.
+
 The available filters are listed below.
 
 N-bit filters for long long integers
@@ -52,7 +56,7 @@ SWIFT implements 5 variants of this filter:
 
 Note that if the data written to disk is requiring more than the N
 bits then part of the information written to the snapshot will
-lost. SWIFT does not apply any verification before applying the
+lost. SWIFT **does not apply any verification** before applying the
 filter.
 
 Scaling filters for floating-point numbers
@@ -97,6 +101,8 @@ SWIFT implements 4 variants of this filter:
  * ``DScale1`` scales by :math:`10^1`
  * ``DScale2`` scales by :math:`10^2`
  * ``DScale3`` scales by :math:`10^3`
+ * ``DScale4`` scales by :math:`10^4`
+ * ``DScale5`` scales by :math:`10^5`
  * ``DScale6`` scales by :math:`10^6`
 
 An example application is to store the positions with ``pc`` accuracy in
@@ -104,8 +110,8 @@ simulations that use ``Mpc`` as their base unit by using the ``DScale6``
 filter.
 
 The compression rate of these filters depends on the data. On an
-EAGLE-like simulation, compressing the positions from ``Mpc`` to ``pc`` (via
-``Dscale6``) leads to rate of around 2.2x.
+EAGLE-like simulation (100 Mpc box), compressing the positions from ``Mpc`` to
+``pc`` (via ``Dscale6``) leads to rate of around 2.2x.
 
 Modified floating-point representation filters
 ----------------------------------------------

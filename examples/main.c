@@ -956,15 +956,8 @@ int main(int argc, char *argv[]) {
 #endif
 
     /* And initialize the engine with the space and policies. */
-    if (myrank == 0) clocks_gettime(&tic);
     engine_config(/*restart=*/1, /*fof=*/0, &e, params, nr_nodes, myrank,
                   nr_threads, nr_pool_threads, with_aff, talking, restart_file);
-    if (myrank == 0) {
-      clocks_gettime(&toc);
-      message("engine_config took %.3f %s.", clocks_diff(&tic, &toc),
-              clocks_getunit());
-      fflush(stdout);
-    }
 
     /* Check if we are already done when given steps on the command-line. */
     if (e.step >= nsteps && nsteps > 0)
@@ -1080,7 +1073,7 @@ int main(int argc, char *argv[]) {
     if (with_rt) {
       if (hydro_properties.particle_splitting)
         error("Can't run with RT and particle splitting as of yet.");
-      rt_props_init(&rt_properties, params);
+      rt_props_init(&rt_properties, &prog_const, &us, params, &cosmo);
     } else
       bzero(&rt_properties, sizeof(struct rt_props));
 
@@ -1203,6 +1196,11 @@ int main(int argc, char *argv[]) {
 
 #ifdef SWIFT_DEBUG_CHECKS
     /* Check once and for all that we don't have unwanted links */
+    for (size_t k = 0; k < Ngpart; ++k)
+      if (!dry_run && gparts[k].id_or_neg_offset == 0 &&
+          (gparts[k].type == swift_type_dark_matter ||
+           gparts[k].type == swift_type_dark_matter_background))
+        error("SWIFT does not allow the ID 0.");
     if (!with_stars && !dry_run) {
       for (size_t k = 0; k < Ngpart; ++k)
         if (gparts[k].type == swift_type_stars) error("Linking problem");
@@ -1331,11 +1329,6 @@ int main(int argc, char *argv[]) {
       pm_mesh_init_no_mesh(&mesh, s.dim);
     }
 
-    /* Check that the matter content matches the cosmology given in the
-     * parameter file. */
-    if (with_cosmology && with_self_gravity && !dry_run)
-      space_check_cosmology(&s, &cosmo, myrank);
-
     /* Also update the total counts (in case of changes due to replication) */
     Nbaryons = s.nr_parts + s.nr_sparts + s.nr_bparts + s.nr_sinks;
     Nnupart = s.nr_nuparts;
@@ -1431,7 +1424,6 @@ int main(int argc, char *argv[]) {
     if (with_rt) engine_policies |= engine_policy_rt;
 
     /* Initialize the engine with the space and policies. */
-    if (myrank == 0) clocks_gettime(&tic);
     engine_init(&e, &s, params, output_options, N_total[swift_type_gas],
                 N_total[swift_type_count], N_total[swift_type_sink],
                 N_total[swift_type_stars], N_total[swift_type_black_hole],
@@ -1445,13 +1437,6 @@ int main(int argc, char *argv[]) {
                 &los_properties);
     engine_config(/*restart=*/0, /*fof=*/0, &e, params, nr_nodes, myrank,
                   nr_threads, nr_pool_threads, with_aff, talking, restart_file);
-
-    if (myrank == 0) {
-      clocks_gettime(&toc);
-      message("engine_init took %.3f %s.", clocks_diff(&tic, &toc),
-              clocks_getunit());
-      fflush(stdout);
-    }
 
     /* Compute some stats for the star formation */
     if (with_star_formation) {
@@ -1512,6 +1497,13 @@ int main(int argc, char *argv[]) {
 
     /* Initialise the particles */
     engine_init_particles(&e, flag_entropy_ICs, clean_smoothing_length_values);
+
+    /* Check that the matter content matches the cosmology given in the
+     * parameter file. */
+    if (with_cosmology && with_self_gravity && !dry_run) {
+      const int check_neutrinos = !neutrino_properties.use_delta_f;
+      space_check_cosmology(&s, &cosmo, with_hydro, myrank, check_neutrinos);
+    }
 
     /* Write the state of the system before starting time integration. */
 #ifdef WITH_CSDS

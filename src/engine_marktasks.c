@@ -413,8 +413,8 @@ void engine_marktasks_mapper(void *map_data, int num_elements,
           (with_star_formation && cj_active_hydro) ||
           (with_star_formation_sink && (cj_active_hydro || cj_active_sinks));
 
-      const int ci_active_rt = with_rt && rt_should_do_cell_pair(ci, cj, e);
-      const int cj_active_rt = with_rt && rt_should_do_cell_pair(cj, ci, e);
+      const int ci_active_rt = with_rt && rt_should_iact_cell_pair(ci, cj, e);
+      const int cj_active_rt = with_rt && rt_should_iact_cell_pair(cj, ci, e);
 
       /* Only activate tasks that involve a local active cell. */
       if ((t_subtype == task_subtype_density ||
@@ -812,8 +812,10 @@ void engine_marktasks_mapper(void *map_data, int num_elements,
 
           /* If the foreign cell is active, we want its particles for the
            * limiter */
-          if (ci_active_hydro && with_timestep_limiter)
+          if (ci_active_hydro && with_timestep_limiter) {
             scheduler_activate_recv(s, ci->mpi.recv, task_subtype_limiter);
+            scheduler_activate_unpack(s, ci->mpi.unpack, task_subtype_limiter);
+          }
 
           /* If the foreign cell is active, we want its ti_end values. */
           if (ci_active_hydro)
@@ -843,9 +845,12 @@ void engine_marktasks_mapper(void *map_data, int num_elements,
 
           /* If the local cell is active, send its particles for the limiting.
            */
-          if (cj_active_hydro && with_timestep_limiter)
+          if (cj_active_hydro && with_timestep_limiter) {
             scheduler_activate_send(s, cj->mpi.send, task_subtype_limiter,
                                     ci_nodeID);
+            scheduler_activate_pack(s, cj->mpi.pack, task_subtype_limiter,
+                                    ci_nodeID);
+          }
 
           /* If the local cell is active, send its ti_end values. */
           if (cj_active_hydro)
@@ -883,8 +888,10 @@ void engine_marktasks_mapper(void *map_data, int num_elements,
 
           /* If the foreign cell is active, we want its particles for the
            * limiter */
-          if (cj_active_hydro && with_timestep_limiter)
+          if (cj_active_hydro && with_timestep_limiter) {
             scheduler_activate_recv(s, cj->mpi.recv, task_subtype_limiter);
+            scheduler_activate_unpack(s, cj->mpi.unpack, task_subtype_limiter);
+          }
 
           /* If the foreign cell is active, we want its ti_end values. */
           if (cj_active_hydro)
@@ -916,9 +923,12 @@ void engine_marktasks_mapper(void *map_data, int num_elements,
 
           /* If the local cell is active, send its particles for the limiting.
            */
-          if (ci_active_hydro && with_timestep_limiter)
+          if (ci_active_hydro && with_timestep_limiter) {
             scheduler_activate_send(s, ci->mpi.send, task_subtype_limiter,
                                     cj_nodeID);
+            scheduler_activate_pack(s, ci->mpi.pack, task_subtype_limiter,
+                                    cj_nodeID);
+          }
 
           /* If the local cell is active, send its ti_end values. */
           if (ci_active_hydro)
@@ -1389,9 +1399,14 @@ void engine_marktasks_mapper(void *map_data, int num_elements,
       if (cell_is_active_hydro(t->ci, e)) scheduler_activate(s, t);
     }
 
+    /* rt_ghost1 is special: Also check for stars activity to catch
+     * dependencies further down the line (e.g. timestep task) */
+    else if (t->type == task_type_rt_ghost1) {
+      if (rt_should_do_unskip_cell(t->ci, e)) scheduler_activate(s, t);
+    }
+
     /* Radiative transfer ghosts and thermochemistry*/
-    else if (t->type == task_type_rt_ghost1 || t->type == task_type_rt_ghost2 ||
-             t->type == task_type_rt_tchem) {
+    else if (t->type == task_type_rt_ghost2 || t->type == task_type_rt_tchem) {
       if (cell_is_active_hydro(t->ci, e)) scheduler_activate(s, t);
     }
 
