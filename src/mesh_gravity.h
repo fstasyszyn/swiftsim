@@ -80,10 +80,11 @@ struct pm_mesh {
   /*! Distance below which tree forces are Newtonian */
   double r_cut_min;
 
-  double *potential;
-  
   /*! Full N*N*N potential field */
   double *potential_global;
+
+  /* TODO */
+  void *potential_local;
 };
 
 void pm_mesh_init(struct pm_mesh *mesh, const struct gravity_props *props,
