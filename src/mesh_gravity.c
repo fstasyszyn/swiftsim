@@ -626,7 +626,130 @@ void mesh_apply_Green_function(struct threadpool* tp, fftw_complex* frho,
 void compute_potential_distributed(struct pm_mesh* mesh, const struct space* s,
                                    struct threadpool* tp, const int verbose) {
 
-  error("TO BE IMPLEMENTED");
+#if defined(WITH_MPI) && defined(HAVE_MPI_FFTW)
+
+  const double r_s = mesh->r_s;
+  const double box_size = s->dim[0];
+  const double dim[3] = {s->dim[0], s->dim[1], s->dim[2]};
+
+  if (r_s <= 0.) error("Invalid value of a_smooth");
+  if (mesh->dim[0] != dim[0] || mesh->dim[1] != dim[1] ||
+      mesh->dim[2] != dim[2])
+    error("Domain size does not match the value stored in the space.");
+
+  /* Some useful constants */
+  const int N = mesh->N;
+  const double cell_fac = N / box_size;
+
+  MPI_Barrier(MPI_COMM_WORLD);
+  ticks tic = getticks();
+
+  /* Calculate contributions to density field on this MPI rank */
+  hashmap_t rho_map;
+  hashmap_init(&rho_map);
+  mpi_mesh_accumulate_gparts_to_hashmap(tp, N, cell_fac, s, &rho_map);
+  if(verbose)message("Accumulating mass to hashmap took %.3f %s.",
+                     clocks_from_ticks(getticks() - tic), clocks_getunit());
+
+  /* Ask FFTW what slice of the density field we need to store on this task.
+     Note that fftw_mpi_local_size_3d works in terms of the size of the complex
+     output. The last dimension of the real input is padded to 2*(N/2+1). */
+  ptrdiff_t local_n0;
+  ptrdiff_t local_0_start;
+  ptrdiff_t nalloc =
+    fftw_mpi_local_size_3d((ptrdiff_t)N, (ptrdiff_t)N, (ptrdiff_t) (N/2+1),
+                           MPI_COMM_WORLD, &local_n0, &local_0_start);
+  if(verbose)message("Local density field slice has thickness %d.", (int)local_n0);
+  if(verbose)message("Hashmap size = %d, local cells = %d", (int)hashmap_size(&rho_map), (int) (local_n0*N*N));
+
+  /* Allocate storage for mesh slices. nalloc is the number of *complex* values. */
+  double* rho_slice = (double*)fftw_malloc(2 * nalloc * sizeof(double));
+  for (int i = 0; i < 2*nalloc; i += 1) rho_slice[i] = 0.0;
+
+  /* Allocate storage for the slices of the FFT of the density mesh */
+  fftw_complex* frho_slice = (fftw_complex*) fftw_malloc(nalloc * sizeof(fftw_complex));
+
+  tic = getticks();
+
+  /* Construct density field slices from contributions stored in hashmaps */
+  mpi_mesh_hashmaps_to_slices(N, (int)local_n0, &rho_map, rho_slice);
+  if (verbose)
+    message("Assembling mesh slices took %.3f %s.",
+            clocks_from_ticks(getticks() - tic), clocks_getunit());
+  hashmap_free(&rho_map);
+
+  tic = getticks();
+
+  /* Carry out the MPI Fourier transform. We can save a bit of time
+   * if we allow FFTW to transpose the first two dimensions of the output.
+   *
+   * Layout of the MPI FFTW input and output:
+   *
+   * Input mesh contains N*N*N reals, padded to N*N*(2*(N/2+1)).
+   * Output Fourier transform is N*N*(N/2+1) complex values.
+   *
+   * The first two dimensions of the transform are transposed in
+   * the output. Each MPI rank has slice of thickness local_n0
+   * starting at local_0_start in the first dimension.
+   */
+  fftw_plan mpi_plan = fftw_mpi_plan_dft_r2c_3d(N, N, N, rho_slice, frho_slice, MPI_COMM_WORLD,
+                                                FFTW_ESTIMATE | FFTW_MPI_TRANSPOSED_OUT | FFTW_DESTROY_INPUT);
+  fftw_execute(mpi_plan);
+  fftw_destroy_plan(mpi_plan);
+  if (verbose)
+    message("MPI forward Fourier transform took %.3f %s.",
+            clocks_from_ticks(getticks() - tic), clocks_getunit());
+
+  tic = getticks();
+
+  /* Apply Green function to local slice of the MPI mesh */
+  mesh_apply_Green_function(tp, frho_slice, local_0_start, local_n0, N, r_s, box_size);
+  if (verbose)
+    message("Applying Green function to MPI mesh took %.3f %s.",
+            clocks_from_ticks(getticks() - tic), clocks_getunit());
+
+  tic = getticks();
+
+  /* Carry out the reverse MPI Fourier transform */
+  fftw_plan mpi_inverse_plan = fftw_mpi_plan_dft_c2r_3d(N, N, N, frho_slice, rho_slice, MPI_COMM_WORLD,
+                                                        FFTW_ESTIMATE | FFTW_MPI_TRANSPOSED_IN | FFTW_DESTROY_INPUT);
+  fftw_execute(mpi_inverse_plan);
+  fftw_destroy_plan(mpi_inverse_plan);  
+
+  if (verbose)
+    message("MPI reverse Fourier transform took %.3f %s.",
+            clocks_from_ticks(getticks() - tic), clocks_getunit());
+
+  /* Clear the potential hashmap */
+  hashmap_free(mesh->potential_local);
+  hashmap_init(mesh->potential_local);
+
+  tic = getticks();
+
+  /* Fetch MPI mesh entries we need on this rank from other ranks */
+  mpi_mesh_fetch_potential(N, cell_fac, s, local_0_start, local_n0,
+                           rho_slice, mesh->potential_local);
+
+  if (verbose)
+    message("Fetching local potential took %.3f %s.",
+            clocks_from_ticks(getticks() - tic), clocks_getunit());
+  
+  /* Discard per-task mesh slices */
+  fftw_free(rho_slice);
+  fftw_free(frho_slice);
+
+  tic = getticks();
+
+  /* Compute accelerations and potentials for the gparts */
+  mpi_mesh_update_gparts(mesh, s, tp, N, cell_fac);
+
+  if (verbose)
+    message("Computing mesh accelerations took %.3f %s.",
+            clocks_from_ticks(getticks() - tic), clocks_getunit());
+
+#else
+  error("No FFTW MPI library available. Cannot compute distributed mesh.");
+#endif
 }
 
 /**
