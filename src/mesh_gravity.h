@@ -23,8 +23,8 @@
 #include "../config.h"
 
 /* Local headers */
-#include "hashmap.h"
 #include "gravity_properties.h"
+#include "hashmap.h"
 #include "timeline.h"
 
 /* Forward declarations */
@@ -50,7 +50,7 @@ struct pm_mesh {
 
   /*! Whether mesh is distributed between MPI ranks */
   int distributed_mesh;
-  
+
   /*! Integer time-step end of the mesh force for the last step */
   integertime_t ti_end_mesh_last;
 

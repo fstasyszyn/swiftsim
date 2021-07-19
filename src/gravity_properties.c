@@ -60,8 +60,9 @@ void gravity_props_init(struct gravity_props *p, struct swift_params *params,
   /* Tree-PM parameters */
   if (periodic) {
     p->mesh_size = parser_get_param_int(params, "Gravity:mesh_side_length");
-    p->distributed_mesh = parser_get_opt_param_int(params, "Gravity:distributed_mesh", 
-                                                   gravity_props_default_distributed_mesh);
+    p->distributed_mesh =
+        parser_get_opt_param_int(params, "Gravity:distributed_mesh",
+                                 gravity_props_default_distributed_mesh);
     p->a_smooth = parser_get_opt_param_float(params, "Gravity:a_smooth",
                                              gravity_props_default_a_smooth);
     p->r_cut_max_ratio = parser_get_opt_param_float(
@@ -80,10 +81,12 @@ void gravity_props_init(struct gravity_props *p, struct swift_params *params,
       error("The mesh smoothing scale 'a_smooth' must be > 0.");
 
 #if !defined(WITH_MPI) || !defined(HAVE_MPI_FFTW)
-    if(p->distributed_mesh)
-      error("Need to use MPI and FFTW MPI library to run with distributed_mesh=1.");
+    if (p->distributed_mesh)
+      error(
+          "Need to use MPI and FFTW MPI library to run with "
+          "distributed_mesh=1.");
 #endif
-    
+
     if (2. * p->a_smooth * p->r_cut_max_ratio > p->mesh_size)
       error("Mesh too small given r_cut_max. Should be at least %d cells wide.",
             (int)(2. * p->a_smooth * p->r_cut_max_ratio) + 1);

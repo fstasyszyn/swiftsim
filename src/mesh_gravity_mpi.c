@@ -29,17 +29,17 @@
 #include "mesh_gravity_mpi.h"
 
 /* Local includes. */
+#include "active.h"
 #include "debug.h"
 #include "engine.h"
 #include "error.h"
-#include "part.h"
-#include "space.h"
 #include "lock.h"
-#include "threadpool.h"
-#include "active.h"
 #include "mesh_gravity_patch.h"
-#include "row_major_id.h"
+#include "part.h"
 #include "periodic.h"
+#include "row_major_id.h"
+#include "space.h"
+#include "threadpool.h"
 
 /**
  * @brief Accumulate contributions from cell to density field
@@ -56,12 +56,12 @@
  *
  */
 void accumulate_cell_to_hashmap(const int N, const double fac,
-				const double *dim, const struct cell *cell,
-				hashmap_t *map, swift_lock_type *lock) {
+                                const double *dim, const struct cell *cell,
+                                hashmap_t *map, swift_lock_type *lock) {
 
   /* If the cell is empty, then there's nothing to do
      (and the code to find the extent of the cell would fail) */
-  if(cell->grav.count == 0)return;
+  if (cell->grav.count == 0) return;
 
   /* Allocate the local mesh patch */
   struct pm_mesh_patch patch;
@@ -74,20 +74,23 @@ void accumulate_cell_to_hashmap(const int N, const double fac,
     const struct gpart *gp = &(cell->grav.parts[ipart]);
 
     /* Box wrap the particle's position to the copy nearest the cell centre */
-    const double pos_x = box_wrap(gp->x[0], patch.wrap_min[0], patch.wrap_max[0]);
-    const double pos_y = box_wrap(gp->x[1], patch.wrap_min[1], patch.wrap_max[1]);
-    const double pos_z = box_wrap(gp->x[2], patch.wrap_min[2], patch.wrap_max[2]);
+    const double pos_x =
+        box_wrap(gp->x[0], patch.wrap_min[0], patch.wrap_max[0]);
+    const double pos_y =
+        box_wrap(gp->x[1], patch.wrap_min[1], patch.wrap_max[1]);
+    const double pos_z =
+        box_wrap(gp->x[2], patch.wrap_min[2], patch.wrap_max[2]);
 
     /* Workout the CIC coefficients */
-    int i = (int) floor(fac * pos_x);
+    int i = (int)floor(fac * pos_x);
     const double dx = fac * pos_x - i;
     const double tx = 1. - dx;
 
-    int j = (int) floor(fac * pos_y);
+    int j = (int)floor(fac * pos_y);
     const double dy = fac * pos_y - j;
     const double ty = 1. - dy;
-    
-    int k = (int) floor(fac * pos_z);
+
+    int k = (int)floor(fac * pos_z);
     const double dz = fac * pos_z - k;
     const double tz = 1. - dz;
 
@@ -98,7 +101,7 @@ void accumulate_cell_to_hashmap(const int N, const double fac,
 
     /* Accumulate contributions to the local mesh patch */
     const double mass = gp->mass;
-    pm_mesh_patch_CIC_set(&patch, ii, jj, kk, tx, ty, tz, dx, dy, dz, mass);   
+    pm_mesh_patch_CIC_set(&patch, ii, jj, kk, tx, ty, tz, dx, dy, dz, mass);
   }
 
   /* Add contributions from the local mesh patch to the hashmap.
@@ -108,27 +111,24 @@ void accumulate_cell_to_hashmap(const int N, const double fac,
    * after each one (in one test case at least) */
   lock_lock(lock);
   pm_mesh_patch_add_values_to_hashmap(&patch, map);
-  if (lock_unlock(lock) != 0)
-    error("Unable to unlock mesh");
-  
+  if (lock_unlock(lock) != 0) error("Unable to unlock mesh");
+
   /* Done*/
   pm_mesh_patch_clean(&patch);
 }
-
 
 /**
  * @brief Shared information about the mesh to be used by all the threads in the
  * pool.
  */
 struct accumulate_mapper_data {
-  const struct cell* cells;
+  const struct cell *cells;
   int N;
   double fac;
   double dim[3];
   hashmap_t *map;
   swift_lock_type *lock;
 };
-
 
 /**
  * @brief Threadpool mapper function for the mesh CIC assignment of a cell.
@@ -137,31 +137,31 @@ struct accumulate_mapper_data {
  * @param num The number of cells in the chunk.
  * @param extra The information about the mesh and cells.
  */
-void accumulate_cell_to_hashmap_mapper(void* map_data, int num, void* extra) {
+void accumulate_cell_to_hashmap_mapper(void *map_data, int num, void *extra) {
 
   /* Unpack the shared information */
-  const struct accumulate_mapper_data* data = (struct accumulate_mapper_data*)extra;
-  const struct cell* cells = data->cells;
+  const struct accumulate_mapper_data *data =
+      (struct accumulate_mapper_data *)extra;
+  const struct cell *cells = data->cells;
   const int N = data->N;
   const double fac = data->fac;
   const double dim[3] = {data->dim[0], data->dim[1], data->dim[2]};
   hashmap_t *map = data->map;
   swift_lock_type *lock = data->lock;
-  
+
   /* Pointer to the chunk to be processed */
-  int* local_cells = (int*)map_data;
+  int *local_cells = (int *)map_data;
 
   /* Loop over the elements assigned to this thread */
   for (int i = 0; i < num; ++i) {
 
     /* Pointer to local cell */
-    const struct cell* c = &cells[local_cells[i]];
+    const struct cell *c = &cells[local_cells[i]];
 
     /* Assign this cell's content to the mesh */
     accumulate_cell_to_hashmap(N, fac, dim, c, map, lock);
   }
 }
-
 
 /**
  * @brief Accumulate local contributions to the density field
@@ -176,9 +176,10 @@ void accumulate_cell_to_hashmap_mapper(void* map_data, int num, void* extra) {
  * @param map The hashmap in which to store the results
  *
  */
-void mpi_mesh_accumulate_gparts_to_hashmap(struct threadpool* tp,
-                                           const int N, const double fac,
-                                           const struct space *s, hashmap_t *map) {
+void mpi_mesh_accumulate_gparts_to_hashmap(struct threadpool *tp, const int N,
+                                           const double fac,
+                                           const struct space *s,
+                                           hashmap_t *map) {
 
 #if defined(WITH_MPI) && defined(HAVE_MPI_FFTW)
   const int *local_cells = s->local_cells_top;
@@ -197,12 +198,11 @@ void mpi_mesh_accumulate_gparts_to_hashmap(struct threadpool* tp,
   swift_lock_type lock;
   lock_init(&lock);
   data.lock = &lock;
-  threadpool_map(tp, accumulate_cell_to_hashmap_mapper, (void*)local_cells,
+  threadpool_map(tp, accumulate_cell_to_hashmap_mapper, (void *)local_cells,
                  nr_local_cells, sizeof(int), threadpool_auto_chunk_size,
-                 (void*)&data);
-  if (lock_destroy(&lock) != 0)
-    error("Impossible to destory lock!");
-  
+                 (void *)&data);
+  if (lock_destroy(&lock) != 0) error("Impossible to destory lock!");
+
   return;
 #else
   error("FFTW MPI not found - unable to use distributed mesh");
@@ -274,11 +274,12 @@ void hashmap_copy_elements_mapper(hashmap_key_t key, hashmap_value_t *value,
  * @return The number of elements copied into the array
  *
  */
-size_t hashmap_to_sorted_array(hashmap_t *map, struct mesh_key_value *array, size_t n) {
+size_t hashmap_to_sorted_array(hashmap_t *map, struct mesh_key_value *array,
+                               size_t n) {
 
   /* Find how many elements are in the hashmap */
   size_t num_in_map = hashmap_size(map);
-  if(num_in_map > n) {
+  if (num_in_map > n) {
     error("Array is to small to contain hash map elements!");
   }
 
@@ -293,9 +294,8 @@ size_t hashmap_to_sorted_array(hashmap_t *map, struct mesh_key_value *array, siz
   return num_in_map;
 }
 
-
 /**
- * @brief Given an array of structs of size element_size, send 
+ * @brief Given an array of structs of size element_size, send
  * nr_send[i] elements to each node i. Allocates the receive
  * buffer recvbuf to the appropriate size and returns its size
  * in nr_recv_tot.
@@ -308,9 +308,8 @@ size_t hashmap_to_sorted_array(hashmap_t *map, struct mesh_key_value *array, siz
  * @param recvbuf The output buffer
  *
  */
-void exchange_structs(size_t *nr_send, char *sendbuf,
-                      size_t *nr_recv, char *recvbuf,
-                      size_t element_size) {
+void exchange_structs(size_t *nr_send, char *sendbuf, size_t *nr_recv,
+                      char *recvbuf, size_t element_size) {
 
 #if defined(WITH_MPI) && defined(HAVE_MPI_FFTW)
 
@@ -338,7 +337,8 @@ void exchange_structs(size_t *nr_send, char *sendbuf,
 
   /* Make type to communicate mesh_key_value struct */
   MPI_Datatype mesh_key_value_mpi_type;
-  if (MPI_Type_contiguous(element_size, MPI_BYTE, &mesh_key_value_mpi_type) != MPI_SUCCESS ||
+  if (MPI_Type_contiguous(element_size, MPI_BYTE, &mesh_key_value_mpi_type) !=
+          MPI_SUCCESS ||
       MPI_Type_commit(&mesh_key_value_mpi_type) != MPI_SUCCESS) {
     error("Failed to create MPI type for mesh_key_value struct.");
   }
@@ -352,9 +352,10 @@ void exchange_structs(size_t *nr_send, char *sendbuf,
     if (nr_send[i] > 0) {
 
       /* TODO: handle very large messages */
-      if(nr_send[i] > INT_MAX) error("exchange_structs() fails if nr_send > INT_MAX!");
+      if (nr_send[i] > INT_MAX)
+        error("exchange_structs() fails if nr_send > INT_MAX!");
 
-      MPI_Isend(&(sendbuf[send_offset[i]*element_size]), (int)nr_send[i],
+      MPI_Isend(&(sendbuf[send_offset[i] * element_size]), (int)nr_send[i],
                 mesh_key_value_mpi_type, i, 0, MPI_COMM_WORLD, &(request[i]));
     } else {
       request[i] = MPI_REQUEST_NULL;
@@ -366,9 +367,10 @@ void exchange_structs(size_t *nr_send, char *sendbuf,
     if (nr_recv[i] > 0) {
 
       /* TODO: handle very large messages */
-      if(nr_recv[i] > INT_MAX) error("exchange_structs() fails if nr_recv > INT_MAX!");
+      if (nr_recv[i] > INT_MAX)
+        error("exchange_structs() fails if nr_recv > INT_MAX!");
 
-      MPI_Irecv(&(recvbuf[recv_offset[i]*element_size]), (int)nr_recv[i],
+      MPI_Irecv(&(recvbuf[recv_offset[i] * element_size]), (int)nr_recv[i],
                 mesh_key_value_mpi_type, i, 0, MPI_COMM_WORLD,
                 &(request[i + nr_nodes]));
     } else {
@@ -404,8 +406,8 @@ void exchange_structs(size_t *nr_send, char *sendbuf,
  * @param mesh Pointer to the output data buffer
  *
  */
-void mpi_mesh_hashmaps_to_slices(const int N, const int local_n0, hashmap_t *map,
-                                 double *mesh) {
+void mpi_mesh_hashmaps_to_slices(const int N, const int local_n0,
+                                 hashmap_t *map, double *mesh) {
 
 #if defined(WITH_MPI) && defined(HAVE_MPI_FFTW)
 
@@ -415,14 +417,14 @@ void mpi_mesh_hashmaps_to_slices(const int N, const int local_n0, hashmap_t *map
   MPI_Comm_rank(MPI_COMM_WORLD, &nodeID);
 
   /* Make an array with the (key, value) pairs from the hashmap.
-   * The elements are sorted by key, which means they're sorted 
+   * The elements are sorted by key, which means they're sorted
    * by x coordinate, then y coordinate, then z coordinate.
    * We're going to distribute them between ranks according to their
    * x coordinate, so this puts them in order of destination rank.
    */
   size_t map_size = hashmap_size(map);
   struct mesh_key_value *mesh_sendbuf;
-  if (swift_memalign("mesh_sendbuf", (void **) &mesh_sendbuf, 32,
+  if (swift_memalign("mesh_sendbuf", (void **)&mesh_sendbuf, 32,
                      map_size * sizeof(struct mesh_key_value)) != 0)
     error("Failed to allocate array for mesh send buffer!");
   size_t nr_send_tot = hashmap_to_sorted_array(map, mesh_sendbuf, map_size);
@@ -446,7 +448,8 @@ void mpi_mesh_hashmaps_to_slices(const int N, const int local_n0, hashmap_t *map
   int dest_node = 0;
   for (size_t i = 0; i < nr_send_tot; i += 1) {
     /* Get the x coordinate of this mesh cell in the global mesh */
-    int mesh_x = get_xcoord_from_padded_row_major_id((size_t) mesh_sendbuf[i].key, N);
+    int mesh_x =
+        get_xcoord_from_padded_row_major_id((size_t)mesh_sendbuf[i].key, N);
     /* Advance to the destination node that is to contain this x coordinate */
     while ((mesh_x >= slice_offset[dest_node] + slice_width[dest_node]) ||
            (slice_width[dest_node] == 0)) {
@@ -456,35 +459,37 @@ void mpi_mesh_hashmaps_to_slices(const int N, const int local_n0, hashmap_t *map
   }
 
   /* Determine how many requests we'll receive from each MPI rank */
-  size_t *nr_recv = malloc(sizeof(size_t)*nr_nodes);
+  size_t *nr_recv = malloc(sizeof(size_t) * nr_nodes);
   MPI_Alltoall(nr_send, sizeof(size_t), MPI_BYTE, nr_recv, sizeof(size_t),
                MPI_BYTE, MPI_COMM_WORLD);
   size_t nr_recv_tot = 0;
-  for(int i=0; i<nr_nodes; i+=1) {
+  for (int i = 0; i < nr_nodes; i += 1) {
     nr_recv_tot += nr_recv[i];
   }
 
   /* Allocate the receive buffer */
   struct mesh_key_value *mesh_recvbuf;
-  if (swift_memalign("mesh_recvbuf", (void **) &mesh_recvbuf, 32,
+  if (swift_memalign("mesh_recvbuf", (void **)&mesh_recvbuf, 32,
                      nr_recv_tot * sizeof(struct mesh_key_value)) != 0)
     error("Failed to allocate receive buffer for constructing MPI FFT mesh");
 
   /* Carry out the communication */
-  exchange_structs(nr_send, (char *) mesh_sendbuf,
-                   nr_recv, (char *) mesh_recvbuf, 
+  exchange_structs(nr_send, (char *)mesh_sendbuf, nr_recv, (char *)mesh_recvbuf,
                    sizeof(struct mesh_key_value));
 
   /* Copy received data to the output buffer */
   for (size_t i = 0; i < nr_recv_tot; i += 1) {
 #ifdef SWIFT_DEBUG_CHECKS
-    const int xcoord = get_xcoord_from_padded_row_major_id(mesh_recvbuf[i].key, N);
-    if(xcoord < slice_offset[nodeID])
+    const int xcoord =
+        get_xcoord_from_padded_row_major_id(mesh_recvbuf[i].key, N);
+    if (xcoord < slice_offset[nodeID])
       error("Received mesh cell is not in the local slice (xcoord too small)");
-    if(xcoord >= slice_offset[nodeID] + slice_width[nodeID])
+    if (xcoord >= slice_offset[nodeID] + slice_width[nodeID])
       error("Received mesh cell is not in the local slice (xcoord too large)");
 #endif
-    mesh[get_index_in_local_slice((size_t) mesh_recvbuf[i].key, N, slice_offset[nodeID])] += mesh_recvbuf[i].value;
+    mesh[get_index_in_local_slice((size_t)mesh_recvbuf[i].key, N,
+                                  slice_offset[nodeID])] +=
+        mesh_recvbuf[i].value;
   }
 
   /* Tidy up */
@@ -498,7 +503,6 @@ void mpi_mesh_hashmaps_to_slices(const int N, const int local_n0, hashmap_t *map
   error("FFTW MPI not found - unable to use distributed mesh");
 #endif
 }
-
 
 /**
  * @brief Retrieve the potential in the mesh cells we need to
@@ -515,14 +519,14 @@ void mpi_mesh_hashmaps_to_slices(const int N, const int local_n0, hashmap_t *map
  * @param s The #space containing the particles.
  * @param local_0_start Offset to the first mesh x coordinate on this rank
  * @param local_n0 Width of the mesh slab on this rank
- * @param potential_slice Array with the potential on the local slice of the mesh
+ * @param potential_slice Array with the potential on the local slice of the
+ * mesh
  * @param potential_map A hashmap in which to store the potential data
  *
  */
 void mpi_mesh_fetch_potential(const int N, const double fac,
-                              const struct space *s,
-                              int local_0_start, int local_n0,
-                              double *potential_slice,
+                              const struct space *s, int local_0_start,
+                              int local_n0, double *potential_slice,
                               hashmap_t *potential_map) {
 
 #if defined(WITH_MPI) && defined(HAVE_MPI_FFTW)
@@ -542,7 +546,7 @@ void mpi_mesh_fetch_potential(const int N, const double fac,
   /* Loop over our local top level cells */
   for (int icell = 0; icell < nr_local_cells; icell += 1) {
     struct cell *cell = &(s->cells_top[local_cells[icell]]);
-    if(cell->grav.count > 0) {
+    if (cell->grav.count > 0) {
 
       /* Determine range of FFT mesh cells we need for particles in this top
          level cell. The 5 point stencil used for accelerations requires
@@ -550,30 +554,31 @@ void mpi_mesh_fetch_potential(const int N, const double fac,
          evaluation of the accelerations we need one extra FFT mesh cell
          in the +ve direction.
 
-	 We also have to add a small buffer to avoid problems with rounding
-	 (e.g. if we decide a cell isn't needed here but then try to look
-	 up its value in the hashmap later).
+         We also have to add a small buffer to avoid problems with rounding
+         (e.g. if we decide a cell isn't needed here but then try to look
+         up its value in the hashmap later).
 
-	 TODO: can we calculate exactly how big the rounding error can be?
-	       Will just assume that 1% of a mesh cell is enough for now.
+         TODO: can we calculate exactly how big the rounding error can be?
+               Will just assume that 1% of a mesh cell is enough for now.
       */
       int ixmin[3];
       int ixmax[3];
-      for(int idim=0;idim<3;idim+=1) {
-        const double xmin = cell->loc[idim] - 2.01/fac;
-        const double xmax = cell->loc[idim] + cell->width[idim] + 3.01/fac;
-        ixmin[idim] = (int) floor(xmin*fac);
-        ixmax[idim] = (int) floor(xmax*fac);
+      for (int idim = 0; idim < 3; idim += 1) {
+        const double xmin = cell->loc[idim] - 2.01 / fac;
+        const double xmax = cell->loc[idim] + cell->width[idim] + 3.01 / fac;
+        ixmin[idim] = (int)floor(xmin * fac);
+        ixmax[idim] = (int)floor(xmax * fac);
       }
 
       /* Add the required cells to the map */
-      for(int i=ixmin[0]; i<=ixmax[0]; i+=1) {
-        for(int j=ixmin[1]; j<=ixmax[1]; j+=1) {
-          for(int k=ixmin[2]; k<=ixmax[2]; k+=1) {
-            const size_t index = row_major_id_periodic_size_t_padded(i, j, k, N);
+      for (int i = ixmin[0]; i <= ixmax[0]; i += 1) {
+        for (int j = ixmin[1]; j <= ixmax[1]; j += 1) {
+          for (int k = ixmin[2]; k <= ixmax[2]; k += 1) {
+            const size_t index =
+                row_major_id_periodic_size_t_padded(i, j, k, N);
             /* We don't have a value associated with the entry yet */
-	    hashmap_value_t *value = hashmap_get(&map, (hashmap_key_t) index);
-	    value->value_dbl = 0.0;
+            hashmap_value_t *value = hashmap_get(&map, (hashmap_key_t)index);
+            value->value_dbl = 0.0;
           }
         }
       }
@@ -583,7 +588,7 @@ void mpi_mesh_fetch_potential(const int N, const double fac,
   /* Make an array with the cell IDs we need to request from other ranks */
   size_t nr_send_tot = hashmap_size(&map);
   struct mesh_key_value *send_cells;
-  if (swift_memalign("send_cells", (void **) &send_cells, 32,
+  if (swift_memalign("send_cells", (void **)&send_cells, 32,
                      nr_send_tot * sizeof(struct mesh_key_value)) != 0)
     error("Failed to allocate array for cells to request!");
   nr_send_tot = hashmap_to_sorted_array(&map, send_cells, nr_send_tot);
@@ -602,73 +607,78 @@ void mpi_mesh_fetch_potential(const int N, const double fac,
 
   /* Count how many mesh cells we need to request from each MPI rank */
   int dest_rank = 0;
-  size_t *nr_send = malloc(sizeof(size_t)*nr_nodes);
-  for(int i=0; i<nr_nodes; i+=1) {
+  size_t *nr_send = malloc(sizeof(size_t) * nr_nodes);
+  for (int i = 0; i < nr_nodes; i += 1) {
     nr_send[i] = 0;
   }
-  for(size_t i=0; i<nr_send_tot; i+=1) {
-    while(get_xcoord_from_padded_row_major_id(send_cells[i].key, N) >= (slice_offset[dest_rank]+slice_width[dest_rank]) || slice_width[dest_rank] == 0) {
+  for (size_t i = 0; i < nr_send_tot; i += 1) {
+    while (get_xcoord_from_padded_row_major_id(send_cells[i].key, N) >=
+               (slice_offset[dest_rank] + slice_width[dest_rank]) ||
+           slice_width[dest_rank] == 0) {
       dest_rank += 1;
     }
 #ifdef SWIFT_DEBUG_CHECKS
-    if(dest_rank >= nr_nodes || dest_rank < 0)error("Destination rank out of range");
+    if (dest_rank >= nr_nodes || dest_rank < 0)
+      error("Destination rank out of range");
 #endif
     nr_send[dest_rank] += 1;
   }
 
   /* Determine how many requests we'll receive from each MPI rank */
-  size_t *nr_recv = malloc(sizeof(size_t)*nr_nodes);
+  size_t *nr_recv = malloc(sizeof(size_t) * nr_nodes);
   MPI_Alltoall(nr_send, sizeof(size_t), MPI_BYTE, nr_recv, sizeof(size_t),
                MPI_BYTE, MPI_COMM_WORLD);
   size_t nr_recv_tot = 0;
-  for(int i=0; i<nr_nodes; i+=1) {
+  for (int i = 0; i < nr_nodes; i += 1) {
     nr_recv_tot += nr_recv[i];
   }
 
   /* Allocate buffer to receive requests */
   struct mesh_key_value *recv_cells;
-  if (swift_memalign("recv_cells", (void **) &recv_cells, 32,
+  if (swift_memalign("recv_cells", (void **)&recv_cells, 32,
                      nr_recv_tot * sizeof(struct mesh_key_value)) != 0)
     error("Failed to allocate array for mesh receive buffer!");
 
   /* Send requests for cells to other ranks */
-  exchange_structs(nr_send, (char *) send_cells,
-                   nr_recv, (char *) recv_cells,
+  exchange_structs(nr_send, (char *)send_cells, nr_recv, (char *)recv_cells,
                    sizeof(struct mesh_key_value));
-  
+
   /* Look up potential in the requested cells */
-  for(size_t i=0; i<nr_recv_tot; i+=1) {
+  for (size_t i = 0; i < nr_recv_tot; i += 1) {
 #ifdef SWIFT_DEBUG_CHECKS
-    const size_t cells_in_slab  = ((size_t) N)*(2*(N/2+1));
-    const size_t first_local_id = local_0_start*cells_in_slab;
-    const size_t num_local_ids  = local_n0*cells_in_slab;
-    if(recv_cells[i].key < first_local_id || recv_cells[i].key >= first_local_id+num_local_ids) {
+    const size_t cells_in_slab = ((size_t)N) * (2 * (N / 2 + 1));
+    const size_t first_local_id = local_0_start * cells_in_slab;
+    const size_t num_local_ids = local_n0 * cells_in_slab;
+    if (recv_cells[i].key < first_local_id ||
+        recv_cells[i].key >= first_local_id + num_local_ids) {
       error("Requested potential mesh cell ID is out of range");
     }
 #endif
-    size_t local_id = get_index_in_local_slice(recv_cells[i].key, N, local_0_start);
+    size_t local_id =
+        get_index_in_local_slice(recv_cells[i].key, N, local_0_start);
 #ifdef SWIFT_DEBUG_CHECKS
     const size_t Ns = N;
-    if(local_id >= Ns*(2*(Ns/2+1))*local_n0)error("Local potential mesh cell ID is out of range");
+    if (local_id >= Ns * (2 * (Ns / 2 + 1)) * local_n0)
+      error("Local potential mesh cell ID is out of range");
 #endif
     recv_cells[i].value = potential_slice[local_id];
   }
 
   /* Return the results */
-  exchange_structs(nr_recv, (char *) recv_cells,
-                   nr_send, (char *) send_cells,
+  exchange_structs(nr_recv, (char *)recv_cells, nr_send, (char *)send_cells,
                    sizeof(struct mesh_key_value));
 
   /* Store the results in the hashmap */
-  for(size_t i=0; i<nr_send_tot; i+=1) {
+  for (size_t i = 0; i < nr_send_tot; i += 1) {
     int created = 0;
-    hashmap_value_t *value = hashmap_get_new(potential_map, send_cells[i].key,
-					     &created);
+    hashmap_value_t *value =
+        hashmap_get_new(potential_map, send_cells[i].key, &created);
     value->value_dbl = send_cells[i].value;
 #ifdef SWIFT_DEBUG_CHECKS
-    if(!created)error("Received duplicate potential hash map value");
+    if (!created) error("Received duplicate potential hash map value");
     const size_t Ns = N;
-    if(send_cells[i].key >= Ns*Ns*(2*(Ns/2+1)))error("Received potential mesh cell ID out of range");
+    if (send_cells[i].key >= Ns * Ns * (2 * (Ns / 2 + 1)))
+      error("Received potential mesh cell ID out of range");
 #endif
   }
 
@@ -684,7 +694,6 @@ void mpi_mesh_fetch_potential(const int N, const double fac,
 #endif
 }
 
-
 /**
  * @brief Computes the potential on a gpart from a given mesh using the CIC
  * method.
@@ -693,25 +702,29 @@ void mpi_mesh_fetch_potential(const int N, const double fac,
  * @param patch The local mesh patch
  */
 #if defined(WITH_MPI) && defined(HAVE_MPI_FFTW)
-void mesh_patch_to_gparts_CIC(struct gpart *gp, const struct pm_mesh_patch *patch) {
+void mesh_patch_to_gparts_CIC(struct gpart *gp,
+                              const struct pm_mesh_patch *patch) {
 
   const double fac = patch->fac;
 
   /* Box wrap the gpart's position to the copy nearest the cell centre */
-  const double pos_x = box_wrap(gp->x[0], patch->wrap_min[0], patch->wrap_max[0]);
-  const double pos_y = box_wrap(gp->x[1], patch->wrap_min[1], patch->wrap_max[1]);
-  const double pos_z = box_wrap(gp->x[2], patch->wrap_min[2], patch->wrap_max[2]);
+  const double pos_x =
+      box_wrap(gp->x[0], patch->wrap_min[0], patch->wrap_max[0]);
+  const double pos_y =
+      box_wrap(gp->x[1], patch->wrap_min[1], patch->wrap_max[1]);
+  const double pos_z =
+      box_wrap(gp->x[2], patch->wrap_min[2], patch->wrap_max[2]);
 
   /* Workout the CIC coefficients */
-  int i = (int) floor(fac * pos_x);
+  int i = (int)floor(fac * pos_x);
   const double dx = fac * pos_x - i;
   const double tx = 1. - dx;
 
-  int j = (int) floor(fac * pos_y);
+  int j = (int)floor(fac * pos_y);
   const double dy = fac * pos_y - j;
   const double ty = 1. - dy;
-    
-  int k = (int) floor(fac * pos_z);
+
+  int k = (int)floor(fac * pos_z);
   const double dz = fac * pos_z - k;
   const double tz = 1. - dz;
 
@@ -735,20 +748,32 @@ void mesh_patch_to_gparts_CIC(struct gpart *gp, const struct pm_mesh_patch *patc
   p += pm_mesh_patch_CIC_get(patch, ii, jj, kk, tx, ty, tz, dx, dy, dz);
 
   /* 5-point stencil along each axis for the accelerations */
-  a[0] += (1. / 12.) * pm_mesh_patch_CIC_get(patch, ii + 2, jj, kk, tx, ty, tz, dx, dy, dz);
-  a[0] -= (2. / 3.)  * pm_mesh_patch_CIC_get(patch, ii + 1, jj, kk, tx, ty, tz, dx, dy, dz);
-  a[0] += (2. / 3.)  * pm_mesh_patch_CIC_get(patch, ii - 1, jj, kk, tx, ty, tz, dx, dy, dz);
-  a[0] -= (1. / 12.) * pm_mesh_patch_CIC_get(patch, ii - 2, jj, kk, tx, ty, tz, dx, dy, dz);
-  
-  a[1] += (1. / 12.) * pm_mesh_patch_CIC_get(patch, ii, jj + 2, kk, tx, ty, tz, dx, dy, dz);
-  a[1] -= (2. / 3.)  * pm_mesh_patch_CIC_get(patch, ii, jj + 1, kk, tx, ty, tz, dx, dy, dz);
-  a[1] += (2. / 3.)  * pm_mesh_patch_CIC_get(patch, ii, jj - 1, kk, tx, ty, tz, dx, dy, dz);
-  a[1] -= (1. / 12.) * pm_mesh_patch_CIC_get(patch, ii, jj - 2, kk, tx, ty, tz, dx, dy, dz);
-  
-  a[2] += (1. / 12.) * pm_mesh_patch_CIC_get(patch, ii, jj, kk + 2, tx, ty, tz, dx, dy, dz);
-  a[2] -= (2. / 3.)  * pm_mesh_patch_CIC_get(patch, ii, jj, kk + 1, tx, ty, tz, dx, dy, dz);
-  a[2] += (2. / 3.)  * pm_mesh_patch_CIC_get(patch, ii, jj, kk - 1, tx, ty, tz, dx, dy, dz);
-  a[2] -= (1. / 12.) * pm_mesh_patch_CIC_get(patch, ii, jj, kk - 2, tx, ty, tz, dx, dy, dz);
+  a[0] += (1. / 12.) *
+          pm_mesh_patch_CIC_get(patch, ii + 2, jj, kk, tx, ty, tz, dx, dy, dz);
+  a[0] -= (2. / 3.) *
+          pm_mesh_patch_CIC_get(patch, ii + 1, jj, kk, tx, ty, tz, dx, dy, dz);
+  a[0] += (2. / 3.) *
+          pm_mesh_patch_CIC_get(patch, ii - 1, jj, kk, tx, ty, tz, dx, dy, dz);
+  a[0] -= (1. / 12.) *
+          pm_mesh_patch_CIC_get(patch, ii - 2, jj, kk, tx, ty, tz, dx, dy, dz);
+
+  a[1] += (1. / 12.) *
+          pm_mesh_patch_CIC_get(patch, ii, jj + 2, kk, tx, ty, tz, dx, dy, dz);
+  a[1] -= (2. / 3.) *
+          pm_mesh_patch_CIC_get(patch, ii, jj + 1, kk, tx, ty, tz, dx, dy, dz);
+  a[1] += (2. / 3.) *
+          pm_mesh_patch_CIC_get(patch, ii, jj - 1, kk, tx, ty, tz, dx, dy, dz);
+  a[1] -= (1. / 12.) *
+          pm_mesh_patch_CIC_get(patch, ii, jj - 2, kk, tx, ty, tz, dx, dy, dz);
+
+  a[2] += (1. / 12.) *
+          pm_mesh_patch_CIC_get(patch, ii, jj, kk + 2, tx, ty, tz, dx, dy, dz);
+  a[2] -= (2. / 3.) *
+          pm_mesh_patch_CIC_get(patch, ii, jj, kk + 1, tx, ty, tz, dx, dy, dz);
+  a[2] += (2. / 3.) *
+          pm_mesh_patch_CIC_get(patch, ii, jj, kk - 1, tx, ty, tz, dx, dy, dz);
+  a[2] -= (1. / 12.) *
+          pm_mesh_patch_CIC_get(patch, ii, jj, kk - 2, tx, ty, tz, dx, dy, dz);
 
   /* Store things back */
   gp->a_grav_mesh[0] = fac * a[0];
@@ -757,7 +782,6 @@ void mesh_patch_to_gparts_CIC(struct gpart *gp, const struct pm_mesh_patch *patc
   gravity_add_comoving_mesh_potential(gp, p);
 }
 #endif
-
 
 /**
  * @brief Interpolate the forces and potential from the mesh to the #gpart.
@@ -773,28 +797,29 @@ void mesh_patch_to_gparts_CIC(struct gpart *gp, const struct pm_mesh_patch *patc
  * @param const_G Gravitional constant
  * @param dim Dimensions of the #space
  */
-void cell_distributed_mesh_to_gpart_CIC(const struct cell *c, hashmap_t *potential, 
-					const int N, const double fac, const float const_G,
-					const double dim[3]) {
+void cell_distributed_mesh_to_gpart_CIC(const struct cell *c,
+                                        hashmap_t *potential, const int N,
+                                        const double fac, const float const_G,
+                                        const double dim[3]) {
 
 #if defined(WITH_MPI) && defined(HAVE_MPI_FFTW)
 
   const int gcount = c->grav.count;
-  struct gpart* gparts = c->grav.parts;
+  struct gpart *gparts = c->grav.parts;
 
   /* Check for empty cell as this would cause problems finding the extent */
-  if(gcount==0)return;
+  if (gcount == 0) return;
 
   /* Allocate the local mesh patch */
   struct pm_mesh_patch patch;
   pm_mesh_patch_init(&patch, c, N, fac, dim, /*boundary_size=*/2);
-  
+
   /* Populate the mesh patch with values from the potential hashmap */
   pm_mesh_patch_set_values_from_hashmap(&patch, potential);
 
   /* Get the potential from the mesh patch to the active gparts using CIC */
   for (int i = 0; i < gcount; ++i) {
-    struct gpart* gp = &gparts[i];
+    struct gpart *gp = &gparts[i];
 
     if (gp->time_bin == time_bin_inhibited) continue;
 
@@ -823,14 +848,13 @@ void cell_distributed_mesh_to_gpart_CIC(const struct cell *c, hashmap_t *potenti
 #endif
 }
 
-
 /**
  * @brief Shared information about the mesh to be used by all the threads in the
  * pool.
  */
 struct distributed_cic_mapper_data {
-  const struct cell* cells;
-  hashmap_t* potential;
+  const struct cell *cells;
+  hashmap_t *potential;
   int N;
   double fac;
   double dim[3];
@@ -844,27 +868,29 @@ struct distributed_cic_mapper_data {
  * @param num The number of cells in the chunk.
  * @param extra The information about the mesh and cells.
  */
-void cell_distributed_mesh_to_gpart_CIC_mapper(void* map_data, int num, void* extra) {
+void cell_distributed_mesh_to_gpart_CIC_mapper(void *map_data, int num,
+                                               void *extra) {
 
 #if defined(WITH_MPI) && defined(HAVE_MPI_FFTW)
 
   /* Unpack the shared information */
-  const struct distributed_cic_mapper_data* data = (struct distributed_cic_mapper_data*)extra;
-  const struct cell* cells = data->cells;
-  hashmap_t* potential = data->potential;
+  const struct distributed_cic_mapper_data *data =
+      (struct distributed_cic_mapper_data *)extra;
+  const struct cell *cells = data->cells;
+  hashmap_t *potential = data->potential;
   const int N = data->N;
   const double fac = data->fac;
   const double dim[3] = {data->dim[0], data->dim[1], data->dim[2]};
   const float const_G = data->const_G;
 
   /* Pointer to the chunk to be processed */
-  int* local_cells = (int*)map_data;
+  int *local_cells = (int *)map_data;
 
   /* Loop over the elements assigned to this thread */
   for (int i = 0; i < num; ++i) {
 
     /* Pointer to local cell */
-    const struct cell* c = &cells[local_cells[i]];
+    const struct cell *c = &cells[local_cells[i]];
 
     /* Update acceleration and potential for gparts in this cell */
     cell_distributed_mesh_to_gpart_CIC(c, potential, N, fac, const_G, dim);
@@ -875,37 +901,35 @@ void cell_distributed_mesh_to_gpart_CIC_mapper(void* map_data, int num, void* ex
 #endif
 }
 
-
-
- void mpi_mesh_update_gparts(struct pm_mesh* mesh, const struct space* s,
-			     struct threadpool* tp, const int N, 
-			     const double cell_fac) {
+void mpi_mesh_update_gparts(struct pm_mesh *mesh, const struct space *s,
+                            struct threadpool *tp, const int N,
+                            const double cell_fac) {
 
 #if defined(WITH_MPI) && defined(HAVE_MPI_FFTW)
 
-   const int* local_cells = s->local_cells_top;
-   const int nr_local_cells = s->nr_local_cells;
+  const int *local_cells = s->local_cells_top;
+  const int nr_local_cells = s->nr_local_cells;
 
-   /* Gather the mesh shared information to be used by the threads */
-   struct distributed_cic_mapper_data data;
-   data.cells = s->cells_top;
-   data.potential = mesh->potential_local;
-   data.N = N;
-   data.fac = cell_fac;
-   data.dim[0] = s->dim[0];
-   data.dim[1] = s->dim[1];
-   data.dim[2] = s->dim[2];
-   data.const_G = s->e->physical_constants->const_newton_G;
+  /* Gather the mesh shared information to be used by the threads */
+  struct distributed_cic_mapper_data data;
+  data.cells = s->cells_top;
+  data.potential = mesh->potential_local;
+  data.N = N;
+  data.fac = cell_fac;
+  data.dim[0] = s->dim[0];
+  data.dim[1] = s->dim[1];
+  data.dim[2] = s->dim[2];
+  data.const_G = s->e->physical_constants->const_newton_G;
 
-   if (nr_local_cells == 0) {
-     error("Distributed mesh not implemented without cells");
-   } else {
-     /* Evaluate acceleration and potential for each gpart */
-     threadpool_map(tp, cell_distributed_mesh_to_gpart_CIC_mapper, 
-		    (void*)local_cells, nr_local_cells, sizeof(int),
-		    threadpool_auto_chunk_size, (void*)&data);
-   }
+  if (nr_local_cells == 0) {
+    error("Distributed mesh not implemented without cells");
+  } else {
+    /* Evaluate acceleration and potential for each gpart */
+    threadpool_map(tp, cell_distributed_mesh_to_gpart_CIC_mapper,
+                   (void *)local_cells, nr_local_cells, sizeof(int),
+                   threadpool_auto_chunk_size, (void *)&data);
+  }
 #else
-   error("FFTW MPI not found - unable to use distributed mesh");
+  error("FFTW MPI not found - unable to use distributed mesh");
 #endif
- }
+}

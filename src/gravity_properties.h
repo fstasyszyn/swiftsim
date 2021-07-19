@@ -120,7 +120,7 @@ struct gravity_props {
 
   /*! Whether mesh is distributed between MPI ranks when we use MPI  */
   int distributed_mesh;
-  
+
   /*! Mesh smoothing scale in units of top-level cell size */
   float a_smooth;
 

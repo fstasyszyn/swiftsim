@@ -24,9 +24,9 @@
 #include "../config.h"
 
 /* Includes. */
-#include "inline.h"
-#include "hashmap.h"
 #include "error.h"
+#include "hashmap.h"
+#include "inline.h"
 
 /* Forward declarations */
 struct cell;
@@ -35,13 +35,13 @@ struct cell;
  * @brief Data structure for a patch of mesh covering a cell
  */
 struct pm_mesh_patch {
-  
+
   /*! Size of the full mesh */
   int N;
 
   /*! Inverse of the mesh cell size */
   double fac;
-  
+
   /*! Minimum of coordinate range into which particles should be wrapped */
   double wrap_min[3];
 
@@ -61,15 +61,17 @@ struct pm_mesh_patch {
   double *mesh;
 };
 
-void pm_mesh_patch_init(struct pm_mesh_patch *patch, const struct cell *cell, 
+void pm_mesh_patch_init(struct pm_mesh_patch *patch, const struct cell *cell,
                         const int N, const double fac, const double dim[3],
                         const int boundary_size);
 
 void pm_mesh_patch_zero(struct pm_mesh_patch *patch);
 
-void pm_mesh_patch_set_values_from_hashmap(struct pm_mesh_patch *patch, hashmap_t *map);
+void pm_mesh_patch_set_values_from_hashmap(struct pm_mesh_patch *patch,
+                                           hashmap_t *map);
 
-void pm_mesh_patch_add_values_to_hashmap(struct pm_mesh_patch *patch, hashmap_t *map);
+void pm_mesh_patch_add_values_to_hashmap(struct pm_mesh_patch *patch,
+                                         hashmap_t *map);
 
 void pm_mesh_patch_clean(struct pm_mesh_patch *patch);
 
@@ -84,17 +86,20 @@ void pm_mesh_patch_clean(struct pm_mesh_patch *patch);
  *
  */
 __attribute__((always_inline)) INLINE static int pm_mesh_patch_index(
-      const struct pm_mesh_patch *patch, const int i, const int j, const int k) {
+    const struct pm_mesh_patch *patch, const int i, const int j, const int k) {
 
   /* #ifdef SWIFT_DEBUG_CHECKS */
-  if(i < 0 || i >= patch->mesh_size[0])error("Coordinate in local mesh out of range!");
-  if(j < 0 || j >= patch->mesh_size[1])error("Coordinate in local mesh out of range!");
-  if(k < 0 || k >= patch->mesh_size[2])error("Coordinate in local mesh out of range!");
+  if (i < 0 || i >= patch->mesh_size[0])
+    error("Coordinate in local mesh out of range!");
+  if (j < 0 || j >= patch->mesh_size[1])
+    error("Coordinate in local mesh out of range!");
+  if (k < 0 || k >= patch->mesh_size[2])
+    error("Coordinate in local mesh out of range!");
   /* #endif */
 
-  return (i*patch->mesh_size[1]*patch->mesh_size[2]) + (j*patch->mesh_size[2]) + k;
+  return (i * patch->mesh_size[1] * patch->mesh_size[2]) +
+         (j * patch->mesh_size[2]) + k;
 }
-
 
 /**
  * @brief Cloud in cell evaluation of the mesh patch
@@ -116,17 +121,24 @@ __attribute__((always_inline)) INLINE static double pm_mesh_patch_CIC_get(
     const double tx, const double ty, const double tz, const double dx,
     const double dy, const double dz) {
   double temp;
-  temp  = patch->mesh[pm_mesh_patch_index(patch, i + 0, j + 0, k + 0)] * tx * ty * tz;
-  temp += patch->mesh[pm_mesh_patch_index(patch, i + 0, j + 0, k + 1)] * tx * ty * dz;
-  temp += patch->mesh[pm_mesh_patch_index(patch, i + 0, j + 1, k + 0)] * tx * dy * tz;
-  temp += patch->mesh[pm_mesh_patch_index(patch, i + 0, j + 1, k + 1)] * tx * dy * dz;
-  temp += patch->mesh[pm_mesh_patch_index(patch, i + 1, j + 0, k + 0)] * dx * ty * tz;
-  temp += patch->mesh[pm_mesh_patch_index(patch, i + 1, j + 0, k + 1)] * dx * ty * dz;
-  temp += patch->mesh[pm_mesh_patch_index(patch, i + 1, j + 1, k + 0)] * dx * dy * tz;
-  temp += patch->mesh[pm_mesh_patch_index(patch, i + 1, j + 1, k + 1)] * dx * dy * dz;
+  temp = patch->mesh[pm_mesh_patch_index(patch, i + 0, j + 0, k + 0)] * tx *
+         ty * tz;
+  temp += patch->mesh[pm_mesh_patch_index(patch, i + 0, j + 0, k + 1)] * tx *
+          ty * dz;
+  temp += patch->mesh[pm_mesh_patch_index(patch, i + 0, j + 1, k + 0)] * tx *
+          dy * tz;
+  temp += patch->mesh[pm_mesh_patch_index(patch, i + 0, j + 1, k + 1)] * tx *
+          dy * dz;
+  temp += patch->mesh[pm_mesh_patch_index(patch, i + 1, j + 0, k + 0)] * dx *
+          ty * tz;
+  temp += patch->mesh[pm_mesh_patch_index(patch, i + 1, j + 0, k + 1)] * dx *
+          ty * dz;
+  temp += patch->mesh[pm_mesh_patch_index(patch, i + 1, j + 1, k + 0)] * dx *
+          dy * tz;
+  temp += patch->mesh[pm_mesh_patch_index(patch, i + 1, j + 1, k + 1)] * dx *
+          dy * dz;
   return temp;
 }
-
 
 /**
  * @brief Cloud in cell assignment to the mesh patch
@@ -148,14 +160,22 @@ __attribute__((always_inline)) INLINE static void pm_mesh_patch_CIC_set(
     const double tx, const double ty, const double tz, const double dx,
     const double dy, const double dz, const double value) {
 
-  patch->mesh[pm_mesh_patch_index(patch, i + 0, j + 0, k + 0)] += value * tx * ty * tz;
-  patch->mesh[pm_mesh_patch_index(patch, i + 0, j + 0, k + 1)] += value * tx * ty * dz;
-  patch->mesh[pm_mesh_patch_index(patch, i + 0, j + 1, k + 0)] += value * tx * dy * tz;
-  patch->mesh[pm_mesh_patch_index(patch, i + 0, j + 1, k + 1)] += value * tx * dy * dz;
-  patch->mesh[pm_mesh_patch_index(patch, i + 1, j + 0, k + 0)] += value * dx * ty * tz;
-  patch->mesh[pm_mesh_patch_index(patch, i + 1, j + 0, k + 1)] += value * dx * ty * dz;
-  patch->mesh[pm_mesh_patch_index(patch, i + 1, j + 1, k + 0)] += value * dx * dy * tz;
-  patch->mesh[pm_mesh_patch_index(patch, i + 1, j + 1, k + 1)] += value * dx * dy * dz;  
+  patch->mesh[pm_mesh_patch_index(patch, i + 0, j + 0, k + 0)] +=
+      value * tx * ty * tz;
+  patch->mesh[pm_mesh_patch_index(patch, i + 0, j + 0, k + 1)] +=
+      value * tx * ty * dz;
+  patch->mesh[pm_mesh_patch_index(patch, i + 0, j + 1, k + 0)] +=
+      value * tx * dy * tz;
+  patch->mesh[pm_mesh_patch_index(patch, i + 0, j + 1, k + 1)] +=
+      value * tx * dy * dz;
+  patch->mesh[pm_mesh_patch_index(patch, i + 1, j + 0, k + 0)] +=
+      value * dx * ty * tz;
+  patch->mesh[pm_mesh_patch_index(patch, i + 1, j + 0, k + 1)] +=
+      value * dx * ty * dz;
+  patch->mesh[pm_mesh_patch_index(patch, i + 1, j + 1, k + 0)] +=
+      value * dx * dy * tz;
+  patch->mesh[pm_mesh_patch_index(patch, i + 1, j + 1, k + 1)] +=
+      value * dx * dy * dz;
 }
 
 #endif

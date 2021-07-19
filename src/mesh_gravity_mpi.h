@@ -34,20 +34,20 @@ struct engine;
 struct cell;
 struct pm_mesh;
 
-void mpi_mesh_accumulate_gparts_to_hashmap(struct threadpool* tp,
-                                           const int N, const double fac,
-                                           const struct space *s, hashmap_t *map);
+void mpi_mesh_accumulate_gparts_to_hashmap(struct threadpool *tp, const int N,
+                                           const double fac,
+                                           const struct space *s,
+                                           hashmap_t *map);
 
 void mpi_mesh_hashmaps_to_slices(const int N, const int Nslice, hashmap_t *map,
                                  double *mesh);
 
 void mpi_mesh_fetch_potential(const int N, const double fac,
-                              const struct space *s,
-                              int local_0_start, int local_n0,
-                              double *potential_slice,
+                              const struct space *s, int local_0_start,
+                              int local_n0, double *potential_slice,
                               hashmap_t *potential_map);
 
-void mpi_mesh_update_gparts(struct pm_mesh* mesh, const struct space* s,
-			    struct threadpool* tp, const int N, 
-			    const double cell_fac);
+void mpi_mesh_update_gparts(struct pm_mesh *mesh, const struct space *s,
+                            struct threadpool *tp, const int N,
+                            const double cell_fac);
 #endif
