@@ -200,7 +200,9 @@ void mpi_mesh_accumulate_gparts_to_hashmap(struct threadpool* tp,
   threadpool_map(tp, accumulate_cell_to_hashmap_mapper, (void*)local_cells,
                  nr_local_cells, sizeof(int), threadpool_auto_chunk_size,
                  (void*)&data);
-  lock_destroy(&lock);
+  if (lock_destroy(&lock) != 0)
+    error("Impossible to destory lock!");
+  
   return;
 #else
   error("FFTW MPI not found - unable to use distributed mesh");
