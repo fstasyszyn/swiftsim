@@ -23,6 +23,7 @@
 #include "../config.h"
 
 /* Local headers */
+#include "hashmap.h"
 #include "gravity_properties.h"
 #include "timeline.h"
 
@@ -83,8 +84,8 @@ struct pm_mesh {
   /*! Full N*N*N potential field */
   double *potential_global;
 
-  /* TODO */
-  void *potential_local;
+  /*! Local part of the potential field (only used if distributed_mesh=1) */
+  hashmap_t *potential_local;
 };
 
 void pm_mesh_init(struct pm_mesh *mesh, const struct gravity_props *props,

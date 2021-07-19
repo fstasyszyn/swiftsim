@@ -983,11 +983,9 @@ void pm_mesh_allocate(struct pm_mesh* mesh) {
 
   if(mesh->distributed_mesh) {
 
-    error("todo");
-    
-    //if (mesh->potential_local != NULL) error("Mesh already allocated!");
-    //mesh->potential_local = malloc(sizeof(hashmap_t));
-    //hashmap_init(mesh->potential_local);
+    if (mesh->potential_local != NULL) error("Mesh already allocated!");
+    mesh->potential_local = malloc(sizeof(hashmap_t));
+    hashmap_init(mesh->potential_local);
   } else {
     const int N = mesh->N;
 
@@ -1014,11 +1012,9 @@ void pm_mesh_free(struct pm_mesh* mesh) {
 
   if(mesh->distributed_mesh && mesh->potential_local) {
 
-    error("todo");
-    
-    //hashmap_free(mesh->potential_local);
-    //free(mesh->potential_local);
-    //mesh->potential_local = NULL;
+    hashmap_free(mesh->potential_local);
+    free(mesh->potential_local);
+    mesh->potential_local = NULL;
   }
   if(!mesh->distributed_mesh && mesh->potential_global) {
     memuse_log_allocation("fftw_mesh.potential", mesh->potential_global, 0, 0);
