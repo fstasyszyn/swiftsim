@@ -55,18 +55,17 @@
  * @param lock A lock used to prevent concurrent access to map
  *
  */
-void accumulate_cell_to_hashmap(const int N, const double fac,
-                                const double *dim, const struct cell *cell,
-                                hashmap_t *map, swift_lock_type *lock) {
+void accumulate_cell_to_local_patch(const int N, const double fac,
+				    const double *dim, const struct cell *cell,
+				    struct pm_mesh_patch *patch) {
 
   /* If the cell is empty, then there's nothing to do
      (and the code to find the extent of the cell would fail) */
   if (cell->grav.count == 0) return;
 
-  /* Allocate the local mesh patch */
-  struct pm_mesh_patch patch;
-  pm_mesh_patch_init(&patch, cell, N, fac, dim, /*boundary_size=*/1);
-  pm_mesh_patch_zero(&patch);
+  /* Initialise the local mesh patch */
+  pm_mesh_patch_init(patch, cell, N, fac, dim, /*boundary_size=*/1);
+  pm_mesh_patch_zero(patch);
 
   /* Loop over particles in this cell */
   for (int ipart = 0; ipart < cell->grav.count; ipart += 1) {
@@ -75,11 +74,11 @@ void accumulate_cell_to_hashmap(const int N, const double fac,
 
     /* Box wrap the particle's position to the copy nearest the cell centre */
     const double pos_x =
-        box_wrap(gp->x[0], patch.wrap_min[0], patch.wrap_max[0]);
+        box_wrap(gp->x[0], patch->wrap_min[0], patch->wrap_max[0]);
     const double pos_y =
-        box_wrap(gp->x[1], patch.wrap_min[1], patch.wrap_max[1]);
+        box_wrap(gp->x[1], patch->wrap_min[1], patch->wrap_max[1]);
     const double pos_z =
-        box_wrap(gp->x[2], patch.wrap_min[2], patch.wrap_max[2]);
+        box_wrap(gp->x[2], patch->wrap_min[2], patch->wrap_max[2]);
 
     /* Workout the CIC coefficients */
     int i = (int)floor(fac * pos_x);
@@ -95,26 +94,14 @@ void accumulate_cell_to_hashmap(const int N, const double fac,
     const double tz = 1. - dz;
 
     /* Get coordinates within the mesh patch */
-    const int ii = i - patch.mesh_min[0];
-    const int jj = j - patch.mesh_min[1];
-    const int kk = k - patch.mesh_min[2];
+    const int ii = i - patch->mesh_min[0];
+    const int jj = j - patch->mesh_min[1];
+    const int kk = k - patch->mesh_min[2];
 
     /* Accumulate contributions to the local mesh patch */
     const double mass = gp->mass;
-    pm_mesh_patch_CIC_set(&patch, ii, jj, kk, tx, ty, tz, dx, dy, dz, mass);
+    pm_mesh_patch_CIC_set(patch, ii, jj, kk, tx, ty, tz, dx, dy, dz, mass);
   }
-
-  /* Add contributions from the local mesh patch to the hashmap.
-   * Need to use a lock here because the hashmap can't be modified
-   * by more than one thread at a time. Keeping the lock while we
-   * do all our updates seems to be a bit faster than unlocking
-   * after each one (in one test case at least) */
-  lock_lock(lock);
-  pm_mesh_patch_add_values_to_hashmap(&patch, map);
-  if (lock_unlock(lock) != 0) error("Unable to unlock mesh");
-
-  /* Done*/
-  pm_mesh_patch_clean(&patch);
 }
 
 /**
@@ -123,11 +110,11 @@ void accumulate_cell_to_hashmap(const int N, const double fac,
  */
 struct accumulate_mapper_data {
   const struct cell *cells;
+  const int *local_cells;
   int N;
   double fac;
   double dim[3];
-  hashmap_t *map;
-  swift_lock_type *lock;
+  struct pm_mesh_patch *local_patches;
 };
 
 /**
@@ -137,7 +124,7 @@ struct accumulate_mapper_data {
  * @param num The number of cells in the chunk.
  * @param extra The information about the mesh and cells.
  */
-void accumulate_cell_to_hashmap_mapper(void *map_data, int num, void *extra) {
+void accumulate_cell_to_local_patches_mapper(void *map_data, int num, void *extra) {
 
   /* Unpack the shared information */
   const struct accumulate_mapper_data *data =
@@ -146,12 +133,13 @@ void accumulate_cell_to_hashmap_mapper(void *map_data, int num, void *extra) {
   const int N = data->N;
   const double fac = data->fac;
   const double dim[3] = {data->dim[0], data->dim[1], data->dim[2]};
-  hashmap_t *map = data->map;
-  swift_lock_type *lock = data->lock;
-
+  
   /* Pointer to the chunk to be processed */
   int *local_cells = (int *)map_data;
 
+  const size_t offset = local_cells - data->local_cells;
+  struct pm_mesh_patch *local_patches = data->local_patches + offset;
+  
   /* Loop over the elements assigned to this thread */
   for (int i = 0; i < num; ++i) {
 
@@ -159,27 +147,27 @@ void accumulate_cell_to_hashmap_mapper(void *map_data, int num, void *extra) {
     const struct cell *c = &cells[local_cells[i]];
 
     /* Assign this cell's content to the mesh */
-    accumulate_cell_to_hashmap(N, fac, dim, c, map, lock);
+    accumulate_cell_to_local_patch(N, fac, dim, c, &local_patches[i]);
   }
 }
 
 /**
  * @brief Accumulate local contributions to the density field
  *
- * Creates a hashmap with the contributions to the density
- * mesh from local particles. Here we require that hash_key_t
- * can store values up to at least N*N*N.
+ * Fill the array of local patches with the data corresponding
+ * to the local top-level cells. 
+ * The patches are stored in the order of the space->local_cells_top list.
  *
  * @param N The size of the mesh
  * @param fac Inverse of the cell size
  * @param s The #space containing the particles.
- * @param map The hashmap in which to store the results
+ * @param local_patches The array of *local* mesh patches.
  *
  */
-void mpi_mesh_accumulate_gparts_to_hashmap(struct threadpool *tp, const int N,
-                                           const double fac,
-                                           const struct space *s,
-                                           hashmap_t *map) {
+void mpi_mesh_accumulate_gparts_to_local_patches(struct threadpool *tp, const int N,
+						 const double fac,
+						 const struct space *s,
+						 struct pm_mesh_patch *local_patches) {
 
 #if defined(WITH_MPI) && defined(HAVE_MPI_FFTW)
   const int *local_cells = s->local_cells_top;
@@ -194,16 +182,12 @@ void mpi_mesh_accumulate_gparts_to_hashmap(struct threadpool *tp, const int N,
   data.dim[0] = dim[0];
   data.dim[1] = dim[1];
   data.dim[2] = dim[2];
-  data.map = map;
-  swift_lock_type lock;
-  lock_init(&lock);
-  data.lock = &lock;
-  threadpool_map(tp, accumulate_cell_to_hashmap_mapper, (void *)local_cells,
+  data.local_patches = local_patches;
+  threadpool_map(tp, accumulate_cell_to_local_patches_mapper, (void *)local_cells,
                  nr_local_cells, sizeof(int), threadpool_auto_chunk_size,
                  (void *)&data);
   if (lock_destroy(&lock) != 0) error("Impossible to destory lock!");
 
-  return;
 #else
   error("FFTW MPI not found - unable to use distributed mesh");
 #endif

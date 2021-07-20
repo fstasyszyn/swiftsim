@@ -38,6 +38,7 @@
 #include "gravity_properties.h"
 #include "kernel_long_gravity.h"
 #include "mesh_gravity_mpi.h"
+#include "mesh_gravity_patch.h"
 #include "part.h"
 #include "restart.h"
 #include "row_major_id.h"
@@ -633,7 +634,8 @@ void compute_potential_distributed(struct pm_mesh* mesh, const struct space* s,
   const double r_s = mesh->r_s;
   const double box_size = s->dim[0];
   const double dim[3] = {s->dim[0], s->dim[1], s->dim[2]};
-
+  const int nr_local_cells = s->nr_local_cells;
+  
   if (r_s <= 0.) error("Invalid value of a_smooth");
   if (mesh->dim[0] != dim[0] || mesh->dim[1] != dim[1] ||
       mesh->dim[2] != dim[2])
@@ -646,10 +648,14 @@ void compute_potential_distributed(struct pm_mesh* mesh, const struct space* s,
   MPI_Barrier(MPI_COMM_WORLD);
   ticks tic = getticks();
 
+  /* Create an array of mesh patches. One per local top-level cell. */
+  struct pm_mesh_patch *local_patches = (struct pm_mesh_patch *)
+    malloc(nr_local_cells * sizeof(struct pm_mesh_patch));
+  if (local_patches == NULL) error("Could not allocate array of local mesh patches!");
+  memset(local_patches, 0, nr_local_cells * sizeof(struct pm_mesh_patch));
+  
   /* Calculate contributions to density field on this MPI rank */
-  hashmap_t rho_map;
-  hashmap_init(&rho_map);
-  mpi_mesh_accumulate_gparts_to_hashmap(tp, N, cell_fac, s, &rho_map);
+  mpi_mesh_accumulate_gparts_to_local_patches(tp, N, cell_fac, s, local_patches);
   if (verbose)
     message("Accumulating mass to hashmap took %.3f %s.",
             clocks_from_ticks(getticks() - tic), clocks_getunit());
@@ -657,18 +663,19 @@ void compute_potential_distributed(struct pm_mesh* mesh, const struct space* s,
   /* Ask FFTW what slice of the density field we need to store on this task.
      Note that fftw_mpi_local_size_3d works in terms of the size of the complex
      output. The last dimension of the real input is padded to 2*(N/2+1). */
-  ptrdiff_t local_n0;
-  ptrdiff_t local_0_start;
+  ptrdiff_t local_n0, local_0_start;
   ptrdiff_t nalloc =
       fftw_mpi_local_size_3d((ptrdiff_t)N, (ptrdiff_t)N, (ptrdiff_t)(N / 2 + 1),
                              MPI_COMM_WORLD, &local_n0, &local_0_start);
   if (verbose)
     message("Local density field slice has thickness %d.", (int)local_n0);
   if (verbose)
-    message("Hashmap size = %d, local cells = %d", (int)hashmap_size(&rho_map),
+    message("local patch size = %d, local mesh cells = %d", nr_local_cells,
             (int)(local_n0 * N * N));
 
-  /* Allocate storage for mesh slices. nalloc is the number of *complex* values.
+  /* Allocate storage for mesh slices. 
+   * 
+   * Note: nalloc is the number of *complex* values.
    */
   double* rho_slice = (double*)fftw_malloc(2 * nalloc * sizeof(double));
   for (int i = 0; i < 2 * nalloc; i += 1) rho_slice[i] = 0.0;
@@ -680,11 +687,16 @@ void compute_potential_distributed(struct pm_mesh* mesh, const struct space* s,
   tic = getticks();
 
   /* Construct density field slices from contributions stored in hashmaps */
-  mpi_mesh_hashmaps_to_slices(N, (int)local_n0, &rho_map, rho_slice);
+  //mpi_mesh_hashmaps_to_slices(N, (int)local_n0, &rho_map, rho_slice);
   if (verbose)
     message("Assembling mesh slices took %.3f %s.",
             clocks_from_ticks(getticks() - tic), clocks_getunit());
-  hashmap_free(&rho_map);
+
+
+  /* TODO: Deep clean the local patch array */
+  
+  //free(local_patches);
+  //local_patches = NULL;
 
   tic = getticks();
 

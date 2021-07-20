@@ -23,21 +23,19 @@
 /* Config parameters. */
 #include "../config.h"
 
-/* Local includes. */
-#include "hashmap.h"
-
 /* Forward declarations */
 struct space;
-struct gpart;
-struct threadpool;
-struct engine;
 struct cell;
+struct threadpool;
 struct pm_mesh;
+struct pm_mesh_patch;
 
-void mpi_mesh_accumulate_gparts_to_hashmap(struct threadpool *tp, const int N,
-                                           const double fac,
-                                           const struct space *s,
-                                           hashmap_t *map);
+#include "hashmap.h"
+
+void mpi_mesh_accumulate_gparts_to_local_patches(struct threadpool *tp, const int N,
+						 const double fac,
+						 const struct space *s,
+						 struct pm_mesh_patch *local_patches);
 
 void mpi_mesh_hashmaps_to_slices(const int N, const int Nslice, hashmap_t *map,
                                  double *mesh);
