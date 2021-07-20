@@ -197,7 +197,7 @@ void mpi_mesh_accumulate_gparts_to_local_patches(struct threadpool *tp, const in
  * @brief Store contributions to the mesh as (index, mass) pairs
  */
 struct mesh_key_value {
-  hashmap_key_t key;
+  long long key;
   double value;
 };
 
@@ -211,8 +211,8 @@ struct mesh_key_value {
  *
  */
 int cmp_func_mesh_key_value(const void *a, const void *b) {
-  struct mesh_key_value *a_key_value = (struct mesh_key_value *)a;
-  struct mesh_key_value *b_key_value = (struct mesh_key_value *)b;
+  const struct mesh_key_value *a_key_value = (struct mesh_key_value *)a;
+  const struct mesh_key_value *b_key_value = (struct mesh_key_value *)b;
   if (a_key_value->key > b_key_value->key)
     return 1;
   else if (a_key_value->key < b_key_value->key)
@@ -255,27 +255,49 @@ void hashmap_copy_elements_mapper(hashmap_key_t key, hashmap_value_t *value,
  * @param map The hashmap to copy into the array
  * @param array The output array
  * @param n The size of the array
- * @return The number of elements copied into the array
- *
  */
-size_t hashmap_to_sorted_array(hashmap_t *map, struct mesh_key_value *array,
-                               size_t n) {
+void mesh_patches_to_sorted_array(const struct pm_mesh_patch *local_patches,
+				  const int nr_patches, struct mesh_key_value *array,
+				  const size_t size) {
 
-  /* Find how many elements are in the hashmap */
-  size_t num_in_map = hashmap_size(map);
-  if (num_in_map > n) {
-    error("Array is to small to contain hash map elements!");
+  size_t count = 0;
+  for (int p = 0; p < nr_patches; ++p) {
+    const struct pm_mesh_patch * patch = &local_patches[p];
+
+    /* Loop over all cells in the patch */
+    for (int i = 0; i < patch->mesh_size[0]; i++) {
+      for (int j = 0; j < patch->mesh_size[1]; j++) {
+	for (int k = 0; k < patch->mesh_size[2]; k++) {
+
+	  /* Find array index in the mesh patch */
+	  const int local_index = pm_mesh_patch_index(patch, i, j, k);	  
+	  
+	  /* Find index in the full mesh */
+	  const size_t global_index = row_major_id_periodic_size_t_padded(
+									  i + patch->mesh_min[0], j + patch->mesh_min[1],
+									  k + patch->mesh_min[2], patch->N);
+
+	  /* Get the value */
+	  const double value = patch->mesh[local_index];
+		  
+
+	  /* Store everything in the flattened array using
+	   * the global index as a key */
+	  array[count].value = value;
+	  array[count].key = global_index;
+
+	  ++count;
+	}
+      }
+    }
   }
 
-  /* Copy the key-value pairs to the new array */
-  struct hashmap_mapper_data mapper_data = {(size_t)0, array};
-  hashmap_iterate(map, hashmap_copy_elements_mapper, &mapper_data);
+  /* quick check... */
+  if (count != size) error("Error flattening the mesh patches!");
 
   /* And sort the pairs by key */
-  qsort(array, num_in_map, sizeof(struct mesh_key_value),
+  qsort(array, size, sizeof(struct mesh_key_value),
         cmp_func_mesh_key_value);
-
-  return num_in_map;
 }
 
 /**
@@ -378,20 +400,20 @@ void exchange_structs(size_t *nr_send, char *sendbuf, size_t *nr_recv,
 }
 
 /**
- * @brief Convert hashmaps to a slab-distributed 3D mesh
+ * @brief Convert the array of local patches to a slab-distributed 3D mesh
  *
  * For FFTW each rank needs to hold a slice of the full mesh.
  * This routine does the necessary communication to convert
- * the per-rank hashmaps into a slab-distributed mesh.
+ * the per-rank local patches into a slab-distributed mesh.
  *
  * @param N The size of the mesh
  * @param local_n0 The thickness of the slice to store on this rank
- * @param map The hashmap with the local part of the mesh
- * @param mesh Pointer to the output data buffer
- *
+ * @param local_patches The array of local patches.
+ * @param nr_patches The number of local patches.
+ * @param mesh Pointer to the output data buffer.
  */
-void mpi_mesh_hashmaps_to_slices(const int N, const int local_n0,
-                                 hashmap_t *map, double *mesh) {
+void mpi_mesh_local_patches_to_slices(const int N, const int local_n0, const struct pm_mesh_patch *local_patches,
+				      const int nr_patches, double *mesh) {
 
 #if defined(WITH_MPI) && defined(HAVE_MPI_FFTW)
 
@@ -400,54 +422,63 @@ void mpi_mesh_hashmaps_to_slices(const int N, const int local_n0,
   MPI_Comm_size(MPI_COMM_WORLD, &nr_nodes);
   MPI_Comm_rank(MPI_COMM_WORLD, &nodeID);
 
-  /* Make an array with the (key, value) pairs from the hashmap.
+  /* Count the total number of mesh cells we have. 
+   *
+   * Note: There might be duplicates. We don't care at this point. */
+  size_t count = 0;
+  for (int i = 0; i < nr_patches; ++i) {
+    const struct pm_mesh_patch * p = &local_patches[i];
+    count += p->mesh_size[0] * p->mesh_size[1] * p->mesh_size[2];
+  }
+
+  /* Create an array to contain all the individual mesh cells we have
+   * on this node. */
+  struct mesh_key_value *mesh_sendbuf;
+  if (swift_memalign("mesh_sendbuf", (void **)&mesh_sendbuf, SWIFT_CACHE_ALIGNMENT,
+                     count * sizeof(struct mesh_key_value)) != 0)
+    error("Failed to allocate array for mesh send buffer!");
+
+  /* Make an array with the (key, value) pairs from the mesh patches.
    * The elements are sorted by key, which means they're sorted
    * by x coordinate, then y coordinate, then z coordinate.
    * We're going to distribute them between ranks according to their
-   * x coordinate, so this puts them in order of destination rank.
-   */
-  size_t map_size = hashmap_size(map);
-  struct mesh_key_value *mesh_sendbuf;
-  if (swift_memalign("mesh_sendbuf", (void **)&mesh_sendbuf, 32,
-                     map_size * sizeof(struct mesh_key_value)) != 0)
-    error("Failed to allocate array for mesh send buffer!");
-  size_t nr_send_tot = hashmap_to_sorted_array(map, mesh_sendbuf, map_size);
+   * x coordinate, so this puts them in order of destination rank. */
+  mesh_patches_to_sorted_array(local_patches, nr_patches, mesh_sendbuf, count);
 
   /* Get width of the slice on each rank */
-  int *slice_width = malloc(sizeof(int) * nr_nodes);
+  int *slice_width = (int*) malloc(sizeof(int) * nr_nodes);
   MPI_Allgather(&local_n0, 1, MPI_INT, slice_width, 1, MPI_INT, MPI_COMM_WORLD);
 
   /* Determine offset to the slice on each rank */
-  int *slice_offset = malloc(sizeof(int) * nr_nodes);
+  int *slice_offset = (int*) malloc(sizeof(int) * nr_nodes);
   slice_offset[0] = 0;
-  for (int i = 1; i < nr_nodes; i += 1) {
+  for (int i = 1; i < nr_nodes; i++) {
     slice_offset[i] = slice_offset[i - 1] + slice_width[i - 1];
   }
 
   /* Compute how many elements are to be sent to each rank */
   size_t *nr_send = malloc(nr_nodes * sizeof(size_t));
-  for (int i = 0; i < nr_nodes; i += 1) {
-    nr_send[i] = 0;
-  }
+  memset(nr_send, 0, nr_nodes * sizeof(size_t));
+  
   int dest_node = 0;
-  for (size_t i = 0; i < nr_send_tot; i += 1) {
+  for (size_t i = 0; i < count; i++) {
     /* Get the x coordinate of this mesh cell in the global mesh */
-    int mesh_x =
+    const int mesh_x =
         get_xcoord_from_padded_row_major_id((size_t)mesh_sendbuf[i].key, N);
     /* Advance to the destination node that is to contain this x coordinate */
     while ((mesh_x >= slice_offset[dest_node] + slice_width[dest_node]) ||
            (slice_width[dest_node] == 0)) {
-      dest_node += 1;
+      dest_node++;
     }
-    nr_send[dest_node] += 1;
+    nr_send[dest_node]++;
   }
 
   /* Determine how many requests we'll receive from each MPI rank */
-  size_t *nr_recv = malloc(sizeof(size_t) * nr_nodes);
+  size_t *nr_recv = (size_t*) malloc(sizeof(size_t) * nr_nodes);
   MPI_Alltoall(nr_send, sizeof(size_t), MPI_BYTE, nr_recv, sizeof(size_t),
                MPI_BYTE, MPI_COMM_WORLD);
   size_t nr_recv_tot = 0;
-  for (int i = 0; i < nr_nodes; i += 1) {
+  for (int i = 0; i < nr_nodes; i++) {
     nr_recv_tot += nr_recv[i];
   }
 
@@ -461,9 +492,12 @@ void mpi_mesh_hashmaps_to_slices(const int N, const int local_n0,
   exchange_structs(nr_send, (char *)mesh_sendbuf, nr_recv, (char *)mesh_recvbuf,
                    sizeof(struct mesh_key_value));
 
-  /* Copy received data to the output buffer */
-  for (size_t i = 0; i < nr_recv_tot; i += 1) {
+  /* Copy received data to the output buffer.
+   * This is now a local slice of the global mesh. */
+  for (size_t i = 0; i < nr_recv_tot; i++) {
+
 #ifdef SWIFT_DEBUG_CHECKS
+    /* Verify that we indeed got a cell that should be in the local mesh slice */
     const int xcoord =
         get_xcoord_from_padded_row_major_id(mesh_recvbuf[i].key, N);
     if (xcoord < slice_offset[nodeID])
@@ -471,9 +505,13 @@ void mpi_mesh_hashmaps_to_slices(const int N, const int local_n0,
     if (xcoord >= slice_offset[nodeID] + slice_width[nodeID])
       error("Received mesh cell is not in the local slice (xcoord too large)");
 #endif
-    mesh[get_index_in_local_slice((size_t)mesh_recvbuf[i].key, N,
-                                  slice_offset[nodeID])] +=
-        mesh_recvbuf[i].value;
+
+    /* What cell are we looking at? */
+    const size_t local_index =
+      get_index_in_local_slice((size_t)mesh_recvbuf[i].key, N, slice_offset[nodeID]);
+
+    /* Add to the cell*/
+    mesh[local_index] += mesh_recvbuf[i].value;
   }
 
   /* Tidy up */
@@ -569,14 +607,14 @@ void mpi_mesh_fetch_potential(const int N, const double fac,
     }
   }
 
-  /* Make an array with the cell IDs we need to request from other ranks */
+  /* /\* Make an array with the cell IDs we need to request from other ranks *\/ */
   size_t nr_send_tot = hashmap_size(&map);
   struct mesh_key_value *send_cells;
-  if (swift_memalign("send_cells", (void **)&send_cells, 32,
-                     nr_send_tot * sizeof(struct mesh_key_value)) != 0)
-    error("Failed to allocate array for cells to request!");
-  nr_send_tot = hashmap_to_sorted_array(&map, send_cells, nr_send_tot);
-  hashmap_free(&map);
+  /* if (swift_memalign("send_cells", (void **)&send_cells, 32, */
+  /*                    nr_send_tot * sizeof(struct mesh_key_value)) != 0) */
+  /*   error("Failed to allocate array for cells to request!"); */
+  /* nr_send_tot = hashmap_to_sorted_array(&map, send_cells, nr_send_tot); */
+  /* hashmap_free(&map); */
 
   /* Get width of the mesh slice on each rank */
   int *slice_width = malloc(sizeof(int) * nr_nodes);

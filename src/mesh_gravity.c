@@ -660,6 +660,8 @@ void compute_potential_distributed(struct pm_mesh* mesh, const struct space* s,
     message("Accumulating mass to hashmap took %.3f %s.",
             clocks_from_ticks(getticks() - tic), clocks_getunit());
 
+  tic = getticks();
+  
   /* Ask FFTW what slice of the density field we need to store on this task.
      Note that fftw_mpi_local_size_3d works in terms of the size of the complex
      output. The last dimension of the real input is padded to 2*(N/2+1). */
@@ -672,6 +674,10 @@ void compute_potential_distributed(struct pm_mesh* mesh, const struct space* s,
   if (verbose)
     message("local patch size = %d, local mesh cells = %d", nr_local_cells,
             (int)(local_n0 * N * N));
+  if (verbose)
+    message("Planning the FFT took %.3f %s.",
+            clocks_from_ticks(getticks() - tic), clocks_getunit());
+
 
   /* Allocate storage for mesh slices. 
    * 
@@ -687,16 +693,16 @@ void compute_potential_distributed(struct pm_mesh* mesh, const struct space* s,
   tic = getticks();
 
   /* Construct density field slices from contributions stored in hashmaps */
-  //mpi_mesh_hashmaps_to_slices(N, (int)local_n0, &rho_map, rho_slice);
+  mpi_mesh_local_patches_to_slices(N, (int)local_n0, local_patches, nr_local_cells,
+				   rho_slice);
   if (verbose)
     message("Assembling mesh slices took %.3f %s.",
             clocks_from_ticks(getticks() - tic), clocks_getunit());
 
-
-  /* TODO: Deep clean the local patch array */
-  
-  //free(local_patches);
-  //local_patches = NULL;
+  /* Clean the local patch array */
+  for (int i = 0; i < nr_local_cells; ++i) pm_mesh_patch_clean(&local_patches[i]);
+  free(local_patches);
+  local_patches = NULL;
 
   tic = getticks();
 
