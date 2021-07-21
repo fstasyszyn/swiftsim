@@ -749,10 +749,9 @@ void compute_potential_distributed(struct pm_mesh* mesh, const struct space* s,
     message("MPI reverse Fourier transform took %.3f %s.",
             clocks_from_ticks(getticks() - tic), clocks_getunit());
 
-  /* Clear the potential hashmap */
-  hashmap_free(mesh->potential_local);
-  hashmap_init(mesh->potential_local);
-
+  /* We can now free the Fourier-space data */
+  fftw_free(frho_slice);
+  
   tic = getticks();
 
   /* Fetch MPI mesh entries we need on this rank from other ranks */
@@ -763,9 +762,8 @@ void compute_potential_distributed(struct pm_mesh* mesh, const struct space* s,
     message("Fetching local potential took %.3f %s.",
             clocks_from_ticks(getticks() - tic), clocks_getunit());
 
-  /* Discard per-task mesh slices */
+  /* Free the local slice of the potential */
   fftw_free(rho_slice);
-  fftw_free(frho_slice);
 
   tic = getticks();
 

@@ -221,41 +221,6 @@ int cmp_func_mesh_key_value(const void *a, const void *b) {
     return 0;
 }
 
-/**
- * @brief Data needed to iterate over a hashmap copying key-value pairs
- */
-struct hashmap_mapper_data {
-  size_t offset;
-  struct mesh_key_value *buf;
-};
-
-/**
- * @brief Mapper function to copy elements from the hashmap
- *
- * @param key The key associated with this hashmap entry
- * @param value The value associated with this hashmap entry
- * @param data Contains pointer to output buffer and offset to
- * next element to write
- *
- */
-void hashmap_copy_elements_mapper(hashmap_key_t key, hashmap_value_t *value,
-                                  void *data) {
-
-  struct hashmap_mapper_data *mapper_data = (struct hashmap_mapper_data *)data;
-  struct mesh_key_value *element = &(mapper_data->buf[mapper_data->offset]);
-  element->key = key;
-  element->value = value->value_dbl;
-  mapper_data->offset += 1;
-}
-
-/**
- * @brief Copy keys and values from a hashmap into an array of struct
- * mesh_key_value, with the elements sorted by key
- *
- * @param map The hashmap to copy into the array
- * @param array The output array
- * @param n The size of the array
- */
 void mesh_patches_to_sorted_array(const struct pm_mesh_patch *local_patches,
 				  const int nr_patches, struct mesh_key_value *array,
 				  const size_t size) {
