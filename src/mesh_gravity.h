@@ -82,9 +82,6 @@ struct pm_mesh {
 
   /*! Full N*N*N potential field */
   double *potential_global;
-
-  /*! Local part of the potential field (only used if distributed_mesh=1) */
-  void *potential_local;
 };
 
 void pm_mesh_init(struct pm_mesh *mesh, const struct gravity_props *props,

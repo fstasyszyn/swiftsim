@@ -755,8 +755,8 @@ void compute_potential_distributed(struct pm_mesh* mesh, const struct space* s,
   tic = getticks();
 
   /* Fetch MPI mesh entries we need on this rank from other ranks */
-  mpi_mesh_fetch_potential(N, cell_fac, s, local_0_start, local_n0, rho_slice,
-                           mesh->potential_local);
+  /* mpi_mesh_fetch_potential(N, cell_fac, s, local_0_start, local_n0, rho_slice, */
+  /*                          mesh->potential_local); */
 
   if (verbose)
     message("Fetching local potential took %.3f %s.",
@@ -1010,9 +1010,6 @@ void pm_mesh_allocate(struct pm_mesh* mesh) {
 
   if (mesh->distributed_mesh) {
 
-    if (mesh->potential_local != NULL) error("Mesh already allocated!");
-    mesh->potential_local = malloc(sizeof(hashmap_t));
-    hashmap_init(mesh->potential_local);
   } else {
     const int N = mesh->N;
 
@@ -1037,12 +1034,6 @@ void pm_mesh_free(struct pm_mesh* mesh) {
 
 #ifdef HAVE_FFTW
 
-  if (mesh->distributed_mesh && mesh->potential_local) {
-
-    hashmap_free(mesh->potential_local);
-    free(mesh->potential_local);
-    mesh->potential_local = NULL;
-  }
   if (!mesh->distributed_mesh && mesh->potential_global) {
     memuse_log_allocation("fftw_mesh.potential", mesh->potential_global, 0, 0);
     free(mesh->potential_global);
@@ -1106,7 +1097,6 @@ void pm_mesh_init(struct pm_mesh* mesh, const struct gravity_props* props,
   mesh->r_s_inv = 1. / mesh->r_s;
   mesh->r_cut_max = mesh->r_s * props->r_cut_max_ratio;
   mesh->r_cut_min = mesh->r_s * props->r_cut_min_ratio;
-  mesh->potential_local = NULL;
   mesh->potential_global = NULL;
   mesh->ti_beg_mesh_last = -1;
   mesh->ti_end_mesh_last = -1;
@@ -1202,8 +1192,6 @@ void pm_mesh_struct_restore(struct pm_mesh* mesh, FILE* stream) {
     const int N = mesh->N;
 
     initialise_fftw(N, mesh->nr_threads);
-
-    mesh->potential_local = NULL;
     pm_mesh_allocate(mesh);
 
 #else

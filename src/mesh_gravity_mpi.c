@@ -208,7 +208,6 @@ struct mesh_key_value {
  * @param b The second #mesh_key_value object.
  * @return 1 if a's key field is greater than b's key field,
  * -1 if a's key field is less than b's key field, and zero otherwise
- *
  */
 int cmp_func_mesh_key_value(const void *a, const void *b) {
   const struct mesh_key_value *a_key_value = (struct mesh_key_value *)a;
@@ -900,7 +899,7 @@ void mpi_mesh_update_gparts(struct pm_mesh *mesh, const struct space *s,
   /* Gather the mesh shared information to be used by the threads */
   struct distributed_cic_mapper_data data;
   data.cells = s->cells_top;
-  data.potential = mesh->potential_local;
+  data.potential = NULL;
   data.N = N;
   data.fac = cell_fac;
   data.dim[0] = s->dim[0];
