@@ -94,7 +94,8 @@ void pm_mesh_patch_init(struct pm_mesh_patch *patch, const struct cell *cell,
  */
 void pm_mesh_patch_zero(struct pm_mesh_patch *patch) {
 
-  const int num = patch->mesh_size[0] * patch->mesh_size[1] * patch->mesh_size[2];
+  const int num =
+      patch->mesh_size[0] * patch->mesh_size[1] * patch->mesh_size[2];
   for (int i = 0; i < num; i += 1) patch->mesh[i] = 0.0;
 }
 

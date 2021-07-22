@@ -635,7 +635,7 @@ void compute_potential_distributed(struct pm_mesh* mesh, const struct space* s,
   const double box_size = s->dim[0];
   const double dim[3] = {s->dim[0], s->dim[1], s->dim[2]};
   const int nr_local_cells = s->nr_local_cells;
-  
+
   if (r_s <= 0.) error("Invalid value of a_smooth");
   if (mesh->dim[0] != dim[0] || mesh->dim[1] != dim[1] ||
       mesh->dim[2] != dim[2])
@@ -649,19 +649,21 @@ void compute_potential_distributed(struct pm_mesh* mesh, const struct space* s,
   ticks tic = getticks();
 
   /* Create an array of mesh patches. One per local top-level cell. */
-  struct pm_mesh_patch *local_patches = (struct pm_mesh_patch *)
-    malloc(nr_local_cells * sizeof(struct pm_mesh_patch));
-  if (local_patches == NULL) error("Could not allocate array of local mesh patches!");
+  struct pm_mesh_patch* local_patches = (struct pm_mesh_patch*)malloc(
+      nr_local_cells * sizeof(struct pm_mesh_patch));
+  if (local_patches == NULL)
+    error("Could not allocate array of local mesh patches!");
   memset(local_patches, 0, nr_local_cells * sizeof(struct pm_mesh_patch));
-  
+
   /* Calculate contributions to density field on this MPI rank */
-  mpi_mesh_accumulate_gparts_to_local_patches(tp, N, cell_fac, s, local_patches);
+  mpi_mesh_accumulate_gparts_to_local_patches(tp, N, cell_fac, s,
+                                              local_patches);
   if (verbose)
     message("Accumulating mass to local patches took %.3f %s.",
             clocks_from_ticks(getticks() - tic), clocks_getunit());
 
   tic = getticks();
-  
+
   /* Ask FFTW what slice of the density field we need to store on this task.
      Note that fftw_mpi_local_size_3d works in terms of the size of the complex
      output. The last dimension of the real input is padded to 2*(N/2+1). */
@@ -678,9 +680,8 @@ void compute_potential_distributed(struct pm_mesh* mesh, const struct space* s,
     message("Planning the FFT took %.3f %s.",
             clocks_from_ticks(getticks() - tic), clocks_getunit());
 
-
-  /* Allocate storage for mesh slices. 
-   * 
+  /* Allocate storage for mesh slices.
+   *
    * Note: nalloc is the number of *complex* values.
    */
   double* rho_slice = (double*)fftw_malloc(2 * nalloc * sizeof(double));
@@ -692,16 +693,18 @@ void compute_potential_distributed(struct pm_mesh* mesh, const struct space* s,
 
   tic = getticks();
 
-  /* Construct density field slices from contributions stored in the local patches */
-  mpi_mesh_local_patches_to_slices(N, (int)local_n0, local_patches, nr_local_cells,
-				   rho_slice);
+  /* Construct density field slices from contributions stored in the local
+   * patches */
+  mpi_mesh_local_patches_to_slices(N, (int)local_n0, local_patches,
+                                   nr_local_cells, rho_slice);
   if (verbose)
     message("Assembling mesh slices took %.3f %s.",
             clocks_from_ticks(getticks() - tic), clocks_getunit());
 
   /* Clean the local patches array
    * We are going to recycle them later to hold the local potential bits */
-  for (int i = 0; i < nr_local_cells; ++i) pm_mesh_patch_clean(&local_patches[i]);
+  for (int i = 0; i < nr_local_cells; ++i)
+    pm_mesh_patch_clean(&local_patches[i]);
 
   tic = getticks();
 
@@ -750,7 +753,7 @@ void compute_potential_distributed(struct pm_mesh* mesh, const struct space* s,
 
   /* We can now free the Fourier-space data */
   fftw_free(frho_slice);
-  
+
   tic = getticks();
 
   /* Fetch MPI mesh entries we need on this rank from other ranks */
@@ -770,9 +773,10 @@ void compute_potential_distributed(struct pm_mesh* mesh, const struct space* s,
   mpi_mesh_update_gparts(local_patches, s, tp, N, cell_fac);
 
   /* Clean the local patches array */
-  for (int i = 0; i < nr_local_cells; ++i) pm_mesh_patch_clean(&local_patches[i]);
+  for (int i = 0; i < nr_local_cells; ++i)
+    pm_mesh_patch_clean(&local_patches[i]);
   free(local_patches);
-  
+
   if (verbose)
     message("Computing mesh accelerations took %.3f %s.",
             clocks_from_ticks(getticks() - tic), clocks_getunit());

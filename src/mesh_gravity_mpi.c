@@ -56,8 +56,8 @@
  *
  */
 void accumulate_cell_to_local_patch(const int N, const double fac,
-				    const double *dim, const struct cell *cell,
-				    struct pm_mesh_patch *patch) {
+                                    const double *dim, const struct cell *cell,
+                                    struct pm_mesh_patch *patch) {
 
   /* If the cell is empty, then there's nothing to do
      (and the code to find the extent of the cell would fail) */
@@ -124,7 +124,8 @@ struct accumulate_mapper_data {
  * @param num The number of cells in the chunk.
  * @param extra The information about the mesh and cells.
  */
-void accumulate_cell_to_local_patches_mapper(void *map_data, int num, void *extra) {
+void accumulate_cell_to_local_patches_mapper(void *map_data, int num,
+                                             void *extra) {
 
   /* Unpack the shared information */
   const struct accumulate_mapper_data *data =
@@ -133,14 +134,14 @@ void accumulate_cell_to_local_patches_mapper(void *map_data, int num, void *extr
   const int N = data->N;
   const double fac = data->fac;
   const double dim[3] = {data->dim[0], data->dim[1], data->dim[2]};
-  
+
   /* Pointer to the chunk to be processed */
   int *local_cells = (int *)map_data;
 
   /* Start at the same position in the list of local patches */
   const size_t offset = local_cells - data->local_cells;
   struct pm_mesh_patch *local_patches = data->local_patches + offset;
-  
+
   /* Loop over the elements assigned to this thread */
   for (int i = 0; i < num; ++i) {
 
@@ -156,7 +157,7 @@ void accumulate_cell_to_local_patches_mapper(void *map_data, int num, void *extr
  * @brief Accumulate local contributions to the density field
  *
  * Fill the array of local patches with the data corresponding
- * to the local top-level cells. 
+ * to the local top-level cells.
  * The patches are stored in the order of the space->local_cells_top list.
  *
  * @param N The size of the mesh
@@ -165,10 +166,9 @@ void accumulate_cell_to_local_patches_mapper(void *map_data, int num, void *extr
  * @param local_patches The array of *local* mesh patches.
  *
  */
-void mpi_mesh_accumulate_gparts_to_local_patches(struct threadpool *tp, const int N,
-						 const double fac,
-						 const struct space *s,
-						 struct pm_mesh_patch *local_patches) {
+void mpi_mesh_accumulate_gparts_to_local_patches(
+    struct threadpool *tp, const int N, const double fac, const struct space *s,
+    struct pm_mesh_patch *local_patches) {
 
 #if defined(WITH_MPI) && defined(HAVE_MPI_FFTW)
   const int *local_cells = s->local_cells_top;
@@ -185,9 +185,9 @@ void mpi_mesh_accumulate_gparts_to_local_patches(struct threadpool *tp, const in
   data.dim[0] = dim[0];
   data.dim[1] = dim[1];
   data.dim[2] = dim[2];
-  threadpool_map(tp, accumulate_cell_to_local_patches_mapper, (void *)local_cells,
-                 nr_local_cells, sizeof(int), threadpool_auto_chunk_size,
-                 (void *)&data);
+  threadpool_map(tp, accumulate_cell_to_local_patches_mapper,
+                 (void *)local_cells, nr_local_cells, sizeof(int),
+                 threadpool_auto_chunk_size, (void *)&data);
   if (lock_destroy(&lock) != 0) error("Impossible to destory lock!");
 
 #else
@@ -228,7 +228,6 @@ struct mesh_key_value_pot {
   double value;
 };
 
-
 /**
  * @brief Comparison function to sort mesh_key_value_pot by key
  *
@@ -268,37 +267,37 @@ int cmp_func_mesh_key_value_pot_index(const void *a, const void *b) {
 }
 
 void mesh_patches_to_sorted_array(const struct pm_mesh_patch *local_patches,
-				  const int nr_patches, struct mesh_key_value_rho *array,
-				  const size_t size) {
+                                  const int nr_patches,
+                                  struct mesh_key_value_rho *array,
+                                  const size_t size) {
 
   size_t count = 0;
   for (int p = 0; p < nr_patches; ++p) {
-    const struct pm_mesh_patch * patch = &local_patches[p];
+    const struct pm_mesh_patch *patch = &local_patches[p];
 
     /* Loop over all cells in the patch */
     for (int i = 0; i < patch->mesh_size[0]; i++) {
       for (int j = 0; j < patch->mesh_size[1]; j++) {
-	for (int k = 0; k < patch->mesh_size[2]; k++) {
+        for (int k = 0; k < patch->mesh_size[2]; k++) {
 
-	  /* Find array index in the mesh patch */
-	  const int local_index = pm_mesh_patch_index(patch, i, j, k);	  
-	  
-	  /* Find index in the full mesh */
-	  const size_t global_index = row_major_id_periodic_size_t_padded(
-									  i + patch->mesh_min[0], j + patch->mesh_min[1],
-									  k + patch->mesh_min[2], patch->N);
+          /* Find array index in the mesh patch */
+          const int local_index = pm_mesh_patch_index(patch, i, j, k);
 
-	  /* Get the value */
-	  const double value = patch->mesh[local_index];
-		  
+          /* Find index in the full mesh */
+          const size_t global_index = row_major_id_periodic_size_t_padded(
+              i + patch->mesh_min[0], j + patch->mesh_min[1],
+              k + patch->mesh_min[2], patch->N);
 
-	  /* Store everything in the flattened array using
-	   * the global index as a key */
-	  array[count].value = value;
-	  array[count].key = global_index;
+          /* Get the value */
+          const double value = patch->mesh[local_index];
 
-	  ++count;
-	}
+          /* Store everything in the flattened array using
+           * the global index as a key */
+          array[count].value = value;
+          array[count].key = global_index;
+
+          ++count;
+        }
       }
     }
   }
@@ -423,8 +422,9 @@ void exchange_structs(size_t *nr_send, char *sendbuf, size_t *nr_recv,
  * @param nr_patches The number of local patches.
  * @param mesh Pointer to the output data buffer.
  */
-void mpi_mesh_local_patches_to_slices(const int N, const int local_n0, const struct pm_mesh_patch *local_patches,
-				      const int nr_patches, double *mesh) {
+void mpi_mesh_local_patches_to_slices(const int N, const int local_n0,
+                                      const struct pm_mesh_patch *local_patches,
+                                      const int nr_patches, double *mesh) {
 
 #if defined(WITH_MPI) && defined(HAVE_MPI_FFTW)
 
@@ -433,19 +433,20 @@ void mpi_mesh_local_patches_to_slices(const int N, const int local_n0, const str
   MPI_Comm_size(MPI_COMM_WORLD, &nr_nodes);
   MPI_Comm_rank(MPI_COMM_WORLD, &nodeID);
 
-  /* Count the total number of mesh cells we have. 
+  /* Count the total number of mesh cells we have.
    *
    * Note: There might be duplicates. We don't care at this point. */
   size_t count = 0;
   for (int i = 0; i < nr_patches; ++i) {
-    const struct pm_mesh_patch * p = &local_patches[i];
+    const struct pm_mesh_patch *p = &local_patches[i];
     count += p->mesh_size[0] * p->mesh_size[1] * p->mesh_size[2];
   }
 
   /* Create an array to contain all the individual mesh cells we have
    * on this node. */
   struct mesh_key_value_rho *mesh_sendbuf;
-  if (swift_memalign("mesh_sendbuf", (void **)&mesh_sendbuf, SWIFT_CACHE_ALIGNMENT,
+  if (swift_memalign("mesh_sendbuf", (void **)&mesh_sendbuf,
+                     SWIFT_CACHE_ALIGNMENT,
                      count * sizeof(struct mesh_key_value_rho)) != 0)
     error("Failed to allocate array for mesh send buffer!");
 
@@ -457,11 +458,11 @@ void mpi_mesh_local_patches_to_slices(const int N, const int local_n0, const str
   mesh_patches_to_sorted_array(local_patches, nr_patches, mesh_sendbuf, count);
 
   /* Get width of the slice on each rank */
-  int *slice_width = (int*) malloc(sizeof(int) * nr_nodes);
+  int *slice_width = (int *)malloc(sizeof(int) * nr_nodes);
   MPI_Allgather(&local_n0, 1, MPI_INT, slice_width, 1, MPI_INT, MPI_COMM_WORLD);
 
   /* Determine offset to the slice on each rank */
-  int *slice_offset = (int*) malloc(sizeof(int) * nr_nodes);
+  int *slice_offset = (int *)malloc(sizeof(int) * nr_nodes);
   slice_offset[0] = 0;
   for (int i = 1; i < nr_nodes; i++) {
     slice_offset[i] = slice_offset[i - 1] + slice_width[i - 1];
@@ -470,7 +471,7 @@ void mpi_mesh_local_patches_to_slices(const int N, const int local_n0, const str
   /* Compute how many elements are to be sent to each rank */
   size_t *nr_send = malloc(nr_nodes * sizeof(size_t));
   memset(nr_send, 0, nr_nodes * sizeof(size_t));
-  
+
   int dest_node = 0;
   for (size_t i = 0; i < count; i++) {
     /* Get the x coordinate of this mesh cell in the global mesh */
@@ -485,7 +486,7 @@ void mpi_mesh_local_patches_to_slices(const int N, const int local_n0, const str
   }
 
   /* Determine how many requests we'll receive from each MPI rank */
-  size_t *nr_recv = (size_t*) malloc(sizeof(size_t) * nr_nodes);
+  size_t *nr_recv = (size_t *)malloc(sizeof(size_t) * nr_nodes);
   MPI_Alltoall(nr_send, sizeof(size_t), MPI_BYTE, nr_recv, sizeof(size_t),
                MPI_BYTE, MPI_COMM_WORLD);
   size_t nr_recv_tot = 0;
@@ -508,7 +509,8 @@ void mpi_mesh_local_patches_to_slices(const int N, const int local_n0, const str
   for (size_t i = 0; i < nr_recv_tot; i++) {
 
 #ifdef SWIFT_DEBUG_CHECKS
-    /* Verify that we indeed got a cell that should be in the local mesh slice */
+    /* Verify that we indeed got a cell that should be in the local mesh slice
+     */
     const int xcoord =
         get_xcoord_from_padded_row_major_id(mesh_recvbuf[i].key, N);
     if (xcoord < slice_offset[nodeID])
@@ -518,8 +520,8 @@ void mpi_mesh_local_patches_to_slices(const int N, const int local_n0, const str
 #endif
 
     /* What cell are we looking at? */
-    const size_t local_index =
-      get_index_in_local_slice((size_t)mesh_recvbuf[i].key, N, slice_offset[nodeID]);
+    const size_t local_index = get_index_in_local_slice(
+        (size_t)mesh_recvbuf[i].key, N, slice_offset[nodeID]);
 
     /* Add to the cell*/
     mesh[local_index] += mesh_recvbuf[i].value;
@@ -538,19 +540,21 @@ void mpi_mesh_local_patches_to_slices(const int N, const int local_n0, const str
 }
 
 /**
- * @brief Count the number of mesh cells we will need to request from other nodes
+ * @brief Count the number of mesh cells we will need to request from other
+ * nodes
  *
  * @param N the mesh size.
  * @param fac Inverse of the FFT mesh cell size
  * @param s The #space containing the particles.
  */
-size_t count_required_mesh_cells(const int N, const double fac, const struct space *s) {
+size_t count_required_mesh_cells(const int N, const double fac,
+                                 const struct space *s) {
 
   const int *local_cells = s->local_cells_top;
   const int nr_local_cells = s->nr_local_cells;
 
   size_t count = 0;
-  
+
   /* Loop over our local top level cells */
   for (int icell = 0; icell < nr_local_cells; icell++) {
 
@@ -558,15 +562,15 @@ size_t count_required_mesh_cells(const int N, const double fac, const struct spa
 
     /* Skip empty cells */
     if (cell->grav.count == 0) continue;
-    
+
     /* Determine range of FFT mesh cells we need for particles in this top
      * level cell. The 5 point stencil used for accelerations requires
      * 2 neighbouring FFT mesh cells in each direction and for CIC
      * evaluation of the accelerations we need one extra FFT mesh cell
      * in the +ve direction.
-     *  
+     *
      * We also have to add a small buffer to avoid problems with rounding
-     *  
+     *
      * TODO: can we calculate exactly how big the rounding error can be?
      * Will just assume that 1% of a mesh cell is enough for now.*/
     int ixmin[3];
@@ -577,29 +581,30 @@ size_t count_required_mesh_cells(const int N, const double fac, const struct spa
       ixmin[idim] = (int)floor(xmin * fac);
       ixmax[idim] = (int)floor(xmax * fac);
     }
-    
+
     const int delta_i = (ixmax[0] - ixmin[0]) + 1;
     const int delta_j = (ixmax[1] - ixmin[1]) + 1;
     const int delta_k = (ixmax[2] - ixmin[2]) + 1;
-    
-    count += delta_i * delta_j * delta_k;      
+
+    count += delta_i * delta_j * delta_k;
   }
   return count;
 }
 
-void init_required_mesh_cells(const int N, const double fac, const struct space *s,
-				struct mesh_key_value_pot *send_cells) {
+void init_required_mesh_cells(const int N, const double fac,
+                              const struct space *s,
+                              struct mesh_key_value_pot *send_cells) {
 
   const int *local_cells = s->local_cells_top;
   const int nr_local_cells = s->nr_local_cells;
 
   size_t count = 0;
-  
+
   /* Loop over our local top level cells */
   for (int icell = 0; icell < nr_local_cells; icell++) {
 
     struct cell *cell = &(s->cells_top[local_cells[icell]]);
-    
+
     if (cell->grav.count > 0) {
 
       /* Determine range of FFT mesh cells we need for particles in this top
@@ -621,7 +626,7 @@ void init_required_mesh_cells(const int N, const double fac, const struct space 
         ixmin[idim] = (int)floor(xmin * fac);
         ixmax[idim] = (int)floor(xmax * fac);
       }
-      
+
       /* Add the required cells to the map */
       for (int i = ixmin[0]; i <= ixmax[0]; i += 1) {
         for (int j = ixmin[1]; j <= ixmax[1]; j += 1) {
@@ -629,11 +634,11 @@ void init_required_mesh_cells(const int N, const double fac, const struct space 
             const size_t index =
                 row_major_id_periodic_size_t_padded(i, j, k, N);
 
-	    send_cells[count].cell_index = icell;
-	    send_cells[count].value = 0.;
-	    send_cells[count].key = index;
-	    
-	    ++count;
+            send_cells[count].cell_index = icell;
+            send_cells[count].value = 0.;
+            send_cells[count].key = index;
+
+            ++count;
           }
         }
       }
@@ -641,28 +646,29 @@ void init_required_mesh_cells(const int N, const double fac, const struct space 
   }
 }
 
-void fill_local_patches_from_mesh_cells(const int N, const double fac, const struct space *s,
-					const struct mesh_key_value_pot *mesh_cells,
-					struct pm_mesh_patch *local_patches) {
+void fill_local_patches_from_mesh_cells(
+    const int N, const double fac, const struct space *s,
+    const struct mesh_key_value_pot *mesh_cells,
+    struct pm_mesh_patch *local_patches) {
 
   const int *local_cells = s->local_cells_top;
   const int nr_local_cells = s->nr_local_cells;
   const double dim[3] = {s->dim[0], s->dim[1], s->dim[2]};
 
   size_t offset = 0;
-  
+
   /* Loop over our local top level cells */
   for (int icell = 0; icell < nr_local_cells; icell++) {
 
     const struct cell *cell = &(s->cells_top[local_cells[icell]]);
     struct pm_mesh_patch *patch = &local_patches[icell];
-    
+
     /* Skip empty cells */
     if (cell->grav.count == 0) continue;
 
     patch->N = N;
     patch->fac = fac;
-    
+
     /* Will need to wrap particles to position nearest the cell centre */
     for (int i = 0; i < 3; i += 1) {
       patch->wrap_min[i] = cell->loc[i] + 0.5 * cell->width[i] - 0.5 * dim[i];
@@ -680,17 +686,17 @@ void fill_local_patches_from_mesh_cells(const int N, const double fac, const str
     }
 
     /* Allocate the mesh */
-    if (swift_memalign("mesh_patch", (void **)&patch->mesh, SWIFT_CACHE_ALIGNMENT,
-		       num_cells * sizeof(double)) != 0)
+    if (swift_memalign("mesh_patch", (void **)&patch->mesh,
+                       SWIFT_CACHE_ALIGNMENT, num_cells * sizeof(double)) != 0)
       error("Failed to allocate array for mesh patch!");
-
 
     /* Now, we can start filling the mesh patch cells from the array of
      * key-index-value tuples */
     for (size_t imesh = offset; imesh < offset + num_cells; ++imesh) {
 
 #ifdef SWIFT_DEBUG_CHECKS
-      if (mesh_cells[imesh].cell_index != icell) error("mesh cell not sorted in the right order");
+      if (mesh_cells[imesh].cell_index != icell)
+        error("mesh cell not sorted in the right order");
 #endif
 
       const size_t key = mesh_cells[imesh].key;
@@ -706,7 +712,7 @@ void fill_local_patches_from_mesh_cells(const int N, const double fac, const str
       if (k < patch->mesh_min[2]) k += N;
 
       const int index = pm_mesh_patch_index(patch, i, j, k);
-      
+
       patch->mesh[index] = pot;
     }
 
@@ -714,7 +720,6 @@ void fill_local_patches_from_mesh_cells(const int N, const double fac, const str
     offset += num_cells;
   }
 }
-
 
 /**
  * @brief Retrieve the potential in the mesh cells we need to
@@ -739,7 +744,7 @@ void fill_local_patches_from_mesh_cells(const int N, const double fac, const str
 void mpi_mesh_fetch_potential(const int N, const double fac,
                               const struct space *s, const int local_0_start,
                               const int local_n0, double *potential_slice,
-			      struct pm_mesh_patch *local_patches) {
+                              struct pm_mesh_patch *local_patches) {
 
 #if defined(WITH_MPI) && defined(HAVE_MPI_FFTW)
 
@@ -750,7 +755,7 @@ void mpi_mesh_fetch_potential(const int N, const double fac,
 
   /* Determine how many mesh cells we will need to request */
   const size_t nr_send_tot = count_required_mesh_cells(N, fac, s);
-  
+
   struct mesh_key_value_pot *send_cells;
   if (swift_memalign("send_cells", (void **)&send_cells, 32,
                      nr_send_tot * sizeof(struct mesh_key_value_pot)) != 0)
@@ -762,20 +767,20 @@ void mpi_mesh_fetch_potential(const int N, const double fac,
   /* And sort the pairs by key */
   qsort(send_cells, nr_send_tot, sizeof(struct mesh_key_value_pot),
         cmp_func_mesh_key_value_pot);
-  
+
   /* Get width of the mesh slice on each rank */
-  int *slice_width = (int*) malloc(sizeof(int) * nr_nodes);
+  int *slice_width = (int *)malloc(sizeof(int) * nr_nodes);
   MPI_Allgather(&local_n0, 1, MPI_INT, slice_width, 1, MPI_INT, MPI_COMM_WORLD);
 
   /* Determine first mesh x coordinate stored on each rank */
-  int *slice_offset = (int*)malloc(sizeof(int) * nr_nodes);
+  int *slice_offset = (int *)malloc(sizeof(int) * nr_nodes);
   slice_offset[0] = 0;
   for (int i = 1; i < nr_nodes; i += 1) {
     slice_offset[i] = slice_offset[i - 1] + slice_width[i - 1];
   }
 
   /* Count how many mesh cells we need to request from each MPI rank */
-  size_t *nr_send = (size_t*) malloc(sizeof(size_t) * nr_nodes);
+  size_t *nr_send = (size_t *)malloc(sizeof(size_t) * nr_nodes);
   memset(nr_send, 0, sizeof(size_t) * nr_nodes);
 
   int dest_rank = 0;
@@ -848,24 +853,21 @@ void mpi_mesh_fetch_potential(const int N, const double fac,
         cmp_func_mesh_key_value_pot_index);
 
   /* Initialise the local patches with the data we just received */
-  fill_local_patches_from_mesh_cells(N, fac, s, send_cells,
-				     local_patches);
+  fill_local_patches_from_mesh_cells(N, fac, s, send_cells, local_patches);
 
-  
-  
   /* Store the results in the hashmap */
-/*   for (size_t i = 0; i < nr_send_tot; i += 1) { */
-/*     int created = 0; */
-/*     hashmap_value_t *value = */
-/*         hashmap_get_new(potential_map, send_cells[i].key, &created); */
-/*     value->value_dbl = send_cells[i].value; */
-/* #ifdef SWIFT_DEBUG_CHECKS */
-/*     if (!created) error("Received duplicate potential hash map value"); */
-/*     const size_t Ns = N; */
-/*     if (send_cells[i].key >= Ns * Ns * (2 * (Ns / 2 + 1))) */
-/*       error("Received potential mesh cell ID out of range"); */
-/* #endif */
-/*   } */
+  /*   for (size_t i = 0; i < nr_send_tot; i += 1) { */
+  /*     int created = 0; */
+  /*     hashmap_value_t *value = */
+  /*         hashmap_get_new(potential_map, send_cells[i].key, &created); */
+  /*     value->value_dbl = send_cells[i].value; */
+  /* #ifdef SWIFT_DEBUG_CHECKS */
+  /*     if (!created) error("Received duplicate potential hash map value"); */
+  /*     const size_t Ns = N; */
+  /*     if (send_cells[i].key >= Ns * Ns * (2 * (Ns / 2 + 1))) */
+  /*       error("Received potential mesh cell ID out of range"); */
+  /* #endif */
+  /*   } */
 
   swift_free("send_cells", send_cells);
 #else
@@ -977,8 +979,9 @@ void mesh_patch_to_gparts_CIC(struct gpart *gp,
  * @param dim Dimensions of the #space
  */
 void cell_distributed_mesh_to_gpart_CIC(const struct cell *c,
-                                        const struct pm_mesh_patch *patch, const int N,
-                                        const double fac, const float const_G,
+                                        const struct pm_mesh_patch *patch,
+                                        const int N, const double fac,
+                                        const float const_G,
                                         const double dim[3]) {
 
 #if defined(WITH_MPI) && defined(HAVE_MPI_FFTW)
@@ -1011,7 +1014,7 @@ void cell_distributed_mesh_to_gpart_CIC(const struct cell *c,
     gp->potential_mesh *= const_G;
 #endif
   }
-  
+
 #else
   error("FFTW MPI not found - unable to use distributed mesh");
 #endif
@@ -1058,7 +1061,7 @@ void cell_distributed_mesh_to_gpart_CIC_mapper(void *map_data, int num,
   /* Start at the same position in the list of local patches */
   const size_t offset = local_cells - data->local_cells;
   const struct pm_mesh_patch *local_patches = data->local_patches + offset;
-  
+
   /* Loop over the elements assigned to this thread */
   for (int i = 0; i < num; ++i) {
 
@@ -1066,7 +1069,8 @@ void cell_distributed_mesh_to_gpart_CIC_mapper(void *map_data, int num,
     const struct cell *c = &cells[local_cells[i]];
 
     /* Update acceleration and potential for gparts in this cell */
-    cell_distributed_mesh_to_gpart_CIC(c, &local_patches[i], N, fac, const_G, dim);
+    cell_distributed_mesh_to_gpart_CIC(c, &local_patches[i], N, fac, const_G,
+                                       dim);
   }
 
 #else
@@ -1074,9 +1078,9 @@ void cell_distributed_mesh_to_gpart_CIC_mapper(void *map_data, int num,
 #endif
 }
 
-void mpi_mesh_update_gparts(struct pm_mesh_patch *local_patches, const struct space *s,
-                            struct threadpool *tp, const int N,
-                            const double cell_fac) {
+void mpi_mesh_update_gparts(struct pm_mesh_patch *local_patches,
+                            const struct space *s, struct threadpool *tp,
+                            const int N, const double cell_fac) {
 
 #if defined(WITH_MPI) && defined(HAVE_MPI_FFTW)
 

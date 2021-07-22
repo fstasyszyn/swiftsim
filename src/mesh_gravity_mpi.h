@@ -30,20 +30,20 @@ struct threadpool;
 struct pm_mesh;
 struct pm_mesh_patch;
 
-void mpi_mesh_accumulate_gparts_to_local_patches(struct threadpool *tp, const int N,
-						 const double fac,
-						 const struct space *s,
-						 struct pm_mesh_patch *local_patches);
+void mpi_mesh_accumulate_gparts_to_local_patches(
+    struct threadpool *tp, const int N, const double fac, const struct space *s,
+    struct pm_mesh_patch *local_patches);
 
-void mpi_mesh_local_patches_to_slices(const int N, const int local_n0, const struct pm_mesh_patch *local_patches,
-				      const int nr_patches, double *mesh);
+void mpi_mesh_local_patches_to_slices(const int N, const int local_n0,
+                                      const struct pm_mesh_patch *local_patches,
+                                      const int nr_patches, double *mesh);
 
 void mpi_mesh_fetch_potential(const int N, const double fac,
                               const struct space *s, int local_0_start,
                               int local_n0, double *potential_slice,
-			      struct pm_mesh_patch *local_patches);
+                              struct pm_mesh_patch *local_patches);
 
-void mpi_mesh_update_gparts(struct pm_mesh_patch *local_patches, const struct space *s,
-                            struct threadpool *tp, const int N,
-                            const double cell_fac);
+void mpi_mesh_update_gparts(struct pm_mesh_patch *local_patches,
+                            const struct space *s, struct threadpool *tp,
+                            const int N, const double cell_fac);
 #endif
