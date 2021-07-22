@@ -657,7 +657,7 @@ void compute_potential_distributed(struct pm_mesh* mesh, const struct space* s,
   /* Calculate contributions to density field on this MPI rank */
   mpi_mesh_accumulate_gparts_to_local_patches(tp, N, cell_fac, s, local_patches);
   if (verbose)
-    message("Accumulating mass to hashmap took %.3f %s.",
+    message("Accumulating mass to local patches took %.3f %s.",
             clocks_from_ticks(getticks() - tic), clocks_getunit());
 
   tic = getticks();
@@ -684,7 +684,7 @@ void compute_potential_distributed(struct pm_mesh* mesh, const struct space* s,
    * Note: nalloc is the number of *complex* values.
    */
   double* rho_slice = (double*)fftw_malloc(2 * nalloc * sizeof(double));
-  for (int i = 0; i < 2 * nalloc; i += 1) rho_slice[i] = 0.0;
+  memset(rho_slice, 0, 2 * nalloc * sizeof(double));
 
   /* Allocate storage for the slices of the FFT of the density mesh */
   fftw_complex* frho_slice =
@@ -692,7 +692,7 @@ void compute_potential_distributed(struct pm_mesh* mesh, const struct space* s,
 
   tic = getticks();
 
-  /* Construct density field slices from contributions stored in hashmaps */
+  /* Construct density field slices from contributions stored in the local patches */
   mpi_mesh_local_patches_to_slices(N, (int)local_n0, local_patches, nr_local_cells,
 				   rho_slice);
   if (verbose)
@@ -755,8 +755,8 @@ void compute_potential_distributed(struct pm_mesh* mesh, const struct space* s,
   tic = getticks();
 
   /* Fetch MPI mesh entries we need on this rank from other ranks */
-  /* mpi_mesh_fetch_potential(N, cell_fac, s, local_0_start, local_n0, rho_slice, */
-  /*                          mesh->potential_local); */
+  mpi_mesh_fetch_potential(N, cell_fac, s, local_0_start, local_n0, rho_slice,
+                           0/*mesh->potential_local*/);
 
   if (verbose)
     message("Fetching local potential took %.3f %s.",
