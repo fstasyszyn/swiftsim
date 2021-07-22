@@ -25,7 +25,6 @@
 
 /* Includes. */
 #include "error.h"
-#include "hashmap.h"
 #include "inline.h"
 
 /* Forward declarations */
@@ -66,12 +65,6 @@ void pm_mesh_patch_init(struct pm_mesh_patch *patch, const struct cell *cell,
                         const int boundary_size);
 
 void pm_mesh_patch_zero(struct pm_mesh_patch *patch);
-
-void pm_mesh_patch_set_values_from_hashmap(struct pm_mesh_patch *patch,
-                                           hashmap_t *map);
-
-void pm_mesh_patch_add_values_to_hashmap(struct pm_mesh_patch *patch,
-                                         hashmap_t *map);
 
 void pm_mesh_patch_clean(struct pm_mesh_patch *patch);
 

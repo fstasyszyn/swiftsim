@@ -699,10 +699,9 @@ void compute_potential_distributed(struct pm_mesh* mesh, const struct space* s,
     message("Assembling mesh slices took %.3f %s.",
             clocks_from_ticks(getticks() - tic), clocks_getunit());
 
-  /* Clean the local patch array */
+  /* Clean the local patches array
+   * We are going to recycle them later to hold the local potential bits */
   for (int i = 0; i < nr_local_cells; ++i) pm_mesh_patch_clean(&local_patches[i]);
-  free(local_patches);
-  local_patches = NULL;
 
   tic = getticks();
 
@@ -756,7 +755,7 @@ void compute_potential_distributed(struct pm_mesh* mesh, const struct space* s,
 
   /* Fetch MPI mesh entries we need on this rank from other ranks */
   mpi_mesh_fetch_potential(N, cell_fac, s, local_0_start, local_n0, rho_slice,
-                           0/*mesh->potential_local*/);
+                           local_patches);
 
   if (verbose)
     message("Fetching local potential took %.3f %s.",
@@ -768,8 +767,12 @@ void compute_potential_distributed(struct pm_mesh* mesh, const struct space* s,
   tic = getticks();
 
   /* Compute accelerations and potentials for the gparts */
-  mpi_mesh_update_gparts(mesh, s, tp, N, cell_fac);
+  mpi_mesh_update_gparts(local_patches, s, tp, N, cell_fac);
 
+  /* Clean the local patches array */
+  for (int i = 0; i < nr_local_cells; ++i) pm_mesh_patch_clean(&local_patches[i]);
+  free(local_patches);
+  
   if (verbose)
     message("Computing mesh accelerations took %.3f %s.",
             clocks_from_ticks(getticks() - tic), clocks_getunit());

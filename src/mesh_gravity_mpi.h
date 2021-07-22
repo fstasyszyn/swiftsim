@@ -30,8 +30,6 @@ struct threadpool;
 struct pm_mesh;
 struct pm_mesh_patch;
 
-#include "hashmap.h"
-
 void mpi_mesh_accumulate_gparts_to_local_patches(struct threadpool *tp, const int N,
 						 const double fac,
 						 const struct space *s,
@@ -43,9 +41,9 @@ void mpi_mesh_local_patches_to_slices(const int N, const int local_n0, const str
 void mpi_mesh_fetch_potential(const int N, const double fac,
                               const struct space *s, int local_0_start,
                               int local_n0, double *potential_slice,
-                              hashmap_t *potential_map);
+			      struct pm_mesh_patch *local_patches);
 
-void mpi_mesh_update_gparts(struct pm_mesh *mesh, const struct space *s,
+void mpi_mesh_update_gparts(struct pm_mesh_patch *local_patches, const struct space *s,
                             struct threadpool *tp, const int N,
                             const double cell_fac);
 #endif

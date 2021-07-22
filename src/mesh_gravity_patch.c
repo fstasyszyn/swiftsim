@@ -28,7 +28,6 @@
 /* Local includes. */
 #include "cell.h"
 #include "error.h"
-#include "hashmap.h"
 #include "row_major_id.h"
 
 /**
@@ -97,78 +96,6 @@ void pm_mesh_patch_zero(struct pm_mesh_patch *patch) {
 
   const int num = patch->mesh_size[0] * patch->mesh_size[1] * patch->mesh_size[2];
   for (int i = 0; i < num; i += 1) patch->mesh[i] = 0.0;
-}
-
-/**
- * @brief Initialize mesh values using a hashmap
- *
- * @param patch Pointer to the pm_mesh_patch
- * @param map Pointer to the hashmap
- */
-void pm_mesh_patch_set_values_from_hashmap(struct pm_mesh_patch *patch,
-                                           hashmap_t *map) {
-
-  /* Loop over all cells in the patch */
-  for (int i = 0; i < patch->mesh_size[0]; i += 1) {
-    for (int j = 0; j < patch->mesh_size[1]; j += 1) {
-      for (int k = 0; k < patch->mesh_size[2]; k += 1) {
-
-        /* Find array index in the mesh patch */
-        const int local_index = pm_mesh_patch_index(patch, i, j, k);
-
-        /* Find index in the full mesh */
-        const size_t global_index = row_major_id_periodic_size_t_padded(
-            i + patch->mesh_min[0], j + patch->mesh_min[1],
-            k + patch->mesh_min[2], patch->N);
-
-        /* Look up the value in the hashmap and store it in the mesh patch */
-        hashmap_value_t *value = hashmap_lookup(map, global_index);
-        if (!value) {
-          /* Possibly mpi_mesh_fetch_potential() didn't import enough cells? */
-          error("Required cell is not present in potential hashmap");
-        } else {
-          patch->mesh[local_index] = value->value_dbl;
-        }
-      }
-    }
-  }
-}
-
-/**
- * @brief Accumulate values from the patch to a hashmap
- *
- * @param patch Pointer to the pm_mesh_patch
- * @param map Pointer to the hashmap
- */
-void pm_mesh_patch_add_values_to_hashmap(struct pm_mesh_patch *patch,
-                                         hashmap_t *map) {
-
-  /* Loop over all cells in the patch */
-  for (int i = 0; i < patch->mesh_size[0]; i += 1) {
-    for (int j = 0; j < patch->mesh_size[1]; j += 1) {
-      for (int k = 0; k < patch->mesh_size[2]; k += 1) {
-
-        /* Find array index in the mesh patch */
-        const int local_index = pm_mesh_patch_index(patch, i, j, k);
-
-        /* Find index in the full mesh */
-        const size_t global_index = row_major_id_periodic_size_t_padded(
-            i + patch->mesh_min[0], j + patch->mesh_min[1],
-            k + patch->mesh_min[2], patch->N);
-
-        /* Increment the hashmap entry, creating it if necessary */
-        int created = 0;
-        hashmap_value_t *value = hashmap_get_new(map, global_index, &created);
-        if (created) {
-          /* Key was not present, so this is a new element */
-          value->value_dbl = patch->mesh[local_index];
-        } else {
-          /* Key was present, so add m_add to previous value */
-          value->value_dbl += patch->mesh[local_index];
-        }
-      }
-    }
-  }
 }
 
 /**

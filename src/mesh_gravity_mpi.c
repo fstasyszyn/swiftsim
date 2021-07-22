@@ -111,10 +111,10 @@ void accumulate_cell_to_local_patch(const int N, const double fac,
 struct accumulate_mapper_data {
   const struct cell *cells;
   const int *local_cells;
+  struct pm_mesh_patch *local_patches;
   int N;
   double fac;
   double dim[3];
-  struct pm_mesh_patch *local_patches;
 };
 
 /**
@@ -137,6 +137,7 @@ void accumulate_cell_to_local_patches_mapper(void *map_data, int num, void *extr
   /* Pointer to the chunk to be processed */
   int *local_cells = (int *)map_data;
 
+  /* Start at the same position in the list of local patches */
   const size_t offset = local_cells - data->local_cells;
   struct pm_mesh_patch *local_patches = data->local_patches + offset;
   
@@ -177,12 +178,13 @@ void mpi_mesh_accumulate_gparts_to_local_patches(struct threadpool *tp, const in
   /* Use the threadpool to parallelize over cells */
   struct accumulate_mapper_data data;
   data.cells = s->cells_top;
+  data.local_cells = local_cells;
+  data.local_patches = local_patches;
   data.N = N;
   data.fac = fac;
   data.dim[0] = dim[0];
   data.dim[1] = dim[1];
   data.dim[2] = dim[2];
-  data.local_patches = local_patches;
   threadpool_map(tp, accumulate_cell_to_local_patches_mapper, (void *)local_cells,
                  nr_local_cells, sizeof(int), threadpool_auto_chunk_size,
                  (void *)&data);
@@ -197,7 +199,7 @@ void mpi_mesh_accumulate_gparts_to_local_patches(struct threadpool *tp, const in
  * @brief Store contributions to the mesh as (index, mass) pairs
  */
 struct mesh_key_value_rho {
-  long long key;
+  size_t key;
   double value;
 };
 
@@ -222,7 +224,7 @@ int cmp_func_mesh_key_value_rho(const void *a, const void *b) {
 
 struct mesh_key_value_pot {
   int cell_index;
-  long long key;
+  size_t key;
   double value;
 };
 
@@ -664,7 +666,7 @@ void init_required_mesh_cells(const int N, const double fac, const struct space 
 void mpi_mesh_fetch_potential(const int N, const double fac,
                               const struct space *s, const int local_0_start,
                               const int local_n0, double *potential_slice,
-                              hashmap_t *potential_map) {
+			      struct pm_mesh_patch *local_patches) {
 
 #if defined(WITH_MPI) && defined(HAVE_MPI_FFTW)
 
@@ -773,18 +775,18 @@ void mpi_mesh_fetch_potential(const int N, const double fac,
         cmp_func_mesh_key_value_pot_index);
   
   /* Store the results in the hashmap */
-  for (size_t i = 0; i < nr_send_tot; i += 1) {
-    int created = 0;
-    hashmap_value_t *value =
-        hashmap_get_new(potential_map, send_cells[i].key, &created);
-    value->value_dbl = send_cells[i].value;
-#ifdef SWIFT_DEBUG_CHECKS
-    if (!created) error("Received duplicate potential hash map value");
-    const size_t Ns = N;
-    if (send_cells[i].key >= Ns * Ns * (2 * (Ns / 2 + 1)))
-      error("Received potential mesh cell ID out of range");
-#endif
-  }
+/*   for (size_t i = 0; i < nr_send_tot; i += 1) { */
+/*     int created = 0; */
+/*     hashmap_value_t *value = */
+/*         hashmap_get_new(potential_map, send_cells[i].key, &created); */
+/*     value->value_dbl = send_cells[i].value; */
+/* #ifdef SWIFT_DEBUG_CHECKS */
+/*     if (!created) error("Received duplicate potential hash map value"); */
+/*     const size_t Ns = N; */
+/*     if (send_cells[i].key >= Ns * Ns * (2 * (Ns / 2 + 1))) */
+/*       error("Received potential mesh cell ID out of range"); */
+/* #endif */
+/*   } */
 
   swift_free("send_cells", send_cells);
 #else
@@ -896,7 +898,7 @@ void mesh_patch_to_gparts_CIC(struct gpart *gp,
  * @param dim Dimensions of the #space
  */
 void cell_distributed_mesh_to_gpart_CIC(const struct cell *c,
-                                        hashmap_t *potential, const int N,
+                                        const struct pm_mesh_patch *patch, const int N,
                                         const double fac, const float const_G,
                                         const double dim[3]) {
 
@@ -907,13 +909,6 @@ void cell_distributed_mesh_to_gpart_CIC(const struct cell *c,
 
   /* Check for empty cell as this would cause problems finding the extent */
   if (gcount == 0) return;
-
-  /* Allocate the local mesh patch */
-  struct pm_mesh_patch patch;
-  pm_mesh_patch_init(&patch, c, N, fac, dim, /*boundary_size=*/2);
-
-  /* Populate the mesh patch with values from the potential hashmap */
-  pm_mesh_patch_set_values_from_hashmap(&patch, potential);
 
   /* Get the potential from the mesh patch to the active gparts using CIC */
   for (int i = 0; i < gcount; ++i) {
@@ -928,7 +923,7 @@ void cell_distributed_mesh_to_gpart_CIC(const struct cell *c,
     gp->potential_mesh = 0.f;
 #endif
 
-    mesh_patch_to_gparts_CIC(gp, &patch);
+    mesh_patch_to_gparts_CIC(gp, patch);
 
     gp->a_grav_mesh[0] *= const_G;
     gp->a_grav_mesh[1] *= const_G;
@@ -937,10 +932,7 @@ void cell_distributed_mesh_to_gpart_CIC(const struct cell *c,
     gp->potential_mesh *= const_G;
 #endif
   }
-
-  /* Discard the temporary mesh patch */
-  pm_mesh_patch_clean(&patch);
-
+  
 #else
   error("FFTW MPI not found - unable to use distributed mesh");
 #endif
@@ -952,7 +944,8 @@ void cell_distributed_mesh_to_gpart_CIC(const struct cell *c,
  */
 struct distributed_cic_mapper_data {
   const struct cell *cells;
-  hashmap_t *potential;
+  const int *local_cells;
+  const struct pm_mesh_patch *local_patches;
   int N;
   double fac;
   double dim[3];
@@ -975,7 +968,6 @@ void cell_distributed_mesh_to_gpart_CIC_mapper(void *map_data, int num,
   const struct distributed_cic_mapper_data *data =
       (struct distributed_cic_mapper_data *)extra;
   const struct cell *cells = data->cells;
-  hashmap_t *potential = data->potential;
   const int N = data->N;
   const double fac = data->fac;
   const double dim[3] = {data->dim[0], data->dim[1], data->dim[2]};
@@ -984,6 +976,10 @@ void cell_distributed_mesh_to_gpart_CIC_mapper(void *map_data, int num,
   /* Pointer to the chunk to be processed */
   int *local_cells = (int *)map_data;
 
+  /* Start at the same position in the list of local patches */
+  const size_t offset = local_cells - data->local_cells;
+  const struct pm_mesh_patch *local_patches = data->local_patches + offset;
+  
   /* Loop over the elements assigned to this thread */
   for (int i = 0; i < num; ++i) {
 
@@ -991,7 +987,7 @@ void cell_distributed_mesh_to_gpart_CIC_mapper(void *map_data, int num,
     const struct cell *c = &cells[local_cells[i]];
 
     /* Update acceleration and potential for gparts in this cell */
-    cell_distributed_mesh_to_gpart_CIC(c, potential, N, fac, const_G, dim);
+    cell_distributed_mesh_to_gpart_CIC(c, &local_patches[i], N, fac, const_G, dim);
   }
 
 #else
@@ -999,7 +995,7 @@ void cell_distributed_mesh_to_gpart_CIC_mapper(void *map_data, int num,
 #endif
 }
 
-void mpi_mesh_update_gparts(struct pm_mesh *mesh, const struct space *s,
+void mpi_mesh_update_gparts(struct pm_mesh_patch *local_patches, const struct space *s,
                             struct threadpool *tp, const int N,
                             const double cell_fac) {
 
@@ -1011,7 +1007,8 @@ void mpi_mesh_update_gparts(struct pm_mesh *mesh, const struct space *s,
   /* Gather the mesh shared information to be used by the threads */
   struct distributed_cic_mapper_data data;
   data.cells = s->cells_top;
-  data.potential = NULL;
+  data.local_cells = local_cells;
+  data.local_patches = local_patches;
   data.N = N;
   data.fac = cell_fac;
   data.dim[0] = s->dim[0];
