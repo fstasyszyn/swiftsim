@@ -555,35 +555,34 @@ size_t count_required_mesh_cells(const int N, const double fac, const struct spa
   for (int icell = 0; icell < nr_local_cells; icell++) {
 
     struct cell *cell = &(s->cells_top[local_cells[icell]]);
+
+    /* Skip empty cells */
+    if (cell->grav.count == 0) continue;
     
-    if (cell->grav.count > 0) {
-
-      /* Determine range of FFT mesh cells we need for particles in this top
-         level cell. The 5 point stencil used for accelerations requires
-         2 neighbouring FFT mesh cells in each direction and for CIC
-         evaluation of the accelerations we need one extra FFT mesh cell
-         in the +ve direction.
-
-         We also have to add a small buffer to avoid problems with rounding
-
-         TODO: can we calculate exactly how big the rounding error can be?
-               Will just assume that 1% of a mesh cell is enough for now.
-      */
-      int ixmin[3];
-      int ixmax[3];
-      for (int idim = 0; idim < 3; idim++) {
-        const double xmin = cell->loc[idim] - 2.01 / fac;
-        const double xmax = cell->loc[idim] + cell->width[idim] + 3.01 / fac;
-        ixmin[idim] = (int)floor(xmin * fac);
-        ixmax[idim] = (int)floor(xmax * fac);
-      }
-
-      const int delta_i = (ixmax[0] - ixmin[0]) + 1;
-      const int delta_j = (ixmax[1] - ixmin[1]) + 1;
-      const int delta_k = (ixmax[2] - ixmin[2]) + 1;
-
-      count += delta_i * delta_j * delta_k;      
+    /* Determine range of FFT mesh cells we need for particles in this top
+     * level cell. The 5 point stencil used for accelerations requires
+     * 2 neighbouring FFT mesh cells in each direction and for CIC
+     * evaluation of the accelerations we need one extra FFT mesh cell
+     * in the +ve direction.
+     *  
+     * We also have to add a small buffer to avoid problems with rounding
+     *  
+     * TODO: can we calculate exactly how big the rounding error can be?
+     * Will just assume that 1% of a mesh cell is enough for now.*/
+    int ixmin[3];
+    int ixmax[3];
+    for (int idim = 0; idim < 3; idim++) {
+      const double xmin = cell->loc[idim] - 2.01 / fac;
+      const double xmax = cell->loc[idim] + cell->width[idim] + 3.01 / fac;
+      ixmin[idim] = (int)floor(xmin * fac);
+      ixmax[idim] = (int)floor(xmax * fac);
     }
+    
+    const int delta_i = (ixmax[0] - ixmin[0]) + 1;
+    const int delta_j = (ixmax[1] - ixmin[1]) + 1;
+    const int delta_k = (ixmax[2] - ixmin[2]) + 1;
+    
+    count += delta_i * delta_j * delta_k;      
   }
   return count;
 }
@@ -639,6 +638,80 @@ void init_required_mesh_cells(const int N, const double fac, const struct space 
         }
       }
     }
+  }
+}
+
+void fill_local_patches_from_mesh_cells(const int N, const double fac, const struct space *s,
+					const struct mesh_key_value_pot *mesh_cells,
+					struct pm_mesh_patch *local_patches) {
+
+  const int *local_cells = s->local_cells_top;
+  const int nr_local_cells = s->nr_local_cells;
+  const double dim[3] = {s->dim[0], s->dim[1], s->dim[2]};
+
+  size_t offset = 0;
+  
+  /* Loop over our local top level cells */
+  for (int icell = 0; icell < nr_local_cells; icell++) {
+
+    const struct cell *cell = &(s->cells_top[local_cells[icell]]);
+    struct pm_mesh_patch *patch = &local_patches[icell];
+    
+    /* Skip empty cells */
+    if (cell->grav.count == 0) continue;
+
+    patch->N = N;
+    patch->fac = fac;
+    
+    /* Will need to wrap particles to position nearest the cell centre */
+    for (int i = 0; i < 3; i += 1) {
+      patch->wrap_min[i] = cell->loc[i] + 0.5 * cell->width[i] - 0.5 * dim[i];
+      patch->wrap_max[i] = cell->loc[i] + 0.5 * cell->width[i] + 0.5 * dim[i];
+    }
+
+    int num_cells = 1;
+    for (int i = 0; i < 3; i++) {
+      const double xmin = cell->loc[i] - 2.01 / fac;
+      const double xmax = cell->loc[i] + cell->width[i] + 3.01 / fac;
+      patch->mesh_min[i] = (int)floor(xmin * fac);
+      patch->mesh_max[i] = (int)floor(xmax * fac);
+      patch->mesh_size[i] = patch->mesh_max[i] - patch->mesh_min[i] + 1;
+      num_cells *= patch->mesh_size[i];
+    }
+
+    /* Allocate the mesh */
+    if (swift_memalign("mesh_patch", (void **)&patch->mesh, SWIFT_CACHE_ALIGNMENT,
+		       num_cells * sizeof(double)) != 0)
+      error("Failed to allocate array for mesh patch!");
+
+
+    /* Now, we can start filling the mesh patch cells from the array of
+     * key-index-value tuples */
+    for (size_t imesh = offset; imesh < offset + num_cells; ++imesh) {
+
+#ifdef SWIFT_DEBUG_CHECKS
+      if (mesh_cells[imesh].cell_index != icell) error("mesh cell not sorted in the right order");
+#endif
+
+      const size_t key = mesh_cells[imesh].key;
+      const double pot = mesh_cells[imesh].value;
+
+      /* Get global index triplet of that mesh cell */
+      int i, j, k;
+      row_major_indices_periodic_size_t_padded(key, N, &i, &j, &k);
+
+      /* Undo box wrapping */
+      if (i < patch->mesh_min[0]) i += N;
+      if (j < patch->mesh_min[1]) j += N;
+      if (k < patch->mesh_min[2]) k += N;
+
+      const int index = pm_mesh_patch_index(patch, i, j, k);
+      
+      patch->mesh[index] = pot;
+    }
+
+    /* Move to the next cell */
+    offset += num_cells;
   }
 }
 
@@ -773,6 +846,12 @@ void mpi_mesh_fetch_potential(const int N, const double fac,
   /* Now sort the mesh cells by top-level cell index */
   qsort(send_cells, nr_send_tot, sizeof(struct mesh_key_value_pot),
         cmp_func_mesh_key_value_pot_index);
+
+  /* Initialise the local patches with the data we just received */
+  fill_local_patches_from_mesh_cells(N, fac, s, send_cells,
+				     local_patches);
+
+  
   
   /* Store the results in the hashmap */
 /*   for (size_t i = 0; i < nr_send_tot; i += 1) { */
