@@ -627,13 +627,9 @@ void mesh_apply_Green_function(struct threadpool* tp, fftw_complex* frho,
  * @param verbose Are we talkative?
  */
 void compute_potential_distributed(struct pm_mesh* mesh, const struct space* s,
-                                   struct threadpool* tp, int verbose) {
+                                   struct threadpool* tp, const int verbose) {
 
 #if defined(WITH_MPI) && defined(HAVE_MPI_FFTW)
-
-
-    verbose = 1;
-
 
   const double r_s = mesh->r_s;
   const double box_size = s->dim[0];
@@ -762,7 +758,7 @@ void compute_potential_distributed(struct pm_mesh* mesh, const struct space* s,
 
   /* Fetch MPI mesh entries we need on this rank from other ranks */
   mpi_mesh_fetch_potential(N, cell_fac, s, local_0_start, local_n0, rho_slice,
-                           local_patches);
+                           local_patches, verbose);
 
   if (verbose)
     message("Fetching local potential took %.3f %s.",
