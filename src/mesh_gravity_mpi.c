@@ -256,11 +256,14 @@ int cmp_func_mesh_key_value_pot(const void *a, const void *b) {
  * -1 if a's key field is less than b's key field, and zero otherwise
  */
 int cmp_func_mesh_key_value_pot_index(const void *a, const void *b) {
-  const struct mesh_key_value_pot *a_key_value = (struct mesh_key_value_pot *)a;
-  const struct mesh_key_value_pot *b_key_value = (struct mesh_key_value_pot *)b;
-  if (a_key_value->cell_index > b_key_value->cell_index)
+  const struct mesh_key_value_pot *a_ = (struct mesh_key_value_pot *)a;
+  const struct mesh_key_value_pot *b_ = (struct mesh_key_value_pot *)b;
+  const int index_a = cell_index_extract_patch_index(a_->cell_index);
+  const int index_b = cell_index_extract_patch_index(b_->cell_index);
+  
+  if (index_a > index_b)
     return 1;
-  else if (a_key_value->cell_index < b_key_value->cell_index)
+  else if (index_a < index_b)
     return -1;
   else
     return 0;
@@ -591,7 +594,7 @@ size_t count_required_mesh_cells(const int N, const double fac,
   return count;
 }
 
-void init_required_mesh_cells(const int N, const double fac,
+size_t init_required_mesh_cells(const int N, const double fac,
                               const struct space *s,
                               struct mesh_key_value_pot *send_cells) {
 
@@ -634,7 +637,7 @@ void init_required_mesh_cells(const int N, const double fac,
             const size_t index =
                 row_major_id_periodic_size_t_padded(i, j, k, N);
 
-            send_cells[count].cell_index = icell;
+            send_cells[count].cell_index = cell_index_from_patch_index(icell, i, j, k);
             send_cells[count].value = 0.;
             send_cells[count].key = index;
 
@@ -644,6 +647,8 @@ void init_required_mesh_cells(const int N, const double fac,
       }
     }
   }
+
+  return count;
 }
 
 void fill_local_patches_from_mesh_cells(
@@ -694,26 +699,23 @@ void fill_local_patches_from_mesh_cells(
      * key-index-value tuples */
     for (size_t imesh = offset; imesh < offset + num_cells; ++imesh) {
 
+      const size_t cell_index = mesh_cells[imesh].cell_index;
+      const double pot = mesh_cells[imesh].value;
+      
+      int patch_index, i, j, k;
+      patch_index_from_cell_index(cell_index, &patch_index, &i, &j, &k);
+
 #ifdef SWIFT_DEBUG_CHECKS
-      if (mesh_cells[imesh].cell_index != icell)
-        error("mesh cell not sorted in the right order");
+      const int temp = cell_index_extract_patch_index(cell_index);
+      
+      if (patch_index != icell)
+        error("mesh cell not sorted in the right order icell=%d patch_index=%d "
+	      "cell_index=%zd i=%d j=%d k=%d imesh=%zd temp=%d",
+	      icell, patch_index, cell_index, i, j, k, imesh, temp);
 #endif
 
-      const size_t key = mesh_cells[imesh].key;
-      const double pot = mesh_cells[imesh].value;
-
-      /* Get global index triplet of that mesh cell */
-      int i, j, k;
-      row_major_indices_periodic_size_t_padded(key, N, &i, &j, &k);
-
-      /* Undo box wrapping */
-      if (i < patch->mesh_min[0]) i += N;
-      if (j < patch->mesh_min[1]) j += N;
-      if (k < patch->mesh_min[2]) k += N;
-
-      const int index = pm_mesh_patch_index(patch, i, j, k);
-
-      patch->mesh[index] = pot;
+      const int local_index = i * (patch->mesh_size[1] * patch->mesh_size[2]) + j * patch->mesh_size[2] + k;				  
+      patch->mesh[local_index] = pot;
     }
 
     /* Move to the next cell */
@@ -762,8 +764,10 @@ void mpi_mesh_fetch_potential(const int N, const double fac,
     error("Failed to allocate array for cells to request!");
 
   /* Initialise the mesh cells we will request */
-  init_required_mesh_cells(N, fac, s, send_cells);
+  const size_t check_count = init_required_mesh_cells(N, fac, s, send_cells);
 
+  if (nr_send_tot != check_count) error("Count and initialisation incompatible!");
+  
   /* And sort the pairs by key */
   qsort(send_cells, nr_send_tot, sizeof(struct mesh_key_value_pot),
         cmp_func_mesh_key_value_pot);
@@ -848,26 +852,12 @@ void mpi_mesh_fetch_potential(const int N, const double fac,
   free(nr_send);
   free(nr_recv);
 
-  /* Now sort the mesh cells by top-level cell index */
+  /* Now sort the mesh cells by top-level cell index (i.e. by the patch they belong to) */
   qsort(send_cells, nr_send_tot, sizeof(struct mesh_key_value_pot),
         cmp_func_mesh_key_value_pot_index);
 
   /* Initialise the local patches with the data we just received */
   fill_local_patches_from_mesh_cells(N, fac, s, send_cells, local_patches);
-
-  /* Store the results in the hashmap */
-  /*   for (size_t i = 0; i < nr_send_tot; i += 1) { */
-  /*     int created = 0; */
-  /*     hashmap_value_t *value = */
-  /*         hashmap_get_new(potential_map, send_cells[i].key, &created); */
-  /*     value->value_dbl = send_cells[i].value; */
-  /* #ifdef SWIFT_DEBUG_CHECKS */
-  /*     if (!created) error("Received duplicate potential hash map value"); */
-  /*     const size_t Ns = N; */
-  /*     if (send_cells[i].key >= Ns * Ns * (2 * (Ns / 2 + 1))) */
-  /*       error("Received potential mesh cell ID out of range"); */
-  /* #endif */
-  /*   } */
 
   swift_free("send_cells", send_cells);
 #else

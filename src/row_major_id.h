@@ -73,22 +73,78 @@ row_major_id_periodic_size_t_padded(const int i, const int j, const int k,
   return (i_wrap * Nj * Nk) + (j_wrap * Nk) + k_wrap;
 }
 
+/* __attribute__((always_inline)) INLINE static void */
+/* row_major_indices_periodic_size_t_padded(const size_t index, const int N, */
+/*                                          int *restrict i, int *restrict j, */
+/*                                          int *restrict k) { */
+/*   /\* Find last two dimensions of the padded array *\/ */
+/*   const size_t Nj = N; */
+/*   const size_t Nk = 2 * (N / 2 + 1); */
+
+/*   const size_t k_wrap = index % Nk; */
+/*   size_t temp = (index - k_wrap) / Nk; */
+/*   const size_t j_wrap = temp % Nj; */
+/*   const size_t i_wrap = (temp - j_wrap) / Nj; */
+
+/*   *i = (int)i_wrap; */
+/*   *j = (int)j_wrap; */
+/*   *k = (int)k_wrap; */
+/* } */
+
+/**
+ * @brief Return a unique ID for a mesh cell in a local patch.
+ *
+ * We use the first 28 bits for the patch id then 3 lots 
+ * of 12 bits for each of i, j, and k. 
+ *
+ * @param patch_id The local ID of patch.
+ * @param i The i-index of the mesh cell in the patch.
+ * @param j The j-index of the mesh cell in the patch.
+ * @param k The k-index of the mesh cell in the patch.
+ */
+__attribute__((always_inline, const)) INLINE static size_t
+cell_index_from_patch_index(const int patch_id, const int i, const int j, const int k) {
+
+  size_t ret = patch_id;
+
+  ret <<= 12;
+  ret += (size_t)i;
+  ret <<= 12;
+  ret += (size_t)j;
+  ret <<= 12;
+  ret += (size_t)k;
+  
+  return ret;
+}
+
+/**
+ * @brief Return the patch index from the mesh cell unique ID.
+ */
+__attribute__((always_inline, const)) INLINE static int
+cell_index_extract_patch_index(const size_t index) {
+  return (int) (index >> 36);
+}
+
+__attribute__((always_inline, const)) INLINE static
+size_t get_last_n_bits(const size_t x, const int n) {
+  return x & ~(~((size_t)0) << n);
+}
+
 __attribute__((always_inline)) INLINE static void
-row_major_indices_periodic_size_t_padded(const size_t index, const int N,
-                                         int *restrict i, int *restrict j,
-                                         int *restrict k) {
-  /* Find last two dimensions of the padded array */
-  const size_t Nj = N;
-  const size_t Nk = 2 * (N / 2 + 1);
+patch_index_from_cell_index(size_t cell_index, int *restrict patch_index,
+			    int *restrict i, int *restrict j, int *restrict k) {
 
-  const size_t k_wrap = index % Nk;
-  size_t temp = (index - k_wrap) / Nk;
-  const size_t j_wrap = temp % Nj;
-  const size_t i_wrap = (temp - j_wrap) / Nj;
+  const size_t kk = get_last_n_bits(cell_index, 12);
+  cell_index >>= 12;
+  const size_t jj = get_last_n_bits(cell_index, 12);
+  cell_index >>= 12;
+  const size_t ii = get_last_n_bits(cell_index, 12);
+  cell_index >>= 12;
 
-  *i = (int)i_wrap;
-  *j = (int)j_wrap;
-  *k = (int)k_wrap;
+  *k = (int) kk;
+  *j = (int) jj;
+  *i = (int) ii;
+  *patch_index = (int) cell_index;
 }
 
 /**

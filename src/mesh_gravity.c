@@ -627,9 +627,13 @@ void mesh_apply_Green_function(struct threadpool* tp, fftw_complex* frho,
  * @param verbose Are we talkative?
  */
 void compute_potential_distributed(struct pm_mesh* mesh, const struct space* s,
-                                   struct threadpool* tp, const int verbose) {
+                                   struct threadpool* tp, int verbose) {
 
 #if defined(WITH_MPI) && defined(HAVE_MPI_FFTW)
+
+
+    verbose = 1;
+
 
   const double r_s = mesh->r_s;
   const double box_size = s->dim[0];
