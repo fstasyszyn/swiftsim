@@ -248,7 +248,7 @@ int cmp_func_mesh_key_value_pot(const void *a, const void *b) {
 }
 
 /**
- * @brief Comparison function to sort mesh_key_value_pot by key
+ * @brief Comparison function to sort mesh_key_value_pot by cell_index
  *
  * @param a The first #mesh_key_value_pot object.
  * @param b The second #mesh_key_value_pot object.
@@ -258,11 +258,8 @@ int cmp_func_mesh_key_value_pot(const void *a, const void *b) {
 int cmp_func_mesh_key_value_pot_index(const void *a, const void *b) {
   const struct mesh_key_value_pot *a_ = (struct mesh_key_value_pot *)a;
   const struct mesh_key_value_pot *b_ = (struct mesh_key_value_pot *)b;
-  //const int index_a = cell_index_extract_patch_index(a_->cell_index);
-  //const int index_b = cell_index_extract_patch_index(b_->cell_index);
-
-  const size_t index_a = a_->cell_index;
-  const size_t index_b = b_->cell_index;
+  const int index_a = cell_index_extract_patch_index(a_->cell_index);
+  const int index_b = cell_index_extract_patch_index(b_->cell_index);
   
   if (index_a > index_b)
     return 1;
@@ -592,11 +589,11 @@ size_t count_required_mesh_cells(const int N, const double fac,
     const int delta_j = (ixmax[1] - ixmin[1]) + 1;
     const int delta_k = (ixmax[2] - ixmin[2]) + 1;
 
+#ifdef SWIFT_DEBUG_CHECKS
     if (delta_i > (1 << 12)) error("Not enough bits to store local x-axis index");
-    if (delta_j > (1 << 12)) error("Not enough bits to store local x-axis index");
-    if (delta_k > (1 << 12)) error("Not enough bits to store local x-axis index");
-
-    if (delta_i * delta_j * delta_k != 3375) error("aaaa");
+    if (delta_j > (1 << 12)) error("Not enough bits to store local y-axis index");
+    if (delta_k > (1 << 12)) error("Not enough bits to store local z-axis index");
+#endif
     
     count += delta_i * delta_j * delta_k;
   }
@@ -640,16 +637,16 @@ size_t init_required_mesh_cells(const int N, const double fac,
       ixmax[idim] = (int)floor(xmax * fac);
     }
 
+#ifdef SWIFT_DEBUG_CHECKS
     const int delta_i = (ixmax[0] - ixmin[0]) + 1;
     const int delta_j = (ixmax[1] - ixmin[1]) + 1;
     const int delta_k = (ixmax[2] - ixmin[2]) + 1;
-
-    if (delta_i > (1 << 12)) error("Not enough bits to store local x-axis index");
-    if (delta_j > (1 << 12)) error("Not enough bits to store local x-axis index");
-    if (delta_k > (1 << 12)) error("Not enough bits to store local x-axis index");
-
-    if (delta_i * delta_j * delta_k != 3375) error("bbbb");
     
+    if (delta_i > (1 << 12)) error("Not enough bits to store local x-axis index");
+    if (delta_j > (1 << 12)) error("Not enough bits to store local y-axis index");
+    if (delta_k > (1 << 12)) error("Not enough bits to store local z-axis index");
+#endif
+        
     /* Add the required cells to the map */
     for (int i = ixmin[0]; i <= ixmax[0]; i += 1) {
       for (int j = ixmin[1]; j <= ixmax[1]; j += 1) {
@@ -657,10 +654,12 @@ size_t init_required_mesh_cells(const int N, const double fac,
 	  const size_t index =
 	    row_major_id_periodic_size_t_padded(i, j, k, N);
 
+	  /* Indices relative to the patch */
 	  const int ii = i - ixmin[0];
 	  const int jj = j - ixmin[1];
 	  const int kk = k - ixmin[2];
-	  
+
+	  /* Generate a combined index */
 	  const size_t cell_index = cell_index_from_patch_index(icell, ii, jj, kk);
 	  
 	  send_cells[count].cell_index = cell_index;
@@ -725,13 +724,12 @@ void fill_local_patches_from_mesh_cells(
       num_cells *= patch->mesh_size[i];
     }
 
-    if (num_cells != 3375) error("cccc");
-    
     /* Allocate the mesh */
     if (swift_memalign("mesh_patch", (void **)&patch->mesh,
                        SWIFT_CACHE_ALIGNMENT, num_cells * sizeof(double)) != 0)
       error("Failed to allocate array for mesh patch!");
 
+#ifdef SWIFT_DEBUG_CHECKS
     int count = 0;
     for (size_t imesh = 0; imesh < nr_send_tot; ++imesh) {
 
@@ -739,7 +737,9 @@ void fill_local_patches_from_mesh_cells(
       const int temp = cell_index_extract_patch_index(cell_index);
       if (temp == icell) ++count;
     }
-    message("icell=%d count=%d num_cells=%d", icell, count, num_cells);
+    if (count != num_cells)
+      error("Invalide number of cells to fill the patch! icell=%d count=%d num_cells=%d", icell, count, num_cells);
+#endif
     
     /* Now, we can start filling the mesh patch cells from the array of
      * key-index-value tuples */

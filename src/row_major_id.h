@@ -107,11 +107,19 @@ cell_index_extract_patch_index(const size_t index) {
   return (int) (index >> 36);
 }
 
+/**
+ * @brief Returns a size_t containing the last n bits of a give size_t
+ */
 __attribute__((always_inline, const)) INLINE static
 size_t get_last_n_bits(const size_t x, const int n) {
   return x & ~(~((size_t)0) << n);
 }
 
+/**
+ * @brief Extract the patch index, i, j and k from a cell_index.
+ *
+ * Performs the opposite operation to cell_index_from_patch_index().
+ */
 __attribute__((always_inline)) INLINE static void
 patch_index_from_cell_index(size_t cell_index, int *restrict patch_index,
 			    int *restrict i, int *restrict j, int *restrict k) {
