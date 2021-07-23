@@ -796,7 +796,7 @@ void fill_local_patches_from_mesh_cells(
 void mpi_mesh_fetch_potential(const int N, const double fac,
                               const struct space *s, const int local_0_start,
                               const int local_n0, double *potential_slice,
-                              struct pm_mesh_patch *local_patches) {
+                              struct pm_mesh_patch *local_patches, const int verbose) {
 
 #if defined(WITH_MPI) && defined(HAVE_MPI_FFTW)
 
@@ -805,23 +805,45 @@ void mpi_mesh_fetch_potential(const int N, const double fac,
   MPI_Comm_size(MPI_COMM_WORLD, &nr_nodes);
   MPI_Comm_rank(MPI_COMM_WORLD, &nodeID);
 
+  ticks tic = getticks();
+  
   /* Determine how many mesh cells we will need to request */
   const size_t nr_send_tot = count_required_mesh_cells(N, fac, s);
 
+  if (verbose)
+    message(" - Counting required mesh patches took %.3f %s.",
+            clocks_from_ticks(getticks() - tic), clocks_getunit());
+  
   struct mesh_key_value_pot *send_cells;
   if (swift_memalign("send_cells", (void **)&send_cells, 32,
                      nr_send_tot * sizeof(struct mesh_key_value_pot)) != 0)
     error("Failed to allocate array for cells to request!");
 
+  tic = getticks();
+  
   /* Initialise the mesh cells we will request */
   const size_t check_count = init_required_mesh_cells(N, fac, s, send_cells);
 
   if (nr_send_tot != check_count) error("Count and initialisation incompatible!");
+
+  if (verbose)
+    message(" - Init required mesh patches took %.3f %s.",
+            clocks_from_ticks(getticks() - tic), clocks_getunit());
+
+
+  tic = getticks();
   
   /* And sort the pairs by key */
   qsort(send_cells, nr_send_tot, sizeof(struct mesh_key_value_pot),
         cmp_func_mesh_key_value_pot);
 
+  if (verbose)
+    message(" - 1st mesh patches sort took %.3f %s.",
+            clocks_from_ticks(getticks() - tic), clocks_getunit());
+
+  tic = getticks();
+
+  
   /* Get width of the mesh slice on each rank */
   int *slice_width = (int *)malloc(sizeof(int) * nr_nodes);
   MPI_Allgather(&local_n0, 1, MPI_INT, slice_width, 1, MPI_INT, MPI_COMM_WORLD);
@@ -860,6 +882,12 @@ void mpi_mesh_fetch_potential(const int N, const double fac,
     nr_recv_tot += nr_recv[i];
   }
 
+  if (verbose)
+    message(" - Preparing comms buffers took %.3f %s.",
+            clocks_from_ticks(getticks() - tic), clocks_getunit());
+
+  tic = getticks();
+  
   /* Allocate buffer to receive requests */
   struct mesh_key_value_pot *recv_cells;
   if (swift_memalign("recv_cells", (void **)&recv_cells, 32,
@@ -870,6 +898,13 @@ void mpi_mesh_fetch_potential(const int N, const double fac,
   exchange_structs(nr_send, (char *)send_cells, nr_recv, (char *)recv_cells,
                    sizeof(struct mesh_key_value_pot));
 
+  if (verbose)
+    message(" - 1st exchange took %.3f %s.",
+            clocks_from_ticks(getticks() - tic), clocks_getunit());
+
+  tic = getticks();
+
+  
   /* Look up potential in the requested cells */
   for (size_t i = 0; i < nr_recv_tot; i += 1) {
 #ifdef SWIFT_DEBUG_CHECKS
@@ -891,10 +926,22 @@ void mpi_mesh_fetch_potential(const int N, const double fac,
     recv_cells[i].value = potential_slice[local_id];
   }
 
+  if (verbose)
+    message(" - Filling of the potential values took %.3f %s.",
+            clocks_from_ticks(getticks() - tic), clocks_getunit());
+
+  tic = getticks();
+
   /* Return the results */
   exchange_structs(nr_recv, (char *)recv_cells, nr_send, (char *)send_cells,
                    sizeof(struct mesh_key_value_pot));
 
+  if (verbose)
+    message(" - 2nd exchange took %.3f %s.",
+            clocks_from_ticks(getticks() - tic), clocks_getunit());
+
+  tic = getticks();
+  
   /* Tidy up */
   swift_free("recv_cells", recv_cells);
   free(slice_width);
@@ -906,9 +953,19 @@ void mpi_mesh_fetch_potential(const int N, const double fac,
   qsort(send_cells, nr_send_tot, sizeof(struct mesh_key_value_pot),
         cmp_func_mesh_key_value_pot_index);
 
+  if (verbose)
+    message(" - 2nd mesh patches sort took %.3f %s.",
+            clocks_from_ticks(getticks() - tic), clocks_getunit());
+
+  tic = getticks();
+  
   /* Initialise the local patches with the data we just received */
   fill_local_patches_from_mesh_cells(N, fac, s, send_cells, local_patches, nr_send_tot);
 
+  if (verbose)
+    message(" - Filling the local patches took %.3f %s.",
+            clocks_from_ticks(getticks() - tic), clocks_getunit());
+  
   swift_free("send_cells", send_cells);
 #else
   error("FFTW MPI not found - unable to use distributed mesh");
