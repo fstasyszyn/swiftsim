@@ -307,10 +307,6 @@ void mesh_patches_to_sorted_array(const struct pm_mesh_patch *local_patches,
 
   /* quick check... */
   if (count != size) error("Error flattening the mesh patches!");
-
-  /* And sort the pairs by key */
-  qsort(array, size, sizeof(struct mesh_key_value_rho),
-        cmp_func_mesh_key_value_rho);
 }
 
 /**
@@ -428,7 +424,8 @@ void exchange_structs(size_t *nr_send, char *sendbuf, size_t *nr_recv,
  */
 void mpi_mesh_local_patches_to_slices(const int N, const int local_n0,
                                       const struct pm_mesh_patch *local_patches,
-                                      const int nr_patches, double *mesh) {
+                                      const int nr_patches, double *mesh,
+                                      const int verbose) {
 
 #if defined(WITH_MPI) && defined(HAVE_MPI_FFTW)
 
@@ -436,6 +433,8 @@ void mpi_mesh_local_patches_to_slices(const int N, const int local_n0,
   int nr_nodes, nodeID;
   MPI_Comm_size(MPI_COMM_WORLD, &nr_nodes);
   MPI_Comm_rank(MPI_COMM_WORLD, &nodeID);
+
+  ticks tic = getticks();
 
   /* Count the total number of mesh cells we have.
    *
@@ -460,6 +459,22 @@ void mpi_mesh_local_patches_to_slices(const int N, const int local_n0,
    * We're going to distribute them between ranks according to their
    * x coordinate, so this puts them in order of destination rank. */
   mesh_patches_to_sorted_array(local_patches, nr_patches, mesh_sendbuf, count);
+
+  if (verbose)
+    message(" - Converting mesh patches to array took %.3f %s.",
+            clocks_from_ticks(getticks() - tic), clocks_getunit());
+
+  tic = getticks();
+
+  /* And sort the pairs by key */
+  qsort(mesh_sendbuf, count, sizeof(struct mesh_key_value_rho),
+        cmp_func_mesh_key_value_rho);
+
+  if (verbose)
+    message(" - Sorting of mesh cells took %.3f %s.",
+            clocks_from_ticks(getticks() - tic), clocks_getunit());
+
+  tic = getticks();
 
   /* Get width of the slice on each rank */
   int *slice_width = (int *)malloc(sizeof(int) * nr_nodes);
@@ -504,9 +519,21 @@ void mpi_mesh_local_patches_to_slices(const int N, const int local_n0,
                      nr_recv_tot * sizeof(struct mesh_key_value_rho)) != 0)
     error("Failed to allocate receive buffer for constructing MPI FFT mesh");
 
+  if (verbose)
+    message(" - Preparing comms buffers took %.3f %s.",
+            clocks_from_ticks(getticks() - tic), clocks_getunit());
+
+  tic = getticks();
+
   /* Carry out the communication */
   exchange_structs(nr_send, (char *)mesh_sendbuf, nr_recv, (char *)mesh_recvbuf,
                    sizeof(struct mesh_key_value_rho));
+
+  if (verbose)
+    message(" - MPI exchange took %.3f %s.",
+            clocks_from_ticks(getticks() - tic), clocks_getunit());
+
+  tic = getticks();
 
   /* Copy received data to the output buffer.
    * This is now a local slice of the global mesh. */
@@ -530,6 +557,10 @@ void mpi_mesh_local_patches_to_slices(const int N, const int local_n0,
     /* Add to the cell*/
     mesh[local_index] += mesh_recvbuf[i].value;
   }
+
+  if (verbose)
+    message(" - Filling of the density values took %.3f %s.",
+            clocks_from_ticks(getticks() - tic), clocks_getunit());
 
   /* Tidy up */
   free(slice_width);
