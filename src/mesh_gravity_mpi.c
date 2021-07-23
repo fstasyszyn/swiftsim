@@ -260,7 +260,7 @@ int cmp_func_mesh_key_value_pot_index(const void *a, const void *b) {
   const struct mesh_key_value_pot *b_ = (struct mesh_key_value_pot *)b;
   const int index_a = cell_index_extract_patch_index(a_->cell_index);
   const int index_b = cell_index_extract_patch_index(b_->cell_index);
-  
+
   if (index_a > index_b)
     return 1;
   else if (index_a < index_b)
@@ -338,21 +338,22 @@ void exchange_structs(size_t *nr_send, char *sendbuf, size_t *nr_recv,
   MPI_Comm_rank(MPI_COMM_WORLD, &nodeID);
 
   /* Compute send offsets */
-  size_t *send_offset = malloc(nr_nodes * sizeof(size_t));
+  size_t *send_offset = (size_t *)malloc(nr_nodes * sizeof(size_t));
   send_offset[0] = 0;
   for (int i = 1; i < nr_nodes; i += 1) {
     send_offset[i] = send_offset[i - 1] + nr_send[i - 1];
   }
 
   /* Compute receive offsets */
-  size_t *recv_offset = malloc(nr_nodes * sizeof(size_t));
+  size_t *recv_offset = (size_t *)malloc(nr_nodes * sizeof(size_t));
   recv_offset[0] = 0;
   for (int i = 1; i < nr_nodes; i += 1) {
     recv_offset[i] = recv_offset[i - 1] + nr_recv[i - 1];
   }
 
   /* Allocate request objects (one send and receive per node) */
-  MPI_Request *request = malloc(2 * sizeof(MPI_Request) * nr_nodes);
+  MPI_Request *request =
+      (MPI_Request *)malloc(2 * sizeof(MPI_Request) * nr_nodes);
 
   /* Make type to communicate mesh_key_value struct */
   MPI_Datatype mesh_key_value_mpi_type;
@@ -472,7 +473,7 @@ void mpi_mesh_local_patches_to_slices(const int N, const int local_n0,
   }
 
   /* Compute how many elements are to be sent to each rank */
-  size_t *nr_send = malloc(nr_nodes * sizeof(size_t));
+  size_t *nr_send = (size_t *)malloc(nr_nodes * sizeof(size_t));
   memset(nr_send, 0, nr_nodes * sizeof(size_t));
 
   int dest_node = 0;
@@ -590,19 +591,22 @@ size_t count_required_mesh_cells(const int N, const double fac,
     const int delta_k = (ixmax[2] - ixmin[2]) + 1;
 
 #ifdef SWIFT_DEBUG_CHECKS
-    if (delta_i > (1 << 12)) error("Not enough bits to store local x-axis index");
-    if (delta_j > (1 << 12)) error("Not enough bits to store local y-axis index");
-    if (delta_k > (1 << 12)) error("Not enough bits to store local z-axis index");
+    if (delta_i > (1 << 12))
+      error("Not enough bits to store local x-axis index");
+    if (delta_j > (1 << 12))
+      error("Not enough bits to store local y-axis index");
+    if (delta_k > (1 << 12))
+      error("Not enough bits to store local z-axis index");
 #endif
-    
+
     count += delta_i * delta_j * delta_k;
   }
   return count;
 }
 
 size_t init_required_mesh_cells(const int N, const double fac,
-                              const struct space *s,
-                              struct mesh_key_value_pot *send_cells) {
+                                const struct space *s,
+                                struct mesh_key_value_pot *send_cells) {
 
   const int *local_cells = s->local_cells_top;
   const int nr_local_cells = s->nr_local_cells;
@@ -622,9 +626,9 @@ size_t init_required_mesh_cells(const int N, const double fac,
        2 neighbouring FFT mesh cells in each direction and for CIC
        evaluation of the accelerations we need one extra FFT mesh cell
        in the +ve direction.
-       
+
        We also have to add a small buffer to avoid problems with rounding
-       
+
        TODO: can we calculate exactly how big the rounding error can be?
        Will just assume that 1% of a mesh cell is enough for now.
     */
@@ -641,42 +645,46 @@ size_t init_required_mesh_cells(const int N, const double fac,
     const int delta_i = (ixmax[0] - ixmin[0]) + 1;
     const int delta_j = (ixmax[1] - ixmin[1]) + 1;
     const int delta_k = (ixmax[2] - ixmin[2]) + 1;
-    
-    if (delta_i > (1 << 12)) error("Not enough bits to store local x-axis index");
-    if (delta_j > (1 << 12)) error("Not enough bits to store local y-axis index");
-    if (delta_k > (1 << 12)) error("Not enough bits to store local z-axis index");
+
+    if (delta_i > (1 << 12))
+      error("Not enough bits to store local x-axis index");
+    if (delta_j > (1 << 12))
+      error("Not enough bits to store local y-axis index");
+    if (delta_k > (1 << 12))
+      error("Not enough bits to store local z-axis index");
 #endif
-        
+
     /* Add the required cells to the map */
     for (int i = ixmin[0]; i <= ixmax[0]; i += 1) {
       for (int j = ixmin[1]; j <= ixmax[1]; j += 1) {
-	for (int k = ixmin[2]; k <= ixmax[2]; k += 1) {
-	  const size_t index =
-	    row_major_id_periodic_size_t_padded(i, j, k, N);
+        for (int k = ixmin[2]; k <= ixmax[2]; k += 1) {
+          const size_t index = row_major_id_periodic_size_t_padded(i, j, k, N);
 
-	  /* Indices relative to the patch */
-	  const int ii = i - ixmin[0];
-	  const int jj = j - ixmin[1];
-	  const int kk = k - ixmin[2];
+          /* Indices relative to the patch */
+          const int ii = i - ixmin[0];
+          const int jj = j - ixmin[1];
+          const int kk = k - ixmin[2];
 
-	  /* Generate a combined index */
-	  const size_t cell_index = cell_index_from_patch_index(icell, ii, jj, kk);
-	  
-	  send_cells[count].cell_index = cell_index;
-	  send_cells[count].value = 0.;
-	  send_cells[count].key = index;
+          /* Generate a combined index */
+          const size_t cell_index =
+              cell_index_from_patch_index(icell, ii, jj, kk);
+
+          send_cells[count].cell_index = cell_index;
+          send_cells[count].value = 0.;
+          send_cells[count].key = index;
 
 #ifdef SWIFT_DEBUG_CHECKS
-	  int test_ci, test_ii, test_jj, test_kk;
-	  patch_index_from_cell_index(cell_index, &test_ci, &test_ii, &test_jj, &test_kk);
-	  if (icell != test_ci) error("Invalid cell_index!");
-	  if (ii != test_ii) error("Invalid ii!");
-	  if (jj != test_jj) error("Invalid jj!");
-	  if (kk != test_kk) error("Invalid kk!");
+          int test_ci, test_ii, test_jj, test_kk;
+          patch_index_from_cell_index(cell_index, &test_ci, &test_ii, &test_jj,
+                                      &test_kk);
+          if (icell != test_ci) error("Invalid cell_index!");
+          if (ii != test_ii) error("Invalid ii!");
+          if (jj != test_jj) error("Invalid jj!");
+          if (kk != test_kk) error("Invalid kk!");
 #endif
-	  
-	  ++count;
-	}
+
+          ++count;
+        }
       }
     }
   }
@@ -687,8 +695,7 @@ size_t init_required_mesh_cells(const int N, const double fac,
 void fill_local_patches_from_mesh_cells(
     const int N, const double fac, const struct space *s,
     const struct mesh_key_value_pot *mesh_cells,
-    struct pm_mesh_patch *local_patches,
-    const size_t nr_send_tot) {
+    struct pm_mesh_patch *local_patches, const size_t nr_send_tot) {
 
   const int *local_cells = s->local_cells_top;
   const int nr_local_cells = s->nr_local_cells;
@@ -738,9 +745,12 @@ void fill_local_patches_from_mesh_cells(
       if (temp == icell) ++count;
     }
     if (count != num_cells)
-      error("Invalide number of cells to fill the patch! icell=%d count=%d num_cells=%d", icell, count, num_cells);
+      error(
+          "Invalide number of cells to fill the patch! icell=%d count=%d "
+          "num_cells=%d",
+          icell, count, num_cells);
 #endif
-    
+
     /* Now, we can start filling the mesh patch cells from the array of
      * key-index-value tuples */
     for (size_t imesh = offset; imesh < offset + num_cells; ++imesh) {
@@ -754,15 +764,17 @@ void fill_local_patches_from_mesh_cells(
 
 #ifdef SWIFT_DEBUG_CHECKS
       const int temp = cell_index_extract_patch_index(cell_index);
-      
+
       if (patch_index != icell)
-        error("mesh cell not sorted in the right order icell=%d patch_index=%d "
-	      "cell_index=%zd i=%d j=%d k=%d imesh=%zd temp=%d",
-	      icell, patch_index, cell_index, i, j, k, imesh, temp);
+        error(
+            "mesh cell not sorted in the right order icell=%d patch_index=%d "
+            "cell_index=%zd i=%d j=%d k=%d imesh=%zd temp=%d",
+            icell, patch_index, cell_index, i, j, k, imesh, temp);
 #endif
 
       /* Flatten out the i,j,k index */
-      const int local_index = i * (patch->mesh_size[1] * patch->mesh_size[2]) + j * patch->mesh_size[2] + k;
+      const int local_index = i * (patch->mesh_size[1] * patch->mesh_size[2]) +
+                              j * patch->mesh_size[2] + k;
 
       /* Store the potential */
       patch->mesh[local_index] = pot;
@@ -796,7 +808,8 @@ void fill_local_patches_from_mesh_cells(
 void mpi_mesh_fetch_potential(const int N, const double fac,
                               const struct space *s, const int local_0_start,
                               const int local_n0, double *potential_slice,
-                              struct pm_mesh_patch *local_patches, const int verbose) {
+                              struct pm_mesh_patch *local_patches,
+                              const int verbose) {
 
 #if defined(WITH_MPI) && defined(HAVE_MPI_FFTW)
 
@@ -806,33 +819,33 @@ void mpi_mesh_fetch_potential(const int N, const double fac,
   MPI_Comm_rank(MPI_COMM_WORLD, &nodeID);
 
   ticks tic = getticks();
-  
+
   /* Determine how many mesh cells we will need to request */
   const size_t nr_send_tot = count_required_mesh_cells(N, fac, s);
 
   if (verbose)
     message(" - Counting required mesh patches took %.3f %s.",
             clocks_from_ticks(getticks() - tic), clocks_getunit());
-  
+
   struct mesh_key_value_pot *send_cells;
   if (swift_memalign("send_cells", (void **)&send_cells, 32,
                      nr_send_tot * sizeof(struct mesh_key_value_pot)) != 0)
     error("Failed to allocate array for cells to request!");
 
   tic = getticks();
-  
+
   /* Initialise the mesh cells we will request */
   const size_t check_count = init_required_mesh_cells(N, fac, s, send_cells);
 
-  if (nr_send_tot != check_count) error("Count and initialisation incompatible!");
+  if (nr_send_tot != check_count)
+    error("Count and initialisation incompatible!");
 
   if (verbose)
     message(" - Init required mesh patches took %.3f %s.",
             clocks_from_ticks(getticks() - tic), clocks_getunit());
 
-
   tic = getticks();
-  
+
   /* And sort the pairs by key */
   qsort(send_cells, nr_send_tot, sizeof(struct mesh_key_value_pot),
         cmp_func_mesh_key_value_pot);
@@ -843,7 +856,6 @@ void mpi_mesh_fetch_potential(const int N, const double fac,
 
   tic = getticks();
 
-  
   /* Get width of the mesh slice on each rank */
   int *slice_width = (int *)malloc(sizeof(int) * nr_nodes);
   MPI_Allgather(&local_n0, 1, MPI_INT, slice_width, 1, MPI_INT, MPI_COMM_WORLD);
@@ -874,7 +886,7 @@ void mpi_mesh_fetch_potential(const int N, const double fac,
   }
 
   /* Determine how many requests we'll receive from each MPI rank */
-  size_t *nr_recv = malloc(sizeof(size_t) * nr_nodes);
+  size_t *nr_recv = (size_t *)malloc(sizeof(size_t) * nr_nodes);
   MPI_Alltoall(nr_send, sizeof(size_t), MPI_BYTE, nr_recv, sizeof(size_t),
                MPI_BYTE, MPI_COMM_WORLD);
   size_t nr_recv_tot = 0;
@@ -887,7 +899,7 @@ void mpi_mesh_fetch_potential(const int N, const double fac,
             clocks_from_ticks(getticks() - tic), clocks_getunit());
 
   tic = getticks();
-  
+
   /* Allocate buffer to receive requests */
   struct mesh_key_value_pot *recv_cells;
   if (swift_memalign("recv_cells", (void **)&recv_cells, 32,
@@ -904,7 +916,6 @@ void mpi_mesh_fetch_potential(const int N, const double fac,
 
   tic = getticks();
 
-  
   /* Look up potential in the requested cells */
   for (size_t i = 0; i < nr_recv_tot; i += 1) {
 #ifdef SWIFT_DEBUG_CHECKS
@@ -941,7 +952,7 @@ void mpi_mesh_fetch_potential(const int N, const double fac,
             clocks_from_ticks(getticks() - tic), clocks_getunit());
 
   tic = getticks();
-  
+
   /* Tidy up */
   swift_free("recv_cells", recv_cells);
   free(slice_width);
@@ -949,7 +960,8 @@ void mpi_mesh_fetch_potential(const int N, const double fac,
   free(nr_send);
   free(nr_recv);
 
-  /* Now sort the mesh cells by top-level cell index (i.e. by the patch they belong to) */
+  /* Now sort the mesh cells by top-level cell index (i.e. by the patch they
+   * belong to) */
   qsort(send_cells, nr_send_tot, sizeof(struct mesh_key_value_pot),
         cmp_func_mesh_key_value_pot_index);
 
@@ -958,14 +970,15 @@ void mpi_mesh_fetch_potential(const int N, const double fac,
             clocks_from_ticks(getticks() - tic), clocks_getunit());
 
   tic = getticks();
-  
+
   /* Initialise the local patches with the data we just received */
-  fill_local_patches_from_mesh_cells(N, fac, s, send_cells, local_patches, nr_send_tot);
+  fill_local_patches_from_mesh_cells(N, fac, s, send_cells, local_patches,
+                                     nr_send_tot);
 
   if (verbose)
     message(" - Filling the local patches took %.3f %s.",
             clocks_from_ticks(getticks() - tic), clocks_getunit());
-  
+
   swift_free("send_cells", send_cells);
 #else
   error("FFTW MPI not found - unable to use distributed mesh");
