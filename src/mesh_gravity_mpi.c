@@ -223,7 +223,7 @@ int cmp_func_mesh_key_value_rho(const void *a, const void *b) {
 }
 
 struct mesh_key_value_pot {
-  int cell_index;
+  size_t cell_index;
   size_t key;
   double value;
 };
@@ -258,8 +258,11 @@ int cmp_func_mesh_key_value_pot(const void *a, const void *b) {
 int cmp_func_mesh_key_value_pot_index(const void *a, const void *b) {
   const struct mesh_key_value_pot *a_ = (struct mesh_key_value_pot *)a;
   const struct mesh_key_value_pot *b_ = (struct mesh_key_value_pot *)b;
-  const int index_a = cell_index_extract_patch_index(a_->cell_index);
-  const int index_b = cell_index_extract_patch_index(b_->cell_index);
+  //const int index_a = cell_index_extract_patch_index(a_->cell_index);
+  //const int index_b = cell_index_extract_patch_index(b_->cell_index);
+
+  const size_t index_a = a_->cell_index;
+  const size_t index_b = b_->cell_index;
   
   if (index_a > index_b)
     return 1;
@@ -589,6 +592,12 @@ size_t count_required_mesh_cells(const int N, const double fac,
     const int delta_j = (ixmax[1] - ixmin[1]) + 1;
     const int delta_k = (ixmax[2] - ixmin[2]) + 1;
 
+    if (delta_i > (1 << 12)) error("Not enough bits to store local x-axis index");
+    if (delta_j > (1 << 12)) error("Not enough bits to store local x-axis index");
+    if (delta_k > (1 << 12)) error("Not enough bits to store local x-axis index");
+
+    if (delta_i * delta_j * delta_k != 3375) error("aaaa");
+    
     count += delta_i * delta_j * delta_k;
   }
   return count;
@@ -608,42 +617,67 @@ size_t init_required_mesh_cells(const int N, const double fac,
 
     struct cell *cell = &(s->cells_top[local_cells[icell]]);
 
-    if (cell->grav.count > 0) {
+    /* Skip empty cells */
+    if (cell->grav.count == 0) continue;
 
-      /* Determine range of FFT mesh cells we need for particles in this top
-         level cell. The 5 point stencil used for accelerations requires
-         2 neighbouring FFT mesh cells in each direction and for CIC
-         evaluation of the accelerations we need one extra FFT mesh cell
-         in the +ve direction.
+    /* Determine range of FFT mesh cells we need for particles in this top
+       level cell. The 5 point stencil used for accelerations requires
+       2 neighbouring FFT mesh cells in each direction and for CIC
+       evaluation of the accelerations we need one extra FFT mesh cell
+       in the +ve direction.
+       
+       We also have to add a small buffer to avoid problems with rounding
+       
+       TODO: can we calculate exactly how big the rounding error can be?
+       Will just assume that 1% of a mesh cell is enough for now.
+    */
+    int ixmin[3];
+    int ixmax[3];
+    for (int idim = 0; idim < 3; idim++) {
+      const double xmin = cell->loc[idim] - 2.01 / fac;
+      const double xmax = cell->loc[idim] + cell->width[idim] + 3.01 / fac;
+      ixmin[idim] = (int)floor(xmin * fac);
+      ixmax[idim] = (int)floor(xmax * fac);
+    }
 
-         We also have to add a small buffer to avoid problems with rounding
+    const int delta_i = (ixmax[0] - ixmin[0]) + 1;
+    const int delta_j = (ixmax[1] - ixmin[1]) + 1;
+    const int delta_k = (ixmax[2] - ixmin[2]) + 1;
 
-         TODO: can we calculate exactly how big the rounding error can be?
-               Will just assume that 1% of a mesh cell is enough for now.
-      */
-      int ixmin[3];
-      int ixmax[3];
-      for (int idim = 0; idim < 3; idim++) {
-        const double xmin = cell->loc[idim] - 2.01 / fac;
-        const double xmax = cell->loc[idim] + cell->width[idim] + 3.01 / fac;
-        ixmin[idim] = (int)floor(xmin * fac);
-        ixmax[idim] = (int)floor(xmax * fac);
-      }
+    if (delta_i > (1 << 12)) error("Not enough bits to store local x-axis index");
+    if (delta_j > (1 << 12)) error("Not enough bits to store local x-axis index");
+    if (delta_k > (1 << 12)) error("Not enough bits to store local x-axis index");
 
-      /* Add the required cells to the map */
-      for (int i = ixmin[0]; i <= ixmax[0]; i += 1) {
-        for (int j = ixmin[1]; j <= ixmax[1]; j += 1) {
-          for (int k = ixmin[2]; k <= ixmax[2]; k += 1) {
-            const size_t index =
-                row_major_id_periodic_size_t_padded(i, j, k, N);
+    if (delta_i * delta_j * delta_k != 3375) error("bbbb");
+    
+    /* Add the required cells to the map */
+    for (int i = ixmin[0]; i <= ixmax[0]; i += 1) {
+      for (int j = ixmin[1]; j <= ixmax[1]; j += 1) {
+	for (int k = ixmin[2]; k <= ixmax[2]; k += 1) {
+	  const size_t index =
+	    row_major_id_periodic_size_t_padded(i, j, k, N);
 
-            send_cells[count].cell_index = cell_index_from_patch_index(icell, i, j, k);
-            send_cells[count].value = 0.;
-            send_cells[count].key = index;
+	  const int ii = i - ixmin[0];
+	  const int jj = j - ixmin[1];
+	  const int kk = k - ixmin[2];
+	  
+	  const size_t cell_index = cell_index_from_patch_index(icell, ii, jj, kk);
+	  
+	  send_cells[count].cell_index = cell_index;
+	  send_cells[count].value = 0.;
+	  send_cells[count].key = index;
 
-            ++count;
-          }
-        }
+#ifdef SWIFT_DEBUG_CHECKS
+	  int test_ci, test_ii, test_jj, test_kk;
+	  patch_index_from_cell_index(cell_index, &test_ci, &test_ii, &test_jj, &test_kk);
+	  if (icell != test_ci) error("Invalid cell_index!");
+	  if (ii != test_ii) error("Invalid ii!");
+	  if (jj != test_jj) error("Invalid jj!");
+	  if (kk != test_kk) error("Invalid kk!");
+#endif
+	  
+	  ++count;
+	}
       }
     }
   }
@@ -654,7 +688,8 @@ size_t init_required_mesh_cells(const int N, const double fac,
 void fill_local_patches_from_mesh_cells(
     const int N, const double fac, const struct space *s,
     const struct mesh_key_value_pot *mesh_cells,
-    struct pm_mesh_patch *local_patches) {
+    struct pm_mesh_patch *local_patches,
+    const size_t nr_send_tot) {
 
   const int *local_cells = s->local_cells_top;
   const int nr_local_cells = s->nr_local_cells;
@@ -690,18 +725,30 @@ void fill_local_patches_from_mesh_cells(
       num_cells *= patch->mesh_size[i];
     }
 
+    if (num_cells != 3375) error("cccc");
+    
     /* Allocate the mesh */
     if (swift_memalign("mesh_patch", (void **)&patch->mesh,
                        SWIFT_CACHE_ALIGNMENT, num_cells * sizeof(double)) != 0)
       error("Failed to allocate array for mesh patch!");
 
+    int count = 0;
+    for (size_t imesh = 0; imesh < nr_send_tot; ++imesh) {
+
+      const size_t cell_index = mesh_cells[imesh].cell_index;
+      const int temp = cell_index_extract_patch_index(cell_index);
+      if (temp == icell) ++count;
+    }
+    message("icell=%d count=%d num_cells=%d", icell, count, num_cells);
+    
     /* Now, we can start filling the mesh patch cells from the array of
      * key-index-value tuples */
     for (size_t imesh = offset; imesh < offset + num_cells; ++imesh) {
 
       const size_t cell_index = mesh_cells[imesh].cell_index;
       const double pot = mesh_cells[imesh].value;
-      
+
+      /* Recover the patch index (should be icell) and the i,j,k indices */
       int patch_index, i, j, k;
       patch_index_from_cell_index(cell_index, &patch_index, &i, &j, &k);
 
@@ -714,7 +761,10 @@ void fill_local_patches_from_mesh_cells(
 	      icell, patch_index, cell_index, i, j, k, imesh, temp);
 #endif
 
-      const int local_index = i * (patch->mesh_size[1] * patch->mesh_size[2]) + j * patch->mesh_size[2] + k;				  
+      /* Flatten out the i,j,k index */
+      const int local_index = i * (patch->mesh_size[1] * patch->mesh_size[2]) + j * patch->mesh_size[2] + k;
+
+      /* Store the potential */
       patch->mesh[local_index] = pot;
     }
 
@@ -857,7 +907,7 @@ void mpi_mesh_fetch_potential(const int N, const double fac,
         cmp_func_mesh_key_value_pot_index);
 
   /* Initialise the local patches with the data we just received */
-  fill_local_patches_from_mesh_cells(N, fac, s, send_cells, local_patches);
+  fill_local_patches_from_mesh_cells(N, fac, s, send_cells, local_patches, nr_send_tot);
 
   swift_free("send_cells", send_cells);
 #else

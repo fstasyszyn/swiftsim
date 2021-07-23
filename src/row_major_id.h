@@ -73,24 +73,6 @@ row_major_id_periodic_size_t_padded(const int i, const int j, const int k,
   return (i_wrap * Nj * Nk) + (j_wrap * Nk) + k_wrap;
 }
 
-/* __attribute__((always_inline)) INLINE static void */
-/* row_major_indices_periodic_size_t_padded(const size_t index, const int N, */
-/*                                          int *restrict i, int *restrict j, */
-/*                                          int *restrict k) { */
-/*   /\* Find last two dimensions of the padded array *\/ */
-/*   const size_t Nj = N; */
-/*   const size_t Nk = 2 * (N / 2 + 1); */
-
-/*   const size_t k_wrap = index % Nk; */
-/*   size_t temp = (index - k_wrap) / Nk; */
-/*   const size_t j_wrap = temp % Nj; */
-/*   const size_t i_wrap = (temp - j_wrap) / Nj; */
-
-/*   *i = (int)i_wrap; */
-/*   *j = (int)j_wrap; */
-/*   *k = (int)k_wrap; */
-/* } */
-
 /**
  * @brief Return a unique ID for a mesh cell in a local patch.
  *
