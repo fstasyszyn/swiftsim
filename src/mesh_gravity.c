@@ -687,10 +687,6 @@ void compute_potential_distributed(struct pm_mesh* mesh, const struct space* s,
   double* rho_slice = (double*)fftw_malloc(2 * nalloc * sizeof(double));
   memset(rho_slice, 0, 2 * nalloc * sizeof(double));
 
-  /* Allocate storage for the slices of the FFT of the density mesh */
-  fftw_complex* frho_slice =
-      (fftw_complex*)fftw_malloc(nalloc * sizeof(fftw_complex));
-
   tic = getticks();
 
   /* Construct density field slices from contributions stored in the local
@@ -703,6 +699,10 @@ void compute_potential_distributed(struct pm_mesh* mesh, const struct space* s,
             clocks_from_ticks(getticks() - tic), clocks_getunit());
 
   tic = getticks();
+
+  /* Allocate storage for the slices of the FFT of the density mesh */
+  fftw_complex* frho_slice =
+      (fftw_complex*)fftw_malloc(nalloc * sizeof(fftw_complex));
 
   /* Carry out the MPI Fourier transform. We can save a bit of time
    * if we allow FFTW to transpose the first two dimensions of the output.
