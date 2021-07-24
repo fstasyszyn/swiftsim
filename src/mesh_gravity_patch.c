@@ -44,7 +44,7 @@ void pm_mesh_patch_init(struct pm_mesh_patch *patch, const struct cell *cell,
                         const int boundary_size) {
 
   const int gcount = cell->grav.count;
-  const struct gpart *gp = cell->grav.parts;
+  const struct gpart *gparts = cell->grav.parts;
 
   patch->N = N;
   patch->fac = fac;
@@ -72,7 +72,7 @@ void pm_mesh_patch_init(struct pm_mesh_patch *patch, const struct cell *cell,
   }
   for (int ipart = 0; ipart < gcount; ipart++) {
 
-    const gpart *gp = &gp[ipart];
+    const struct gpart *gp = &gparts[ipart];
 
     if (gp->time_bin == time_bin_inhibited) continue;
 

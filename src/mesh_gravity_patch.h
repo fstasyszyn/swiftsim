@@ -24,6 +24,7 @@
 #include "../config.h"
 
 /* Includes. */
+#include "align.h"
 #include "error.h"
 #include "inline.h"
 
