@@ -16,7 +16,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  ******************************************************************************/
-
 #ifndef SWIFT_MESH_GRAVITY_MPI_H
 #define SWIFT_MESH_GRAVITY_MPI_H
 
