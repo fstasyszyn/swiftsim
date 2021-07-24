@@ -518,10 +518,9 @@ void mpi_mesh_local_patches_to_slices(const int N, const int local_n0,
     error("Failed to allocate array for unsorted mesh send buffer!");
 
   /* Make an array with the (key, value) pairs from the mesh patches.
-   * The elements are sorted by key, which means they're sorted
-   * by x coordinate, then y coordinate, then z coordinate.
+   *
    * We're going to distribute them between ranks according to their
-   * x coordinate, so this puts them in order of destination rank. */
+   * x coordinate, so we later need to put them in order of destination rank. */
   mesh_patches_to_sorted_array(local_patches, nr_patches, mesh_sendbuf_unsorted,
                                count);
 
