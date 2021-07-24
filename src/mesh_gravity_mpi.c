@@ -416,6 +416,9 @@ void exchange_structs(size_t *nr_send, char *sendbuf, size_t *nr_recv,
  * This routine does the necessary communication to convert
  * the per-rank local patches into a slab-distributed mesh.
  *
+ * This function will clean the memory allocated by each of the entry
+ * in the local_patches array.
+ *
  * @param N The size of the mesh
  * @param local_n0 The thickness of the slice to store on this rank
  * @param local_patches The array of local patches.
@@ -423,7 +426,7 @@ void exchange_structs(size_t *nr_send, char *sendbuf, size_t *nr_recv,
  * @param mesh Pointer to the output data buffer.
  */
 void mpi_mesh_local_patches_to_slices(const int N, const int local_n0,
-                                      const struct pm_mesh_patch *local_patches,
+                                      struct pm_mesh_patch *local_patches,
                                       const int nr_patches, double *mesh,
                                       const int verbose) {
 
@@ -463,6 +466,9 @@ void mpi_mesh_local_patches_to_slices(const int N, const int local_n0,
   if (verbose)
     message(" - Converting mesh patches to array took %.3f %s.",
             clocks_from_ticks(getticks() - tic), clocks_getunit());
+
+  /* Clean the local patches array */
+  for (int i = 0; i < nr_patches; ++i) pm_mesh_patch_clean(&local_patches[i]);
 
   tic = getticks();
 

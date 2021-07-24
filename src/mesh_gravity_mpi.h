@@ -35,7 +35,7 @@ void mpi_mesh_accumulate_gparts_to_local_patches(
     struct pm_mesh_patch *local_patches);
 
 void mpi_mesh_local_patches_to_slices(const int N, const int local_n0,
-                                      const struct pm_mesh_patch *local_patches,
+                                      struct pm_mesh_patch *local_patches,
                                       const int nr_patches, double *mesh,
                                       const int verbose);
 

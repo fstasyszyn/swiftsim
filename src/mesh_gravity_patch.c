@@ -96,7 +96,7 @@ void pm_mesh_patch_zero(struct pm_mesh_patch *patch) {
 
   const int num =
       patch->mesh_size[0] * patch->mesh_size[1] * patch->mesh_size[2];
-  for (int i = 0; i < num; i += 1) patch->mesh[i] = 0.0;
+  memset(patch->mesh, 0, num * sizeof(double));
 }
 
 /**
@@ -106,4 +106,6 @@ void pm_mesh_patch_zero(struct pm_mesh_patch *patch) {
  */
 void pm_mesh_patch_clean(struct pm_mesh_patch *patch) {
   swift_free("mesh_patch", patch->mesh);
+  memset(patch, 0, sizeof(struct pm_mesh_patch));
+  patch->N = -1;
 }
