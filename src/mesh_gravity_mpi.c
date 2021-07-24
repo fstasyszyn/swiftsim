@@ -188,7 +188,7 @@ void mpi_mesh_accumulate_gparts_to_local_patches(
   threadpool_map(tp, accumulate_cell_to_local_patches_mapper,
                  (void *)local_cells, nr_local_cells, sizeof(int),
                  threadpool_auto_chunk_size, (void *)&data);
-  if (lock_destroy(&lock) != 0) error("Impossible to destory lock!");
+  if (lock_destroy(&lock) != 0) error("Impossible to destroy lock!");
 
 #else
   error("FFTW MPI not found - unable to use distributed mesh");
@@ -204,22 +204,83 @@ struct mesh_key_value_rho {
 };
 
 /**
- * @brief Comparison function to sort mesh_key_value_rho by key
+ * @brief Bucket sort of the array of mesh cells based on their x-coord.
  *
- * @param a The first #mesh_key_value_rho object.
- * @param b The second #mesh_key_value_rho object.
- * @return 1 if a's key field is greater than b's key field,
- * -1 if a's key field is less than b's key field, and zero otherwise
+ * Note the two mesh_key_value_rho arrays must be aligned on
+ * SWIFT_CACHE_ALIGNMENT.
+ *
+ * @param array_in The unsorted array of mesh-key value pairs.
+ * @param count The number of elements in the mesh-key value pair arrays.
+ * @param N The size of the mesh. (i.e. the number of possible x-axis values)
+ * @param array_out The sorted array of mesh-key value pairs (to be filled).
  */
-int cmp_func_mesh_key_value_rho(const void *a, const void *b) {
-  const struct mesh_key_value_rho *a_key_value = (struct mesh_key_value_rho *)a;
-  const struct mesh_key_value_rho *b_key_value = (struct mesh_key_value_rho *)b;
-  if (a_key_value->key > b_key_value->key)
-    return 1;
-  else if (a_key_value->key < b_key_value->key)
-    return -1;
-  else
-    return 0;
+void bucket_sort_mesh_key_values_rho(const struct mesh_key_value_rho *array_in,
+                                     const size_t count, const int N,
+                                     struct mesh_key_value_rho *array_out) {
+
+  /* Create an array of bucket counts and one of offsets */
+  size_t *bucket_counts = (size_t *)malloc(N * sizeof(size_t));
+  size_t *bucket_offsets = (size_t *)malloc(N * sizeof(size_t));
+  memset(bucket_counts, 0, N * sizeof(size_t));
+
+  /* Remind the compiler that the array is nicely aligned */
+  swift_declare_aligned_ptr(const struct mesh_key_value_rho, array_in_aligned,
+                            array_in, SWIFT_CACHE_ALIGNMENT);
+
+  /* Count how many items will land in each bucket. */
+  for (size_t i = 0; i < count; ++i) {
+
+    const size_t key = array_in_aligned[i].key;
+
+    /* Get the x coordinate of this mesh cell in the global mesh
+     * Note: we don't need to sort more precisely than just
+     * the x coordinate */
+    const int mesh_x = get_xcoord_from_padded_row_major_id(key, N);
+
+#ifdef SWIFT_DEBUG_CHECKS
+    if (mesh_x < 0) error("Invalid mesh cell x-coordinate (too small)");
+    if (mesh_x >= N) error("Invalid mesh cell x-coordinate (too large)");
+#endif
+
+    /* Add a contribution to the bucket count */
+    bucket_counts[mesh_x]++;
+  }
+
+#ifdef SWIFT_DEBUG_CHECKS
+  size_t count_check = 0;
+  for (int i = 0; i < N; ++i) count_check += bucket_counts[i];
+  if (count_check != count) error("Bucket count is not matching");
+#endif
+
+  /* Now we can build the array of offsets (cumsum of the counts) */
+  bucket_offsets[0] = 0;
+  for (int i = 1; i < N; ++i) {
+    bucket_offsets[i] = bucket_offsets[i - 1] + bucket_counts[i - 1];
+  }
+
+  swift_declare_aligned_ptr(struct mesh_key_value_rho, array_out_aligned,
+                            array_out, SWIFT_CACHE_ALIGNMENT);
+
+  /* Now, we can do the actual sorting */
+  for (size_t i = 0; i < count; ++i) {
+
+    const size_t key = array_in_aligned[i].key;
+    const int mesh_x = get_xcoord_from_padded_row_major_id(key, N);
+
+    /* Where does this element land? */
+    const size_t index = bucket_offsets[mesh_x];
+
+    /* Copy the element to its correct position */
+    memcpy(&array_out_aligned[index], &array_in_aligned[i],
+           sizeof(struct mesh_key_value_rho));
+
+    /* Move the start of this bucket by one */
+    bucket_offsets[mesh_x]++;
+  }
+
+  /* Clean up! */
+  free(bucket_offsets);
+  free(bucket_counts);
 }
 
 struct mesh_key_value_pot {
@@ -449,19 +510,20 @@ void mpi_mesh_local_patches_to_slices(const int N, const int local_n0,
   }
 
   /* Create an array to contain all the individual mesh cells we have
-   * on this node. */
-  struct mesh_key_value_rho *mesh_sendbuf;
-  if (swift_memalign("mesh_sendbuf", (void **)&mesh_sendbuf,
+   * on this node. For now, this is in random order */
+  struct mesh_key_value_rho *mesh_sendbuf_unsorted;
+  if (swift_memalign("mesh_sendbuf_unsorted", (void **)&mesh_sendbuf_unsorted,
                      SWIFT_CACHE_ALIGNMENT,
                      count * sizeof(struct mesh_key_value_rho)) != 0)
-    error("Failed to allocate array for mesh send buffer!");
+    error("Failed to allocate array for unsorted mesh send buffer!");
 
   /* Make an array with the (key, value) pairs from the mesh patches.
    * The elements are sorted by key, which means they're sorted
    * by x coordinate, then y coordinate, then z coordinate.
    * We're going to distribute them between ranks according to their
    * x coordinate, so this puts them in order of destination rank. */
-  mesh_patches_to_sorted_array(local_patches, nr_patches, mesh_sendbuf, count);
+  mesh_patches_to_sorted_array(local_patches, nr_patches, mesh_sendbuf_unsorted,
+                               count);
 
   if (verbose)
     message(" - Converting mesh patches to array took %.3f %s.",
@@ -472,9 +534,21 @@ void mpi_mesh_local_patches_to_slices(const int N, const int local_n0,
 
   tic = getticks();
 
-  /* And sort the pairs by key */
-  qsort(mesh_sendbuf, count, sizeof(struct mesh_key_value_rho),
-        cmp_func_mesh_key_value_rho);
+  /* Now, create space for a sorted version of the array of mesh cells */
+  struct mesh_key_value_rho *mesh_sendbuf;
+  if (swift_memalign("mesh_sendbuf", (void **)&mesh_sendbuf,
+                     SWIFT_CACHE_ALIGNMENT,
+                     count * sizeof(struct mesh_key_value_rho)) != 0)
+    error("Failed to allocate array for unsorted mesh send buffer!");
+
+  /* Do a bucket sort of the mesh elements to have them sorted
+   * by global x-coordinate (note we don't care about y,z at this stage */
+  bucket_sort_mesh_key_values_rho(mesh_sendbuf_unsorted, count, N,
+                                  mesh_sendbuf);
+
+  /* Let's free the unsorted array to keep things lean */
+  swift_free("mesh_sendbuf_unsorted", mesh_sendbuf_unsorted);
+  mesh_sendbuf_unsorted = NULL;
 
   if (verbose)
     message(" - Sorting of mesh cells took %.3f %s.",
