@@ -50,22 +50,34 @@ void pm_mesh_patch_init(struct pm_mesh_patch *patch, const struct cell *cell,
   patch->fac = fac;
 
   /* Will need to wrap particles to position nearest the cell centre */
-  for (int i = 0; i < 3; i += 1) {
-    patch->wrap_min[i] = cell->loc[i] + 0.5 * cell->width[i] - 0.5 * dim[i];
-    patch->wrap_max[i] = cell->loc[i] + 0.5 * cell->width[i] + 0.5 * dim[i];
+  double wrap_min[3];
+  double wrap_max[3];
+  for (int i = 0; i < 3; i++) {
+    wrap_min[i] = cell->loc[i] + 0.5 * cell->width[i] - 0.5 * dim[i];
+    wrap_max[i] = cell->loc[i] + 0.5 * cell->width[i] + 0.5 * dim[i];
+  }
+
+  /* Store the wraps */
+  for (int i = 0; i < 3; i++) {
+    patch->wrap_min[i] = wrap_min[i];
+    patch->wrap_max[i] = wrap_max[i];
   }
 
   /* Find the extent of the particle distribution in the cell */
   double pos_min[3];
   double pos_max[3];
-  for (int i = 0; i < 3; i += 1) {
+  for (int i = 0; i < 3; i++) {
     pos_min[i] = patch->wrap_max[i];
     pos_max[i] = patch->wrap_min[i];
   }
-  for (int ipart = 0; ipart < gcount; ipart += 1) {
-    for (int i = 0; i < 3; i += 1) {
-      const double pos_wrap =
-          box_wrap(gp[ipart].x[i], patch->wrap_min[i], patch->wrap_max[i]);
+  for (int ipart = 0; ipart < gcount; ipart++) {
+
+    const gpart *gp = &gp[ipart];
+
+    if (gp->time_bin == time_bin_inhibited) continue;
+
+    for (int i = 0; i < 3; i++) {
+      const double pos_wrap = box_wrap(gp->x[i], wrap_min[i], wrap_max[i]);
       if (pos_wrap < pos_min[i]) pos_min[i] = pos_wrap;
       if (pos_wrap > pos_max[i]) pos_max[i] = pos_wrap;
     }
@@ -73,7 +85,7 @@ void pm_mesh_patch_init(struct pm_mesh_patch *patch, const struct cell *cell,
 
   /* Determine the integer size and coordinates of the mesh */
   int num_cells = 1;
-  for (int i = 0; i < 3; i += 1) {
+  for (int i = 0; i < 3; i++) {
     patch->mesh_min[i] = floor(pos_min[i] * fac) - boundary_size;
     /* CIC interpolation requires one extra element in the positive direction */
     patch->mesh_max[i] = floor(pos_max[i] * fac) + boundary_size + 1;
@@ -105,7 +117,10 @@ void pm_mesh_patch_zero(struct pm_mesh_patch *patch) {
  * @param patch A pointer to the mesh patch
  */
 void pm_mesh_patch_clean(struct pm_mesh_patch *patch) {
+
   swift_free("mesh_patch", patch->mesh);
+
+  /* Zero everything and give a silly mesh size to help debugging */
   memset(patch, 0, sizeof(struct pm_mesh_patch));
   patch->N = -1;
 }

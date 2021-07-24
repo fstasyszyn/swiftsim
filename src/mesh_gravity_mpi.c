@@ -68,7 +68,7 @@ void accumulate_cell_to_local_patch(const int N, const double fac,
   pm_mesh_patch_zero(patch);
 
   /* Loop over particles in this cell */
-  for (int ipart = 0; ipart < cell->grav.count; ipart += 1) {
+  for (int ipart = 0; ipart < cell->grav.count; ipart++) {
 
     const struct gpart *gp = &(cell->grav.parts[ipart]);
 
@@ -336,14 +336,14 @@ void exchange_structs(size_t *nr_send, char *sendbuf, size_t *nr_recv,
   /* Compute send offsets */
   size_t *send_offset = (size_t *)malloc(nr_nodes * sizeof(size_t));
   send_offset[0] = 0;
-  for (int i = 1; i < nr_nodes; i += 1) {
+  for (int i = 1; i < nr_nodes; i++) {
     send_offset[i] = send_offset[i - 1] + nr_send[i - 1];
   }
 
   /* Compute receive offsets */
   size_t *recv_offset = (size_t *)malloc(nr_nodes * sizeof(size_t));
   recv_offset[0] = 0;
-  for (int i = 1; i < nr_nodes; i += 1) {
+  for (int i = 1; i < nr_nodes; i++) {
     recv_offset[i] = recv_offset[i - 1] + nr_recv[i - 1];
   }
 
@@ -364,7 +364,7 @@ void exchange_structs(size_t *nr_send, char *sendbuf, size_t *nr_recv,
    * we want to avoid the limits imposed by int counts and offsets
    * in MPI_Alltoallv.
    */
-  for (int i = 0; i < nr_nodes; i += 1) {
+  for (int i = 0; i < nr_nodes; i++) {
     if (nr_send[i] > 0) {
 
       /* TODO: handle very large messages */
@@ -379,7 +379,7 @@ void exchange_structs(size_t *nr_send, char *sendbuf, size_t *nr_recv,
   }
 
   /* Post the receives */
-  for (int i = 0; i < nr_nodes; i += 1) {
+  for (int i = 0; i < nr_nodes; i++) {
     if (nr_recv[i] > 0) {
 
       /* TODO: handle very large messages */
@@ -521,7 +521,8 @@ void mpi_mesh_local_patches_to_slices(const int N, const int local_n0,
 
   /* Allocate the receive buffer */
   struct mesh_key_value_rho *mesh_recvbuf;
-  if (swift_memalign("mesh_recvbuf", (void **)&mesh_recvbuf, 32,
+  if (swift_memalign("mesh_recvbuf", (void **)&mesh_recvbuf,
+                     SWIFT_CACHE_ALIGNMENT,
                      nr_recv_tot * sizeof(struct mesh_key_value_rho)) != 0)
     error("Failed to allocate receive buffer for constructing MPI FFT mesh");
 
@@ -692,9 +693,9 @@ size_t init_required_mesh_cells(const int N, const double fac,
 #endif
 
     /* Add the required cells to the map */
-    for (int i = ixmin[0]; i <= ixmax[0]; i += 1) {
-      for (int j = ixmin[1]; j <= ixmax[1]; j += 1) {
-        for (int k = ixmin[2]; k <= ixmax[2]; k += 1) {
+    for (int i = ixmin[0]; i <= ixmax[0]; i++) {
+      for (int j = ixmin[1]; j <= ixmax[1]; j++) {
+        for (int k = ixmin[2]; k <= ixmax[2]; k++) {
           const size_t index = row_major_id_periodic_size_t_padded(i, j, k, N);
 
           /* Indices relative to the patch */
@@ -753,7 +754,7 @@ void fill_local_patches_from_mesh_cells(
     patch->fac = fac;
 
     /* Will need to wrap particles to position nearest the cell centre */
-    for (int i = 0; i < 3; i += 1) {
+    for (int i = 0; i < 3; i++) {
       patch->wrap_min[i] = cell->loc[i] + 0.5 * cell->width[i] - 0.5 * dim[i];
       patch->wrap_max[i] = cell->loc[i] + 0.5 * cell->width[i] + 0.5 * dim[i];
     }
@@ -865,7 +866,7 @@ void mpi_mesh_fetch_potential(const int N, const double fac,
             clocks_from_ticks(getticks() - tic), clocks_getunit());
 
   struct mesh_key_value_pot *send_cells;
-  if (swift_memalign("send_cells", (void **)&send_cells, 32,
+  if (swift_memalign("send_cells", (void **)&send_cells, SWIFT_CACHE_ALIGNMENT,
                      nr_send_tot * sizeof(struct mesh_key_value_pot)) != 0)
     error("Failed to allocate array for cells to request!");
 
@@ -900,7 +901,7 @@ void mpi_mesh_fetch_potential(const int N, const double fac,
   /* Determine first mesh x coordinate stored on each rank */
   int *slice_offset = (int *)malloc(sizeof(int) * nr_nodes);
   slice_offset[0] = 0;
-  for (int i = 1; i < nr_nodes; i += 1) {
+  for (int i = 1; i < nr_nodes; i++) {
     slice_offset[i] = slice_offset[i - 1] + slice_width[i - 1];
   }
 
@@ -909,17 +910,17 @@ void mpi_mesh_fetch_potential(const int N, const double fac,
   memset(nr_send, 0, sizeof(size_t) * nr_nodes);
 
   int dest_rank = 0;
-  for (size_t i = 0; i < nr_send_tot; i += 1) {
+  for (size_t i = 0; i < nr_send_tot; i++) {
     while (get_xcoord_from_padded_row_major_id(send_cells[i].key, N) >=
                (slice_offset[dest_rank] + slice_width[dest_rank]) ||
            slice_width[dest_rank] == 0) {
-      dest_rank += 1;
+      dest_rank++;
     }
 #ifdef SWIFT_DEBUG_CHECKS
     if (dest_rank >= nr_nodes || dest_rank < 0)
       error("Destination rank out of range");
 #endif
-    nr_send[dest_rank] += 1;
+    nr_send[dest_rank]++;
   }
 
   /* Determine how many requests we'll receive from each MPI rank */
@@ -927,7 +928,7 @@ void mpi_mesh_fetch_potential(const int N, const double fac,
   MPI_Alltoall(nr_send, sizeof(size_t), MPI_BYTE, nr_recv, sizeof(size_t),
                MPI_BYTE, MPI_COMM_WORLD);
   size_t nr_recv_tot = 0;
-  for (int i = 0; i < nr_nodes; i += 1) {
+  for (int i = 0; i < nr_nodes; i++) {
     nr_recv_tot += nr_recv[i];
   }
 
@@ -939,7 +940,7 @@ void mpi_mesh_fetch_potential(const int N, const double fac,
 
   /* Allocate buffer to receive requests */
   struct mesh_key_value_pot *recv_cells;
-  if (swift_memalign("recv_cells", (void **)&recv_cells, 32,
+  if (swift_memalign("recv_cells", (void **)&recv_cells, SWIFT_CACHE_ALIGNMENT,
                      nr_recv_tot * sizeof(struct mesh_key_value_pot)) != 0)
     error("Failed to allocate array for mesh receive buffer!");
 
@@ -954,7 +955,7 @@ void mpi_mesh_fetch_potential(const int N, const double fac,
   tic = getticks();
 
   /* Look up potential in the requested cells */
-  for (size_t i = 0; i < nr_recv_tot; i += 1) {
+  for (size_t i = 0; i < nr_recv_tot; i++) {
 #ifdef SWIFT_DEBUG_CHECKS
     const size_t cells_in_slab = ((size_t)N) * (2 * (N / 2 + 1));
     const size_t first_local_id = local_0_start * cells_in_slab;

@@ -81,14 +81,14 @@ void pm_mesh_patch_clean(struct pm_mesh_patch *patch);
 __attribute__((always_inline)) INLINE static int pm_mesh_patch_index(
     const struct pm_mesh_patch *patch, const int i, const int j, const int k) {
 
-  /* #ifdef SWIFT_DEBUG_CHECKS */
+#ifdef SWIFT_DEBUG_CHECKS
   if (i < 0 || i >= patch->mesh_size[0])
     error("Coordinate in local mesh out of range!");
   if (j < 0 || j >= patch->mesh_size[1])
     error("Coordinate in local mesh out of range!");
   if (k < 0 || k >= patch->mesh_size[2])
     error("Coordinate in local mesh out of range!");
-  /* #endif */
+#endif
 
   return (i * patch->mesh_size[1] * patch->mesh_size[2]) +
          (j * patch->mesh_size[2]) + k;
@@ -113,23 +113,22 @@ __attribute__((always_inline)) INLINE static double pm_mesh_patch_CIC_get(
     const struct pm_mesh_patch *patch, const int i, const int j, const int k,
     const double tx, const double ty, const double tz, const double dx,
     const double dy, const double dz) {
+
+  /* Remind the compiler that the arrays are nicely aligned */
+  swift_declare_aligned_ptr(const double, mesh, patch->mesh,
+                            SWIFT_CACHE_ALIGNMENT);
+
   double temp;
-  temp = patch->mesh[pm_mesh_patch_index(patch, i + 0, j + 0, k + 0)] * tx *
-         ty * tz;
-  temp += patch->mesh[pm_mesh_patch_index(patch, i + 0, j + 0, k + 1)] * tx *
-          ty * dz;
-  temp += patch->mesh[pm_mesh_patch_index(patch, i + 0, j + 1, k + 0)] * tx *
-          dy * tz;
-  temp += patch->mesh[pm_mesh_patch_index(patch, i + 0, j + 1, k + 1)] * tx *
-          dy * dz;
-  temp += patch->mesh[pm_mesh_patch_index(patch, i + 1, j + 0, k + 0)] * dx *
-          ty * tz;
-  temp += patch->mesh[pm_mesh_patch_index(patch, i + 1, j + 0, k + 1)] * dx *
-          ty * dz;
-  temp += patch->mesh[pm_mesh_patch_index(patch, i + 1, j + 1, k + 0)] * dx *
-          dy * tz;
-  temp += patch->mesh[pm_mesh_patch_index(patch, i + 1, j + 1, k + 1)] * dx *
-          dy * dz;
+
+  /* Classic 3D CIC */
+  temp = mesh[pm_mesh_patch_index(patch, i + 0, j + 0, k + 0)] * tx * ty * tz;
+  temp += mesh[pm_mesh_patch_index(patch, i + 0, j + 0, k + 1)] * tx * ty * dz;
+  temp += mesh[pm_mesh_patch_index(patch, i + 0, j + 1, k + 0)] * tx * dy * tz;
+  temp += mesh[pm_mesh_patch_index(patch, i + 0, j + 1, k + 1)] * tx * dy * dz;
+  temp += mesh[pm_mesh_patch_index(patch, i + 1, j + 0, k + 0)] * dx * ty * tz;
+  temp += mesh[pm_mesh_patch_index(patch, i + 1, j + 0, k + 1)] * dx * ty * dz;
+  temp += mesh[pm_mesh_patch_index(patch, i + 1, j + 1, k + 0)] * dx * dy * tz;
+  temp += mesh[pm_mesh_patch_index(patch, i + 1, j + 1, k + 1)] * dx * dy * dz;
   return temp;
 }
 
@@ -153,22 +152,18 @@ __attribute__((always_inline)) INLINE static void pm_mesh_patch_CIC_set(
     const double tx, const double ty, const double tz, const double dx,
     const double dy, const double dz, const double value) {
 
-  patch->mesh[pm_mesh_patch_index(patch, i + 0, j + 0, k + 0)] +=
-      value * tx * ty * tz;
-  patch->mesh[pm_mesh_patch_index(patch, i + 0, j + 0, k + 1)] +=
-      value * tx * ty * dz;
-  patch->mesh[pm_mesh_patch_index(patch, i + 0, j + 1, k + 0)] +=
-      value * tx * dy * tz;
-  patch->mesh[pm_mesh_patch_index(patch, i + 0, j + 1, k + 1)] +=
-      value * tx * dy * dz;
-  patch->mesh[pm_mesh_patch_index(patch, i + 1, j + 0, k + 0)] +=
-      value * dx * ty * tz;
-  patch->mesh[pm_mesh_patch_index(patch, i + 1, j + 0, k + 1)] +=
-      value * dx * ty * dz;
-  patch->mesh[pm_mesh_patch_index(patch, i + 1, j + 1, k + 0)] +=
-      value * dx * dy * tz;
-  patch->mesh[pm_mesh_patch_index(patch, i + 1, j + 1, k + 1)] +=
-      value * dx * dy * dz;
+  /* Remind the compiler that the arrays are nicely aligned */
+  swift_declare_aligned_ptr(double, mesh, patch->mesh, SWIFT_CACHE_ALIGNMENT);
+
+  /* Classic 3D CIC */
+  mesh[pm_mesh_patch_index(patch, i + 0, j + 0, k + 0)] += value * tx * ty * tz;
+  mesh[pm_mesh_patch_index(patch, i + 0, j + 0, k + 1)] += value * tx * ty * dz;
+  mesh[pm_mesh_patch_index(patch, i + 0, j + 1, k + 0)] += value * tx * dy * tz;
+  mesh[pm_mesh_patch_index(patch, i + 0, j + 1, k + 1)] += value * tx * dy * dz;
+  mesh[pm_mesh_patch_index(patch, i + 1, j + 0, k + 0)] += value * dx * ty * tz;
+  mesh[pm_mesh_patch_index(patch, i + 1, j + 0, k + 1)] += value * dx * ty * dz;
+  mesh[pm_mesh_patch_index(patch, i + 1, j + 1, k + 0)] += value * dx * dy * tz;
+  mesh[pm_mesh_patch_index(patch, i + 1, j + 1, k + 1)] += value * dx * dy * dz;
 }
 
 #endif
