@@ -409,10 +409,13 @@ void mpi_mesh_local_patches_to_slices(const int N, const int local_n0,
                      count * sizeof(struct mesh_key_value_rho)) != 0)
     error("Failed to allocate array for unsorted mesh send buffer!");
 
+  size_t *sorted_offsets = (size_t *)malloc(N * sizeof(size_t));
+
   /* Do a bucket sort of the mesh elements to have them sorted
-   * by global x-coordinate (note we don't care about y,z at this stage) */
+   * by global x-coordinate (note we don't care about y,z at this stage)
+   * Also reover the offsets where we switch from one bin to the next */
   bucket_sort_mesh_key_value_rho(mesh_sendbuf_unsorted, count, N, tp,
-                                 mesh_sendbuf);
+                                 mesh_sendbuf, sorted_offsets);
 
   /* Let's free the unsorted array to keep things lean */
   swift_free("mesh_sendbuf_unsorted", mesh_sendbuf_unsorted);
@@ -436,21 +439,59 @@ void mpi_mesh_local_patches_to_slices(const int N, const int local_n0,
   }
 
   /* Compute how many elements are to be sent to each rank */
-  size_t *nr_send = (size_t *)malloc(nr_nodes * sizeof(size_t));
-  memset(nr_send, 0, nr_nodes * sizeof(size_t));
+  size_t *nr_send = (size_t *)calloc(nr_nodes, sizeof(size_t));
 
+  /* Loop over the offsets */
   int dest_node = 0;
-  for (size_t i = 0; i < count; i++) {
+  for (int i = 0; i < N; ++i) {
+
+    /* Find the first mesh cell in that bucket */
+    const size_t j = sorted_offsets[i];
+
     /* Get the x coordinate of this mesh cell in the global mesh */
     const int mesh_x =
-        get_xcoord_from_padded_row_major_id((size_t)mesh_sendbuf[i].key, N);
+        get_xcoord_from_padded_row_major_id((size_t)mesh_sendbuf[j].key, N);
+
     /* Advance to the destination node that is to contain this x coordinate */
     while ((mesh_x >= slice_offset[dest_node] + slice_width[dest_node]) ||
            (slice_width[dest_node] == 0)) {
       dest_node++;
     }
-    nr_send[dest_node]++;
+
+    /* Add all the mesh cells in this bucket */
+    if (i < N - 1)
+      nr_send[dest_node] += sorted_offsets[i + 1] - sorted_offsets[i];
+    else
+      nr_send[dest_node] += count - sorted_offsets[i];
   }
+
+#ifdef SWIFT_DEBUG_CHECKS
+  size_t *nr_send_check = (size_t *)calloc(nr_nodes, sizeof(size_t));
+
+  /* Brute-force list without using the offsets */
+  int dest_node_check = 0;
+  for (size_t i = 0; i < count; i++) {
+    /* Get the x coordinate of this mesh cell in the global mesh */
+    const int mesh_x =
+        get_xcoord_from_padded_row_major_id((size_t)mesh_sendbuf[i].key, N);
+    /* Advance to the destination node that is to contain this x coordinate */
+    while ((mesh_x >=
+            slice_offset[dest_node_check] + slice_width[dest_node_check]) ||
+           (slice_width[dest_node_check] == 0)) {
+      dest_node_check++;
+    }
+    nr_send_check[dest_node_check]++;
+  }
+
+  /* Verify the "smart" list is as good as the brute-force one */
+  for (int i = 0; i < nr_nodes; ++i) {
+    if (nr_send[i] != nr_send_check[i]) error("Invalid send list!");
+  }
+  free(nr_send_check);
+#endif
+
+  /* We don't need the sorted offsets any more from here onwards */
+  free(sorted_offsets);
 
   /* Determine how many requests we'll receive from each MPI rank */
   size_t *nr_recv = (size_t *)malloc(sizeof(size_t) * nr_nodes);
@@ -833,10 +874,12 @@ void mpi_mesh_fetch_potential(const int N, const double fac,
                      nr_send_tot * sizeof(struct mesh_key_value_pot)) != 0)
     error("Failed to allocate array for cells to request!");
 
+  size_t *sorted_offsets = (size_t *)malloc(N * sizeof(size_t));
+
   /* Do a bucket sort of the mesh elements to have them sorted
    * by global x-coordinate (note we don't care about y,z at this stage) */
   bucket_sort_mesh_key_value_pot(send_cells_unsorted, nr_send_tot, N, tp,
-                                 send_cells);
+                                 send_cells, sorted_offsets);
 
   swift_free("send_cells_unsorted", send_cells_unsorted);
   send_cells_unsorted = NULL;
@@ -859,22 +902,57 @@ void mpi_mesh_fetch_potential(const int N, const double fac,
   }
 
   /* Count how many mesh cells we need to request from each MPI rank */
-  size_t *nr_send = (size_t *)malloc(sizeof(size_t) * nr_nodes);
-  memset(nr_send, 0, sizeof(size_t) * nr_nodes);
+  size_t *nr_send = (size_t *)calloc(nr_nodes, sizeof(size_t));
 
-  int dest_rank = 0;
+  /* Loop over the offsets */
+  int dest_node = 0;
+  for (int i = 0; i < N; ++i) {
+
+    /* Find the first mesh cell in that bucket */
+    const size_t j = sorted_offsets[i];
+
+    /* Get the x coordinate of this mesh cell in the global mesh */
+    const int mesh_x =
+        get_xcoord_from_padded_row_major_id((size_t)send_cells[j].key, N);
+
+    /* Advance to the destination node that is to contain this x coordinate */
+    while ((mesh_x >= slice_offset[dest_node] + slice_width[dest_node]) ||
+           (slice_width[dest_node] == 0)) {
+      dest_node++;
+    }
+
+    /* Add all the mesh cells in this bucket */
+    if (i < N - 1)
+      nr_send[dest_node] += sorted_offsets[i + 1] - sorted_offsets[i];
+    else
+      nr_send[dest_node] += nr_send_tot - sorted_offsets[i];
+  }
+
+#ifdef SWIFT_DEBUG_CHECKS
+  size_t *nr_send_check = (size_t *)calloc(nr_nodes, sizeof(size_t));
+
+  /* Brute-force list without using the offsets */
+  int dest_node_check = 0;
   for (size_t i = 0; i < nr_send_tot; i++) {
     while (get_xcoord_from_padded_row_major_id(send_cells[i].key, N) >=
-               (slice_offset[dest_rank] + slice_width[dest_rank]) ||
-           slice_width[dest_rank] == 0) {
-      dest_rank++;
+               (slice_offset[dest_node_check] + slice_width[dest_node_check]) ||
+           slice_width[dest_node_check] == 0) {
+      dest_node_check++;
     }
-#ifdef SWIFT_DEBUG_CHECKS
-    if (dest_rank >= nr_nodes || dest_rank < 0)
-      error("Destination rank out of range");
-#endif
-    nr_send[dest_rank]++;
+    if (dest_node_check >= nr_nodes || dest_node_check < 0)
+      error("Destination node out of range");
+    nr_send_check[dest_node_check]++;
   }
+
+  /* Verify the "smart" list is as good as the brute-force one */
+  for (int i = 0; i < nr_nodes; ++i) {
+    if (nr_send[i] != nr_send_check[i]) error("Invalid send list!");
+  }
+  free(nr_send_check);
+#endif
+
+  /* We don't need the sorted offsets any more from here onwards */
+  free(sorted_offsets);
 
   /* Determine how many requests we'll receive from each MPI rank */
   size_t *nr_recv = (size_t *)malloc(sizeof(size_t) * nr_nodes);
