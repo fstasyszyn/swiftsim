@@ -36,7 +36,7 @@ void mpi_mesh_accumulate_gparts_to_local_patches(
 void mpi_mesh_local_patches_to_slices(const int N, const int local_n0,
                                       struct pm_mesh_patch *local_patches,
                                       const int nr_patches, double *mesh,
-                                      const int verbose);
+                                      struct threadpool *tp, const int verbose);
 
 void mpi_mesh_fetch_potential(const int N, const double fac,
                               const struct space *s, int local_0_start,

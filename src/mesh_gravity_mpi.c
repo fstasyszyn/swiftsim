@@ -355,6 +355,7 @@ void exchange_structs(size_t *nr_send, char *sendbuf, size_t *nr_recv,
 void mpi_mesh_local_patches_to_slices(const int N, const int local_n0,
                                       struct pm_mesh_patch *local_patches,
                                       const int nr_patches, double *mesh,
+                                      struct threadpool *tp,
                                       const int verbose) {
 
 #if defined(WITH_MPI) && defined(HAVE_MPI_FFTW)
@@ -408,7 +409,8 @@ void mpi_mesh_local_patches_to_slices(const int N, const int local_n0,
 
   /* Do a bucket sort of the mesh elements to have them sorted
    * by global x-coordinate (note we don't care about y,z at this stage) */
-  bucket_sort_mesh_key_value_rho(mesh_sendbuf_unsorted, count, N, mesh_sendbuf);
+  bucket_sort_mesh_key_value_rho(mesh_sendbuf_unsorted, count, N, tp,
+                                 mesh_sendbuf);
 
   /* Let's free the unsorted array to keep things lean */
   swift_free("mesh_sendbuf_unsorted", mesh_sendbuf_unsorted);

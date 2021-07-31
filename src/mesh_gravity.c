@@ -693,7 +693,7 @@ void compute_potential_distributed(struct pm_mesh* mesh, const struct space* s,
    * patches.
    * Note: This cleans up the local_patches entries. */
   mpi_mesh_local_patches_to_slices(N, (int)local_n0, local_patches,
-                                   nr_local_cells, rho_slice, verbose);
+                                   nr_local_cells, rho_slice, tp, verbose);
   if (verbose)
     message("Assembling mesh slices took %.3f %s.",
             clocks_from_ticks(getticks() - tic), clocks_getunit());

@@ -26,6 +26,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+struct threadpool;
+
 /**
  * @brief Store contributions to the mesh as (index, mass) pairs
  */
@@ -45,8 +47,8 @@ struct mesh_key_value_pot {
 
 void bucket_sort_mesh_key_value_rho(const struct mesh_key_value_rho *array_in,
                                     const size_t count, const int N,
+                                    struct threadpool *tp,
                                     struct mesh_key_value_rho *array_out);
-
 
 void bucket_sort_mesh_key_value_pot(const struct mesh_key_value_pot *array_in,
                                     const size_t count, const int N,
