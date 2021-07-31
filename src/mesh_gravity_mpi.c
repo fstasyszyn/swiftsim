@@ -959,8 +959,8 @@ void mpi_mesh_fetch_potential(const int N, const double fac,
 
   /* Now sort the mesh cells by top-level cell index (i.e. by the patch they
    * belong to) */
-  bucket_sort_mesh_key_value_pot_index(send_cells, nr_send_tot,
-                                       s->nr_local_cells, send_cells_sorted);
+  bucket_sort_mesh_key_value_pot_index(
+      send_cells, nr_send_tot, s->nr_local_cells, tp, send_cells_sorted);
 
   swift_free("send_cells", send_cells);
   send_cells = NULL;

@@ -128,6 +128,49 @@ void bucket_sort_mesh_key_value_pot_count_mapper(void *map_data, int nr_parts,
 }
 
 /**
+ * @param Count how may mesh cells will end up in each cell index
+ */
+void bucket_sort_mesh_key_value_pot_index_count_mapper(void *map_data,
+                                                       int nr_parts,
+                                                       void *extra_data) {
+
+  /* Unpack the data */
+  const struct mesh_key_value_pot *array_in =
+      (const struct mesh_key_value_pot *)map_data;
+  struct mapper_extra_data *data = (struct mapper_extra_data *)extra_data;
+  const int N = data->N;
+  size_t *global_bucket_counts = data->bucket_counts;
+
+  /* Local buckets */
+  size_t *local_bucket_counts = (size_t *)calloc(N, sizeof(size_t));
+
+  /* Count how many items will land in each bucket. */
+  for (int i = 0; i < nr_parts; ++i) {
+
+    const size_t key = array_in[i].cell_index;
+
+    /* Get the cell_index */
+    const int cell_id = cell_index_extract_patch_index(key);
+
+#ifdef SWIFT_DEBUG_CHECKS
+    if (cell_id < 0) error("Invalid mesh cell x-coordinate (too small)");
+    if (cell_id >= N) error("Invalid mesh cell x-coordinate (too large)");
+#endif
+
+    /* Add a contribution to the bucket count */
+    local_bucket_counts[cell_id]++;
+  }
+
+  /* Now write back to memory */
+  for (int i = 0; i < N; ++i) {
+    atomic_add(&global_bucket_counts[i], local_bucket_counts[i]);
+  }
+
+  /* Clean up */
+  free(local_bucket_counts);
+}
+
+/**
  * @brief Bucket sort of the array of mesh cells based on their x-coord.
  *
  * Note the two mesh_key_value_rho arrays must be aligned on
@@ -278,37 +321,26 @@ void bucket_sort_mesh_key_value_pot(const struct mesh_key_value_pot *array_in,
  * @param array_in The unsorted array of mesh-key value pairs.
  * @param count The number of elements in the mesh-key value pair arrays.
  * @param N The number of buckets (i.e. the nr. of local top-level cells).
+ * @param tp The #threadpool object.
  * @param array_out The sorted array of mesh-key value pairs (to be filled).
  */
 void bucket_sort_mesh_key_value_pot_index(
     const struct mesh_key_value_pot *array_in, const size_t count, const int N,
-    struct mesh_key_value_pot *array_out) {
+    struct threadpool *tp, struct mesh_key_value_pot *array_out) {
 
   /* Create an array of bucket counts and one of offsets */
   size_t *bucket_counts = (size_t *)malloc(N * sizeof(size_t));
   size_t *bucket_offsets = (size_t *)malloc(N * sizeof(size_t));
   memset(bucket_counts, 0, N * sizeof(size_t));
 
-  /* Remind the compiler that the array is nicely aligned */
-  swift_declare_aligned_ptr(const struct mesh_key_value_pot, array_in_aligned,
-                            array_in, SWIFT_CACHE_ALIGNMENT);
+  struct mapper_extra_data extra_data;
+  extra_data.N = N;
+  extra_data.bucket_counts = bucket_counts;
 
-  /* Count how many items will land in each bucket. */
-  for (size_t i = 0; i < count; ++i) {
-
-    const size_t key = array_in_aligned[i].cell_index;
-
-    /* Get the cell_index */
-    const int cell_id = cell_index_extract_patch_index(key);
-
-#ifdef SWIFT_DEBUG_CHECKS
-    if (cell_id < 0) error("Invalid mesh cell x-coordinate (too small)");
-    if (cell_id >= N) error("Invalid mesh cell x-coordinate (too large)");
-#endif
-
-    /* Add a contribution to the bucket count */
-    bucket_counts[cell_id]++;
-  }
+  /* Collect the number of items that will end up in each bucket */
+  threadpool_map(tp, bucket_sort_mesh_key_value_pot_index_count_mapper,
+                 (void *)array_in, count, sizeof(struct mesh_key_value_pot),
+                 threadpool_auto_chunk_size, &extra_data);
 
 #ifdef SWIFT_DEBUG_CHECKS
   size_t count_check = 0;
@@ -322,6 +354,9 @@ void bucket_sort_mesh_key_value_pot_index(
     bucket_offsets[i] = bucket_offsets[i - 1] + bucket_counts[i - 1];
   }
 
+  /* Remind the compiler that the array is nicely aligned */
+  swift_declare_aligned_ptr(const struct mesh_key_value_pot, array_in_aligned,
+                            array_in, SWIFT_CACHE_ALIGNMENT);
   swift_declare_aligned_ptr(struct mesh_key_value_pot, array_out_aligned,
                             array_out, SWIFT_CACHE_ALIGNMENT);
 

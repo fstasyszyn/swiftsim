@@ -57,6 +57,6 @@ void bucket_sort_mesh_key_value_pot(const struct mesh_key_value_pot *array_in,
 
 void bucket_sort_mesh_key_value_pot_index(
     const struct mesh_key_value_pot *array_in, const size_t count, const int N,
-    struct mesh_key_value_pot *array_out);
+    struct threadpool *tp, struct mesh_key_value_pot *array_out);
 
 #endif /* SWIFT_MESH_GRAVITY_SORT_H */
