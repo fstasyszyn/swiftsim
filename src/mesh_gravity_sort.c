@@ -78,6 +78,9 @@ void bucket_sort_mesh_key_value_rho_count_mapper(void *map_data, int nr_parts,
   for (int i = 0; i < N; ++i) {
     atomic_add(&global_bucket_counts[i], local_bucket_counts[i]);
   }
+
+  /* Clean up */
+  free(local_bucket_counts);
 }
 
 /**
@@ -119,6 +122,9 @@ void bucket_sort_mesh_key_value_pot_count_mapper(void *map_data, int nr_parts,
   for (int i = 0; i < N; ++i) {
     atomic_add(&global_bucket_counts[i], local_bucket_counts[i]);
   }
+
+  /* Clean up */
+  free(local_bucket_counts);
 }
 
 /**
