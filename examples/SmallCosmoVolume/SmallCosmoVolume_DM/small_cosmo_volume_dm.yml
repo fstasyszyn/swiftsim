@@ -27,7 +27,8 @@ Gravity:
   epsilon_fmm:  0.001
   comoving_DM_softening:     0.0889     # 1/25th of the mean inter-particle separation: 88.9 kpc
   max_physical_DM_softening: 0.0889     # 1/25th of the mean inter-particle separation: 88.9 kpc
-  mesh_side_length:       64
+  mesh_side_length:       128
+  distributed_mesh:       1
 
 # Parameters governing the snapshots
 Snapshots:

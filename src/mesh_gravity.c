@@ -674,8 +674,8 @@ void compute_potential_distributed(struct pm_mesh* mesh, const struct space* s,
   if (verbose)
     message("Local density field slice has thickness %d.", (int)local_n0);
   if (verbose)
-    message("local patch size = %d, local mesh cells = %d", nr_local_cells,
-            (int)(local_n0 * N * N));
+    message("local patch size = %d, local mesh cells = %lld", nr_local_cells,
+            (local_n0 * N * N));
   if (verbose)
     message("Planning the FFT took %.3f %s.",
             clocks_from_ticks(getticks() - tic), clocks_getunit());
