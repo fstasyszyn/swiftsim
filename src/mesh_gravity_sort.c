@@ -181,15 +181,17 @@ void bucket_sort_mesh_key_value_pot_index_count_mapper(void *map_data,
  * @param N The size of the mesh. (i.e. the number of possible x-axis values)
  * @param tp The #threadpool object.
  * @param array_out The sorted array of mesh-key value pairs (to be filled).
+ * @param bucket_offsets The offsets in the sorted array where we change x-coord
+ * (to be filled).
  */
 void bucket_sort_mesh_key_value_rho(const struct mesh_key_value_rho *array_in,
                                     const size_t count, const int N,
                                     struct threadpool *tp,
-                                    struct mesh_key_value_rho *array_out) {
+                                    struct mesh_key_value_rho *array_out,
+                                    size_t *bucket_offsets) {
 
   /* Create an array of bucket counts and one of offsets */
   size_t *bucket_counts = (size_t *)malloc(N * sizeof(size_t));
-  size_t *bucket_offsets = (size_t *)malloc(N * sizeof(size_t));
   memset(bucket_counts, 0, N * sizeof(size_t));
 
   struct mapper_extra_data extra_data;
@@ -236,8 +238,25 @@ void bucket_sort_mesh_key_value_rho(const struct mesh_key_value_rho *array_in,
     bucket_offsets[mesh_x]++;
   }
 
+#ifdef SWIFT_DEBUG_CHECKS
+  /* Verify that things have indeed been sorted */
+  int last_mesh_x =
+      get_xcoord_from_padded_row_major_id(array_out_aligned[0].key, N);
+  ;
+  for (size_t i = 1; i < count; ++i) {
+    const size_t key = array_out_aligned[i].key;
+    const int mesh_x = get_xcoord_from_padded_row_major_id(key, N);
+    if (mesh_x < last_mesh_x) error("Unsorted array!");
+    last_mesh_x = mesh_x;
+  }
+#endif
+
+  /* Restore the bucket offsets to their former glory */
+  for (int i = 0; i < N; ++i) {
+    bucket_offsets[i] -= bucket_counts[i];
+  }
+
   /* Clean up! */
-  free(bucket_offsets);
   free(bucket_counts);
 }
 
@@ -252,15 +271,17 @@ void bucket_sort_mesh_key_value_rho(const struct mesh_key_value_rho *array_in,
  * @param N The size of the mesh. (i.e. the number of possible x-axis values)
  * @param tp The #threadpool object.
  * @param array_out The sorted array of mesh-key value pairs (to be filled).
+ * @param bucket_offsets The offsets in the sorted array where we change x-coord
+ * (to be filled).
  */
 void bucket_sort_mesh_key_value_pot(const struct mesh_key_value_pot *array_in,
                                     const size_t count, const int N,
                                     struct threadpool *tp,
-                                    struct mesh_key_value_pot *array_out) {
+                                    struct mesh_key_value_pot *array_out,
+                                    size_t *bucket_offsets) {
 
   /* Create an array of bucket counts and one of offsets */
   size_t *bucket_counts = (size_t *)malloc(N * sizeof(size_t));
-  size_t *bucket_offsets = (size_t *)malloc(N * sizeof(size_t));
   memset(bucket_counts, 0, N * sizeof(size_t));
 
   struct mapper_extra_data extra_data;
@@ -307,8 +328,25 @@ void bucket_sort_mesh_key_value_pot(const struct mesh_key_value_pot *array_in,
     bucket_offsets[mesh_x]++;
   }
 
+#ifdef SWIFT_DEBUG_CHECKS
+  /* Verify that things have indeed been sorted */
+  int last_mesh_x =
+      get_xcoord_from_padded_row_major_id(array_out_aligned[0].key, N);
+
+  for (size_t i = 1; i < count; ++i) {
+    const size_t key = array_out_aligned[i].key;
+    const int mesh_x = get_xcoord_from_padded_row_major_id(key, N);
+    if (mesh_x < last_mesh_x) error("Unsorted array!");
+    last_mesh_x = mesh_x;
+  }
+#endif
+
+  /* Restore the bucket offsets to their former glory */
+  for (int i = 0; i < N; ++i) {
+    bucket_offsets[i] -= bucket_counts[i];
+  }
+
   /* Clean up! */
-  free(bucket_offsets);
   free(bucket_counts);
 }
 
