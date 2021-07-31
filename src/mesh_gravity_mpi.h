@@ -42,7 +42,7 @@ void mpi_mesh_fetch_potential(const int N, const double fac,
                               const struct space *s, int local_0_start,
                               int local_n0, double *potential_slice,
                               struct pm_mesh_patch *local_patches,
-                              const int verbose);
+                              struct threadpool *tp, const int verbose);
 
 void mpi_mesh_update_gparts(struct pm_mesh_patch *local_patches,
                             const struct space *s, struct threadpool *tp,

@@ -754,7 +754,7 @@ void compute_potential_distributed(struct pm_mesh* mesh, const struct space* s,
 
   /* Fetch MPI mesh entries we need on this rank from other ranks */
   mpi_mesh_fetch_potential(N, cell_fac, s, local_0_start, local_n0, rho_slice,
-                           local_patches, verbose);
+                           local_patches, tp, verbose);
 
   if (verbose)
     message("Fetching local potential took %.3f %s.",

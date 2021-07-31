@@ -351,6 +351,8 @@ void exchange_structs(size_t *nr_send, char *sendbuf, size_t *nr_recv,
  * @param local_patches The array of local patches.
  * @param nr_patches The number of local patches.
  * @param mesh Pointer to the output data buffer.
+ * @param tp The #threadpool object.
+ * @param verbose Are we talkative?
  */
 void mpi_mesh_local_patches_to_slices(const int N, const int local_n0,
                                       struct pm_mesh_patch *local_patches,
@@ -780,14 +782,14 @@ void fill_local_patches_from_mesh_cells(
  * @param local_n0 Width of the mesh slab on this rank
  * @param potential_slice Array with the potential on the local slice of the
  * mesh
- * @param potential_map A hashmap in which to store the potential data
- *
+ * @param tp The #threadpool object.
+ * @param verbose Are we talkative?
  */
 void mpi_mesh_fetch_potential(const int N, const double fac,
                               const struct space *s, const int local_0_start,
                               const int local_n0, double *potential_slice,
                               struct pm_mesh_patch *local_patches,
-                              const int verbose) {
+                              struct threadpool *tp, const int verbose) {
 
 #if defined(WITH_MPI) && defined(HAVE_MPI_FFTW)
 
@@ -833,7 +835,7 @@ void mpi_mesh_fetch_potential(const int N, const double fac,
 
   /* Do a bucket sort of the mesh elements to have them sorted
    * by global x-coordinate (note we don't care about y,z at this stage) */
-  bucket_sort_mesh_key_value_pot(send_cells_unsorted, nr_send_tot, N,
+  bucket_sort_mesh_key_value_pot(send_cells_unsorted, nr_send_tot, N, tp,
                                  send_cells);
 
   swift_free("send_cells_unsorted", send_cells_unsorted);
