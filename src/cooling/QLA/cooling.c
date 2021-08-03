@@ -216,6 +216,56 @@ float cooling_get_temperature_from_gas(
 }
 
 /**
+ * @brief Compute the temperature of a #part based on the cooling function.
+ *
+ * The temperature returned is consistent with the cooling rates or
+ * is the temperature of an HII region if the particle is flagged as such.
+ *
+ * @param phys_const #phys_const data structure.
+ * @param hydro_props The properties of the hydro scheme.
+ * @param us The internal system of units.
+ * @param cosmo #cosmology data structure.
+ * @param cooling #cooling_function_data struct.
+ * @param p #part data.
+ * @param xp Pointer to the #xpart data.
+ */
+float cooling_get_temperature(const struct phys_const *phys_const,
+                              const struct hydro_props *hydro_props,
+                              const struct unit_system *us,
+                              const struct cosmology *cosmo,
+                              const struct cooling_function_data *cooling,
+                              const struct part *p, const struct xpart *xp) {
+
+#ifdef SWIFT_DEBUG_CHECKS
+  if (cooling->Redshifts == NULL)
+    error(
+        "Cooling function has not been initialised. Did you forget the "
+        "--temperature runtime flag?");
+#endif
+
+  /* Get quantities in physical frame */
+  const float u_phys = hydro_get_physical_internal_energy(p, xp, cosmo);
+  const float rho_phys = hydro_get_physical_density(p, cosmo);
+
+  /* Get the Hydrogen mass fraction */
+  const float XH = 1. - phys_const->const_primordial_He_fraction;
+
+  /* Get this particle's metallicity ratio to solar.
+   *
+   * Note that we do not need the individual element's ratios that
+   * the function also computes. */
+  float dummy[qla_cooling_N_elementtypes];
+  const float logZZsol =
+      abundance_ratio_to_solar(p, cooling, phys_const, dummy);
+
+  /* Are we in an HII region? */
+  const int HII_region = 0; /* No HII regions in the EAGLE-XL flavour */
+
+  return cooling_get_temperature_from_gas(phys_const, cosmo, cooling, rho_phys,
+                                          logZZsol, XH, u_phys, HII_region);
+}
+
+/**
  * @brief Compute the electron number density of a #part based on the cooling
  * function.
  *
@@ -285,56 +335,6 @@ double cooling_get_ycompton(const struct phys_const *phys_const,
                             const struct part *p, const struct xpart *xp) {
 
   return -1.f;
-}
-
-/**
- * @brief Compute the temperature of a #part based on the cooling function.
- *
- * The temperature returned is consistent with the cooling rates or
- * is the temperature of an HII region if the particle is flagged as such.
- *
- * @param phys_const #phys_const data structure.
- * @param hydro_props The properties of the hydro scheme.
- * @param us The internal system of units.
- * @param cosmo #cosmology data structure.
- * @param cooling #cooling_function_data struct.
- * @param p #part data.
- * @param xp Pointer to the #xpart data.
- */
-float cooling_get_temperature(const struct phys_const *phys_const,
-                              const struct hydro_props *hydro_props,
-                              const struct unit_system *us,
-                              const struct cosmology *cosmo,
-                              const struct cooling_function_data *cooling,
-                              const struct part *p, const struct xpart *xp) {
-
-#ifdef SWIFT_DEBUG_CHECKS
-  if (cooling->Redshifts == NULL)
-    error(
-        "Cooling function has not been initialised. Did you forget the "
-        "--temperature runtime flag?");
-#endif
-
-  /* Get quantities in physical frame */
-  const float u_phys = hydro_get_physical_internal_energy(p, xp, cosmo);
-  const float rho_phys = hydro_get_physical_density(p, cosmo);
-
-  /* Get the Hydrogen mass fraction */
-  const float XH = 1. - phys_const->const_primordial_He_fraction;
-
-  /* Get this particle's metallicity ratio to solar.
-   *
-   * Note that we do not need the individual element's ratios that
-   * the function also computes. */
-  float dummy[qla_cooling_N_elementtypes];
-  const float logZZsol =
-      abundance_ratio_to_solar(p, cooling, phys_const, dummy);
-
-  /* Are we in an HII region? */
-  const int HII_region = 0; /* No HII regions in the EAGLE-XL flavour */
-
-  return cooling_get_temperature_from_gas(phys_const, cosmo, cooling, rho_phys,
-                                          logZZsol, XH, u_phys, HII_region);
 }
 
 /**
