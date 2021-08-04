@@ -66,10 +66,16 @@ include_HEADERS += rays.h rays_struct.h
 include_HEADERS += particle_splitting.h particle_splitting_struct.h
 include_HEADERS += chemistry_csds.h star_formation_csds.h
 
-# source files for EAGLE cooling
+# source files for QLA (Ploeckinger+20) cooling
 QLA_COOLING_SOURCES =
 if HAVEQLACOOLING
 QLA_COOLING_SOURCES += cooling/QLA/cooling.c cooling/QLA/cooling_tables.c
+endif
+
+# source files for QLA (Wiersma+09) cooling
+QLA_EAGLE_COOLING_SOURCES =
+if HAVEQLAEAGLECOOLING
+QLA_COOLING_SOURCES += cooling/QLA_EAGLE/cooling.c cooling/QLA_EAGLE/cooling_tables.c
 endif
 
 # source files for EAGLE cooling
@@ -138,7 +144,7 @@ AM_SOURCES += fof.c fof_catalogue_io.c
 AM_SOURCES += hashmap.c pressure_floor.c
 AM_SOURCES += runner_neutrino.c
 AM_SOURCES += neutrino/Default/fermi_dirac.c neutrino/Default/neutrino.c
-AM_SOURCES += $(QLA_COOLING_SOURCES) 
+AM_SOURCES += $(QLA_COOLING_SOURCES) $(QLA_EAGLE_COOLING_SOURCES) 
 AM_SOURCES += $(EAGLE_COOLING_SOURCES) $(EAGLE_FEEDBACK_SOURCES) 
 AM_SOURCES += $(GRACKLE_COOLING_SOURCES) $(GEAR_FEEDBACK_SOURCES) 
 AM_SOURCES += $(COLIBRE_COOLING_SOURCES)
@@ -304,6 +310,9 @@ nobase_noinst_HEADERS += cooling/grackle/cooling_io.h cooling/grackle/cooling_pr
 nobase_noinst_HEADERS += cooling/EAGLE/cooling.h cooling/EAGLE/cooling_struct.h cooling/EAGLE/cooling_tables.h 
 nobase_noinst_HEADERS += cooling/EAGLE/cooling_io.h cooling/EAGLE/interpolate.h cooling/EAGLE/cooling_rates.h 
 nobase_noinst_HEADERS += cooling/EAGLE/cooling_properties.h 
+nobase_noinst_HEADERS += cooling/QLA_EAGLE/cooling.h cooling/QLA_EAGLE/cooling_struct.h cooling/QLA_EAGLE/cooling_tables.h 
+nobase_noinst_HEADERS += cooling/QLA_EAGLE/cooling_io.h cooling/QLA_EAGLE/interpolate.h cooling/QLA_EAGLE/cooling_rates.h 
+nobase_noinst_HEADERS += cooling/QLA_EAGLE/cooling_properties.h 
 nobase_noinst_HEADERS += cooling/QLA/cooling.h cooling/QLA/cooling_struct.h cooling/QLA/cooling_tables.h 
 nobase_noinst_HEADERS += cooling/QLA/cooling_io.h cooling/QLA/interpolate.h cooling/QLA/cooling_rates.h 
 nobase_noinst_HEADERS += cooling/QLA/cooling_properties.h 
