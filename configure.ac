@@ -2016,7 +2016,7 @@ case "$with_cooling" in
       with_cooling="QLA (Ploeckinger+20 tables) with constant primordial Z"
    ;;
    QLA-EAGLE)
-      AC_DEFINE([COOLING_QLA], [1], [Cooling following the Quick-Lyman-alpha model])
+      AC_DEFINE([COOLING_QLA_EAGLE], [1], [Cooling following the Quick-Lyman-alpha model])
       with_cooling="QLA (Wiersma+09 tables) with constant primordial Z"
    ;;
    EAGLE)
@@ -2616,4 +2616,5 @@ AC_MSG_RESULT([
 
    Continuous Sim. Data Stream : $with_csds
 
- ------------------------])
+ ------------------------]
+)
