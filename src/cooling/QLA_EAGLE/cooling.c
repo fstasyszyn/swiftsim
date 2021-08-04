@@ -946,7 +946,7 @@ void cooling_init_backend(struct swift_params *parameter_file,
   /* Read model parameters */
 
   /* Directory for cooling tables */
-  parser_get_param_string(parameter_file, "QLA_EAGLECooling:dir_name",
+  parser_get_param_string(parameter_file, "QLACooling:dir_name",
                           cooling->cooling_table_path);
 
   /* Despite the names, the values of H_reion_heat_cgs and He_reion_heat_cgs
@@ -955,15 +955,15 @@ void cooling_init_backend(struct swift_params *parameter_file,
 
   cooling->H_reion_done = 0;
   cooling->H_reion_z =
-      parser_get_param_float(parameter_file, "QLA_EAGLECooling:H_reion_z");
+      parser_get_param_float(parameter_file, "QLACooling:H_reion_z");
   cooling->H_reion_heat_cgs =
-      parser_get_param_float(parameter_file, "QLA_EAGLECooling:H_reion_eV_p_H");
+      parser_get_param_float(parameter_file, "QLACooling:H_reion_eV_p_H");
   cooling->He_reion_z_centre = parser_get_param_float(
-      parameter_file, "QLA_EAGLECooling:He_reion_z_centre");
+      parameter_file, "QLACooling:He_reion_z_centre");
   cooling->He_reion_z_sigma = parser_get_param_float(
-      parameter_file, "QLA_EAGLECooling:He_reion_z_sigma");
+      parameter_file, "QLACooling:He_reion_z_sigma");
   cooling->He_reion_heat_cgs = parser_get_param_float(
-      parameter_file, "QLA_EAGLECooling:He_reion_eV_p_H");
+      parameter_file, "QLACooling:He_reion_eV_p_H");
 
   /* Convert H_reion_heat_cgs and He_reion_heat_cgs to cgs
    * (units used internally by the cooling routines). This is done by
