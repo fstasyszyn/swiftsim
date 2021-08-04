@@ -1142,8 +1142,8 @@ void cooling_restore_tables(struct cooling_function_data *cooling,
 void cooling_print_backend(const struct cooling_function_data *cooling) {
 
   message(
-      "Cooling function is 'Quick Lyman-alpha (COLIBRE with primordial Z "
-      "only)'.");
+      "Cooling function is 'Quick Lyman-alpha (Ploeckinger+20 tables with "
+      "primordial Z only)'.");
 }
 
 /**
