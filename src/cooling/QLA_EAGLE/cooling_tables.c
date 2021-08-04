@@ -49,9 +49,9 @@ static const size_t num_elements_cooling_rate =
     qla_eagle_cooling_N_temperature * qla_eagle_cooling_N_density;
 
 /*! Number of elements in a z-slice of the metal cooling rate tables */
-static const size_t num_elements_metal_heating = qla_eagle_cooling_N_metal *
-                                                 qla_eagle_cooling_N_temperature *
-                                                 qla_eagle_cooling_N_density;
+static const size_t num_elements_metal_heating =
+    qla_eagle_cooling_N_metal * qla_eagle_cooling_N_temperature *
+    qla_eagle_cooling_N_density;
 
 /*! Number of elements in a z-slice of the metal electron abundance tables */
 static const size_t num_elements_electron_abundance =
@@ -63,9 +63,9 @@ static const size_t num_elements_temperature = qla_eagle_cooling_N_He_frac *
                                                qla_eagle_cooling_N_density;
 
 /*! Number of elements in a z-slice of the H+He cooling rate tables */
-static const size_t num_elements_HpHe_heating = qla_eagle_cooling_N_He_frac *
-                                                qla_eagle_cooling_N_temperature *
-                                                qla_eagle_cooling_N_density;
+static const size_t num_elements_HpHe_heating =
+    qla_eagle_cooling_N_He_frac * qla_eagle_cooling_N_temperature *
+    qla_eagle_cooling_N_density;
 
 /*! Number of elements in a z-slice of the H+He electron abundance tables */
 static const size_t num_elements_HpHe_electron_abundance =
@@ -138,8 +138,8 @@ void get_cooling_redshifts(struct cooling_function_data *cooling) {
   /* We are done with this file */
   fclose(infile);
 
-  /* QLA_EAGLE cooling assumes cooling->Redshifts table is in increasing order. Test
-   * this. */
+  /* QLA_EAGLE cooling assumes cooling->Redshifts table is in increasing order.
+   * Test this. */
   for (int i = 0; i < N_Redshifts - 1; i++) {
     if (cooling->Redshifts[i + 1] < cooling->Redshifts[i]) {
       error("table should be in increasing order\n");
@@ -187,7 +187,8 @@ void read_cooling_header(const char *fname,
   if (status < 0) error("error closing cooling dataset");
 
   /* Check value */
-  if (N_nH != qla_eagle_cooling_N_density) error("Invalid density array length.");
+  if (N_nH != qla_eagle_cooling_N_density)
+    error("Invalid density array length.");
 
   dataset =
       H5Dopen(tempfile_id, "/Header/Number_of_helium_fractions", H5P_DEFAULT);
@@ -221,7 +222,8 @@ void read_cooling_header(const char *fname,
   if (status < 0) error("error closing cooling dataset");
 
   /* Check value */
-  if (N_Elements != qla_eagle_cooling_N_metal) error("Invalid metal array length.");
+  if (N_Elements != qla_eagle_cooling_N_metal)
+    error("Invalid metal array length.");
 
   /* allocate arrays of values for each of the above quantities */
   if (swift_memalign("cooling", (void **)&cooling->Temp, SWIFT_STRUCT_ALIGNMENT,
@@ -486,8 +488,8 @@ void get_redshift_invariant_table(
 
         /* Index in the HDF5 table */
         const int hdf5_index = row_major_index_3d(
-            i, j, k, qla_eagle_cooling_N_He_frac, qla_eagle_cooling_N_temperature,
-            qla_eagle_cooling_N_density);
+            i, j, k, qla_eagle_cooling_N_He_frac,
+            qla_eagle_cooling_N_temperature, qla_eagle_cooling_N_density);
 
         /* Index in the internal table */
         const int internal_index = row_major_index_3d(
@@ -631,7 +633,8 @@ void get_cooling_table(struct cooling_function_data *restrict cooling,
     /* read in cooling rates due to metals */
     for (int specs = 0; specs < qla_eagle_cooling_N_metal; specs++) {
 
-      sprintf(set_name, "/%s/Net_Cooling", qla_eagle_tables_element_names[specs]);
+      sprintf(set_name, "/%s/Net_Cooling",
+              qla_eagle_tables_element_names[specs]);
       hid_t dataset = H5Dopen(file_id, set_name, H5P_DEFAULT);
       herr_t status = H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL,
                               H5P_DEFAULT, net_cooling_rate);
@@ -647,8 +650,9 @@ void get_cooling_table(struct cooling_function_data *restrict cooling,
         for (int j = 0; j < qla_eagle_cooling_N_temperature; j++) {
 
           /* Index in the HDF5 table */
-          const int hdf5_index = row_major_index_2d(
-              j, i, qla_eagle_cooling_N_temperature, qla_eagle_cooling_N_density);
+          const int hdf5_index =
+              row_major_index_2d(j, i, qla_eagle_cooling_N_temperature,
+                                 qla_eagle_cooling_N_density);
 
           /* Index in the internal table */
           const int internal_index = row_major_index_4d(
@@ -699,8 +703,8 @@ void get_cooling_table(struct cooling_function_data *restrict cooling,
 
           /* Index in the HDF5 table */
           const int hdf5_index = row_major_index_3d(
-              i, j, k, qla_eagle_cooling_N_He_frac, qla_eagle_cooling_N_temperature,
-              qla_eagle_cooling_N_density);
+              i, j, k, qla_eagle_cooling_N_He_frac,
+              qla_eagle_cooling_N_temperature, qla_eagle_cooling_N_density);
 
           /* Index in the internal table */
           const int internal_index = row_major_index_4d(
