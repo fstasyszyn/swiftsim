@@ -292,7 +292,7 @@ Simulations using periodic boundary conditions use additional parameters for the
 Particle-Mesh part of the calculation. The last five are optional:
 
 * The number cells along each axis of the mesh :math:`N`: ``mesh_side_length``,
-* Whether or not to use a distributed mesh when running over MPI: ``distributed_mesh`` (default: ``1``),
+* Whether or not to use a distributed mesh when running over MPI: ``distributed_mesh`` (default: ``0``),
 * The mesh smoothing scale in units of the mesh cell-size :math:`a_{\rm
   smooth}`: ``a_smooth`` (default: ``1.25``),
 * The scale above which the short-range forces are assumed to be 0 (in units of
