@@ -645,7 +645,6 @@ void compute_potential_distributed(struct pm_mesh* mesh, const struct space* s,
   const int N = mesh->N;
   const double cell_fac = N / box_size;
 
-  MPI_Barrier(MPI_COMM_WORLD);
   ticks tic = getticks();
 
   /* Create an array of mesh patches. One per local top-level cell. */
@@ -722,7 +721,7 @@ void compute_potential_distributed(struct pm_mesh* mesh, const struct space* s,
   fftw_execute(mpi_plan);
   fftw_destroy_plan(mpi_plan);
   if (verbose)
-    message("MPI forward Fourier transform took %.3f %s.",
+    message("MPI Forward Fourier transform took %.3f %s.",
             clocks_from_ticks(getticks() - tic), clocks_getunit());
 
   tic = getticks();
@@ -731,7 +730,7 @@ void compute_potential_distributed(struct pm_mesh* mesh, const struct space* s,
   mesh_apply_Green_function(tp, frho_slice, local_0_start, local_n0, N, r_s,
                             box_size);
   if (verbose)
-    message("Applying Green function to MPI mesh took %.3f %s.",
+    message("Applying Green function took %.3f %s.",
             clocks_from_ticks(getticks() - tic), clocks_getunit());
 
   tic = getticks();
@@ -744,7 +743,7 @@ void compute_potential_distributed(struct pm_mesh* mesh, const struct space* s,
   fftw_destroy_plan(mpi_inverse_plan);
 
   if (verbose)
-    message("MPI reverse Fourier transform took %.3f %s.",
+    message("MPI Reverse Fourier transform took %.3f %s.",
             clocks_from_ticks(getticks() - tic), clocks_getunit());
 
   /* We can now free the Fourier-space data */
@@ -886,7 +885,7 @@ void compute_potential_global(struct pm_mesh* mesh, const struct space* s,
                 MPI_COMM_WORLD);
 
   if (verbose)
-    message("Mesh communication took %.3f %s.",
+    message("Mesh MPI-reduction took %.3f %s.",
             clocks_from_ticks(getticks() - tic), clocks_getunit());
 #endif
 
@@ -921,7 +920,7 @@ void compute_potential_global(struct pm_mesh* mesh, const struct space* s,
   fftw_execute(inverse_plan);
 
   if (verbose)
-    message("Backwards Fourier transform took %.3f %s.",
+    message("Reverse Fourier transform took %.3f %s.",
             clocks_from_ticks(getticks() - tic), clocks_getunit());
 
   /* rho now contains the potential */
@@ -964,7 +963,7 @@ void compute_potential_global(struct pm_mesh* mesh, const struct space* s,
   }
 
   if (verbose)
-    message("Gpart mesh forces took %.3f %s.",
+    message("Computing mesh accelerations took %.3f %s.",
             clocks_from_ticks(getticks() - tic), clocks_getunit());
 
   /* Clean-up the mess */
