@@ -330,7 +330,7 @@ simulation:
      theta_cr:               0.6
      epsilon_fmm:            0.001
      mesh_side_length:       2048
-     distributed_mesh:       1
+     distributed_mesh:       0
      comoving_DM_softening:         0.0026994  # 0.7 proper kpc at z=2.8.
      max_physical_DM_softening:     0.0007     # 0.7 proper kpc
      comoving_baryon_softening:     0.0026994  # 0.7 proper kpc at z=2.8.
