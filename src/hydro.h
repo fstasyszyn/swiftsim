@@ -38,8 +38,13 @@
 #include "./hydro/Minimal/hydro_iact.h"
 #define SPH_IMPLEMENTATION "Minimal version of SPH (e.g. Price 2010)"
 #elif defined(GADGET2_SPH)
+#ifndef GADGET_MHD
 #include "./hydro/Gadget2/hydro.h"
 #include "./hydro/Gadget2/hydro_iact.h"
+#else
+#include "./hydro/GadgetMHD/hydro.h"
+#include "./hydro/GadgetMHD/hydro_iact.h"
+#endif
 #define SPH_IMPLEMENTATION "Gadget-2 version of SPH (Springel 2005)"
 #elif defined(HOPKINS_PE_SPH)
 #include "./hydro/PressureEntropy/hydro.h"

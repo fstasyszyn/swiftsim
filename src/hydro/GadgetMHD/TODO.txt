@@ -1,0 +1,24 @@
+TODO.txt - THIS FILE
+hydro_csds.h
+hydro_csds.c
+hydro.h
+  GADGET_MHD,added:
+    OJO, force caluclartions and Timesteps
+hydro_debug.h
+hydro_iact.h
+  GADGET_MHD,added in:
+     runner_iact_density()
+     runner_iact_nonsym_density()
+  Here implement force 
+hydro_parameters.h
+hydro_part.h
+  -> added definiton of Bfld , ep[2]
+hydro_io.h ->
+  Changed:
+  hydro_read_particles()
+  hydro_write_particles()
+../../configure.ac
+  keywords:
+  gadget-mhd
+  GADGET_MHD
+../../Makefile.am

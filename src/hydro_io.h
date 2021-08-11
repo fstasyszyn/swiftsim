@@ -28,7 +28,11 @@
 #elif defined(MINIMAL_SPH)
 #include "./hydro/Minimal/hydro_io.h"
 #elif defined(GADGET2_SPH)
+#ifndef GADGET_MHD
 #include "./hydro/Gadget2/hydro_io.h"
+#else
+#include "./hydro/GadgetMHD/hydro_io.h"
+#endif
 #elif defined(HOPKINS_PE_SPH)
 #include "./hydro/PressureEntropy/hydro_io.h"
 #elif defined(HOPKINS_PU_SPH)
