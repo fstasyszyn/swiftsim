@@ -1661,6 +1661,37 @@ if test "$enable_gravitational_potential" = "no"; then
 fi
 
 # Hydro scheme.
+AC_ARG_WITH([mhd],
+   [AS_HELP_STRING([--with-mhd=<scheme>],
+      [Hydro dynamics to use @<:@euler, eulerTST, DInduction, default: none@:>@]
+   )],
+   [with_mhd="$withval"],
+   [with_mhd="none"]
+)
+
+case "$with_mhd" in
+   none)
+      AC_DEFINE([NONE_MHD], [1], [No MHD])
+   ;;
+   euler)
+      AC_DEFINE([GADGET_MHD], [1], [Gadget-2 SPMHD])
+      AC_DEFINE([GADGET_MHD_EULER], [1], [SPMHD Euler Potential])
+   ;;
+   eulerTST)
+      AC_DEFINE([GADGET_MHD], [1], [Gadget-2 SPMHD])
+      AC_DEFINE([GADGET_MHD_EULER], [1], [SPMHD Euler Potential])
+      AC_DEFINE([GADGET_MHD_EULER_TEST], [1], [SPMHD Euler Potential tst])
+   ;;
+   DInduction)
+      AC_DEFINE([GADGET_MHD_DI], [1], [SPMHD Direct Induction])
+   ;;
+   *)
+      AC_MSG_ERROR([Unknown Magneto-hydrodynamics scheme: $with_mhd])
+   ;;
+esac
+
+
+# Hydro scheme.
 AC_ARG_WITH([hydro],
    [AS_HELP_STRING([--with-hydro=<scheme>],
       [Hydro dynamics to use @<:@gadget2, minimal, pressure-entropy, pressure-energy, pressure-energy-monaghan, phantom, gizmo-mfv, gizmo-mfm, shadowfax, planetary, sphenix, gasoline, anarchy-pu default: sphenix@:>@]
@@ -1763,7 +1794,7 @@ if test "$enable_debug_interactions" != "no"; then
       [enable_debug_interactions="yes (Logging up to $enableval neighbours)"]
     fi
   else
-    [enable_debug_interactions="no (only available for gadget2 hydro scheme)"]
+    [enable_debug_interactions="no (only available for gadget2/MHD hydro scheme)"]
   fi
 fi
 
@@ -2514,6 +2545,9 @@ AM_CONDITIONAL([HAVE_SPHENIX], [test "$with_hydro" = "sphenix"])
 # check if using GADGET2 SPH
 AM_CONDITIONAL([HAVE_GADGET2], [test "$with_hydro" = "gadget2"])
 
+# check if using GADGET-MHD
+AM_CONDITIONAL([HAVE_NONE_MHD], [test "$with_mhd" = "none"])
+
 # check if using none chemistry
 AM_CONDITIONAL([HAVE_CHEMISTRY_NONE], [test "$with_chemistry" = "none"])
 
@@ -2598,6 +2632,8 @@ AC_MSG_RESULT([
    Equation of state  : $with_eos
    Adiabatic index    : $with_gamma
    Riemann solver     : $with_riemann
+   
+   MHD scheme         : $with_mhd
 
    Gravity scheme      : $with_gravity
    Multipole order     : $with_multipole_order
