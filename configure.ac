@@ -1663,7 +1663,7 @@ fi
 # Hydro scheme.
 AC_ARG_WITH([mhd],
    [AS_HELP_STRING([--with-mhd=<scheme>],
-      [Hydro dynamics to use @<:@euler, eulerTST, DInduction, default: none@:>@]
+      [Hydro dynamics to use @<:@euler, eulerBRIO, eulerVORT, DInduction, default: none@:>@]
    )],
    [with_mhd="$withval"],
    [with_mhd="none"]
@@ -1677,10 +1677,15 @@ case "$with_mhd" in
       AC_DEFINE([GADGET_MHD], [1], [Gadget-2 SPMHD])
       AC_DEFINE([GADGET_MHD_EULER], [1], [SPMHD Euler Potential])
    ;;
-   eulerTST)
+   eulerBRIO)
       AC_DEFINE([GADGET_MHD], [1], [Gadget-2 SPMHD])
       AC_DEFINE([GADGET_MHD_EULER], [1], [SPMHD Euler Potential])
       AC_DEFINE([GADGET_MHD_EULER_TEST], [1], [SPMHD Euler Potential tst])
+   ;;
+   eulerVORT)
+      AC_DEFINE([GADGET_MHD], [1], [Gadget-2 SPMHD])
+      AC_DEFINE([GADGET_MHD_EULER], [1], [SPMHD Euler Potential])
+      AC_DEFINE([GADGET_MHD_EULER_TEST], [2], [SPMHD Euler Potential tst])
    ;;
    DInduction)
       AC_DEFINE([GADGET_MHD_DI], [1], [SPMHD Direct Induction])

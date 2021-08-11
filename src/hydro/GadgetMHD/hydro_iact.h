@@ -141,12 +141,15 @@ __attribute__((always_inline)) INLINE static void runner_iact_density(
 
 #ifdef GADGET_MHD_EULER_TEST
  // BRIO_WU
- // float LBOX=1.0;
- // dalpha = (( dalpha > LBOX/2.0 ) ? dalpha-LBOX : ( ( dalpha < -LBOX/2.0 ) ? dalpha+LBOX: dalpha));
- // dbeta  = (( dbeta > 0.75*LBOX/2.0 ) ? dbeta-0.75*LBOX : ( ( dbeta < -0.75*LBOX/2.0 ) ? dbeta+0.75*LBOX: dbeta));
- // VORTEX
+#if GADGET_MHD_EULER_TEST==1
+  float LBOX=1.0;
+  dalpha = (( dalpha > LBOX/2.0 ) ? dalpha-LBOX : ( ( dalpha < -LBOX/2.0 ) ? dalpha+LBOX: dalpha));
+  dbeta  = (( dbeta > 0.75*LBOX/2.0 ) ? dbeta-0.75*LBOX : ( ( dbeta < -0.75*LBOX/2.0 ) ? dbeta+0.75*LBOX: dbeta));
+#else
+// VORTEX
   const float LBOX=1.0;
   dbeta  = (( dbeta  > LBOX/2.0 ) ? dbeta-LBOX  : ( ( dbeta  < -LBOX/2.0 ) ? dbeta+LBOX : dbeta));
+#endif
 #endif
   for(int i=0;i<3;++i)  
   pi->Grad_ep[0][i] += faci * dalpha*dx[i];
