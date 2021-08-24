@@ -49,8 +49,9 @@
  * @param H Current Hubble parameter.
  */
 __attribute__((always_inline)) INLINE static void runner_iact_density(
-    float r2, const float *dx, float hi, float hj, struct part *restrict pi,
-    struct part *restrict pj, float a, float H) {
+    const float r2, const float dx[3], const float hi, const float hj,
+    struct part *restrict pi, struct part *restrict pj, const float a,
+    const float H) {
 
   float wi, wi_dx;
   float wj, wj_dx;
@@ -75,7 +76,7 @@ __attribute__((always_inline)) INLINE static void runner_iact_density(
 
   /* Get r and 1/r. */
   const float r = sqrtf(r2);
-  const float r_inv = 1.0f / r;
+  const float r_inv = r ? 1.0f / r : 0.0f;
 
   /* Compute the kernel function for pi */
   const float hi_inv = 1.f / hi;
@@ -142,13 +143,13 @@ __attribute__((always_inline)) INLINE static void runner_iact_density(
 #ifdef GADGET_MHD_EULER_TEST
  // BRIO_WU
 #if GADGET_MHD_EULER_TEST==1
-  float LBOX=1.0;
-  dalpha = (( dalpha > LBOX/2.0 ) ? dalpha-LBOX : ( ( dalpha < -LBOX/2.0 ) ? dalpha+LBOX: dalpha));
-  dbeta  = (( dbeta > 0.75*LBOX/2.0 ) ? dbeta-0.75*LBOX : ( ( dbeta < -0.75*LBOX/2.0 ) ? dbeta+0.75*LBOX: dbeta));
+ // float LBOX=1.0;
+ // dalpha = (( dalpha > LBOX/2.0 ) ? dalpha-LBOX : ( ( dalpha < -LBOX/2.0 ) ? dalpha+LBOX: dalpha));
+ // dbeta  = (( dbeta > 0.75*LBOX/2.0 ) ? dbeta-0.75*LBOX : ( ( dbeta < -0.75*LBOX/2.0 ) ? dbeta+0.75*LBOX: dbeta));
 #else
 // VORTEX
-  const float LBOX=1.0;
-  dbeta  = (( dbeta  > LBOX/2.0 ) ? dbeta-LBOX  : ( ( dbeta  < -LBOX/2.0 ) ? dbeta+LBOX : dbeta));
+ // const float LBOX=1.0;
+  //dbeta  = (( dbeta  > LBOX/2.0 ) ? dbeta-LBOX  : ( ( dbeta  < -LBOX/2.0 ) ? dbeta+LBOX : dbeta));
 #endif
 #endif
   for(int i=0;i<3;++i)  
@@ -189,8 +190,9 @@ __attribute__((always_inline)) INLINE static void runner_iact_density(
  * @param H Current Hubble parameter.
  */
 __attribute__((always_inline)) INLINE static void runner_iact_nonsym_density(
-    float r2, const float *dx, float hi, float hj, struct part *restrict pi,
-    const struct part *restrict pj, float a, float H) {
+    const float r2, const float dx[3], const float hi, const float hj,
+    struct part *restrict pi, const struct part *restrict pj, const float a,
+    const float H) {
 
   float wi, wi_dx;
   float dv[3], curlvr[3];
@@ -213,7 +215,7 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_density(
 
   /* Get r and 1/r. */
   const float r = sqrtf(r2);
-  const float r_inv = 1.0f / r;
+  const float r_inv = r ? 1.0f / r : 0.0f;
 
   /* Compute the kernel function */
   const float hi_inv = 1.0f / hi;
@@ -264,8 +266,8 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_density(
   //LBOX=1.0;
   //dbeta  = (( dbeta > 0.75*LBOX/2.0 ) ? dbeta-0.75*LBOX : ( ( dbeta < -0.75*LBOX/2.0 ) ? dbeta+0.75*LBOX: dbeta));
   //VORTEX
-  const float LBOX=1.0;
-  dbeta  = (( dbeta  > LBOX/2.0 ) ? dbeta-LBOX  : ( ( dbeta  < -LBOX/2.0 ) ? dbeta+LBOX : dbeta));
+  //const float LBOX=1.0;
+  //dbeta  = (( dbeta  > LBOX/2.0 ) ? dbeta-LBOX  : ( ( dbeta  < -LBOX/2.0 ) ? dbeta+LBOX : dbeta));
 #endif
   
   for(int i=0;i<3;++i)  
@@ -298,10 +300,14 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_density(
  * @param H Current Hubble parameter.
  */
 __attribute__((always_inline)) INLINE static void runner_iact_force(
-    float r2, const float *dx, float hi, float hj, struct part *restrict pi,
-    struct part *restrict pj, float a, float H) {
+    const float r2, const float dx[3], const float hi, const float hj,
+    struct part *restrict pi, struct part *restrict pj, const float a,
+    const float H) {
 
   float wi, wj, wi_dx, wj_dx;
+#ifdef GADGET_MHD
+  const float MU0_1 = 1.0/(4.0*M_PI);
+#endif
 
 #ifdef SWIFT_DEBUG_CHECKS
   if (pi->time_bin >= time_bin_inhibited)
@@ -316,7 +322,7 @@ __attribute__((always_inline)) INLINE static void runner_iact_force(
 
   /* Get r and 1/r. */
   const float r = sqrtf(r2);
-  const float r_inv = 1.0f / r;
+  const float r_inv = r ? 1.0f / r : 0.0f;
 
   /* Get some values in local variables. */
   const float mi = pi->mass;
@@ -367,7 +373,6 @@ __attribute__((always_inline)) INLINE static void runner_iact_force(
   const float mu_ij = fac_mu * r_inv * omega_ij; /* This is 0 or negative */
 
   /* Signal velocity */
-  const float MU0_1 = 1.0/(4.0*M_PI);
 #ifndef GADGET_MHD
   const float v_sig = ci + cj - const_viscosity_beta * mu_ij;
 #else
@@ -393,7 +398,7 @@ __attribute__((always_inline)) INLINE static void runner_iact_force(
 
   /* Now construct the full viscosity term */
   const float rho_ij = 0.5f * (rhoi + rhoj);
-  const float visc = -0.25f * v_sig * mu_ij *10* (balsara_i + balsara_j) / rho_ij;
+  const float visc = -0.25f * v_sig * mu_ij * (balsara_i + balsara_j) / rho_ij;
 
   /* Now, convolve with the kernel */
   const float visc_term = 0.5f * visc * (wi_dr + wj_dr) * r_inv;
@@ -402,7 +407,11 @@ __attribute__((always_inline)) INLINE static void runner_iact_force(
 
   /* Eventually got the acceleration */
   const float acc = visc_term + sph_term;
-
+#ifdef GADGET_MHD
+  //const float uiu=123.0;
+  //printf("MMI| %f ",uiu);
+  printf("MMI| %f ",MU0_1);
+#endif
   /* Use the force Luke ! */
   pi->a_hydro[0] -= mj * acc * dx[0];
   pi->a_hydro[1] -= mj * acc * dx[1];
@@ -414,42 +423,37 @@ __attribute__((always_inline)) INLINE static void runner_iact_force(
   
   /* Eventually got the MHD accel */ 
 #ifdef GADGET_MHD
+/*  const float mag_faci = MU0_1 ;// * f_i * wi_dr * r_inv /(rhoi*rhoi);
+  const float mag_facj = MU0_1 ;// * f_j * wj_dr * r_inv /(rhoj*rhoj);
   float mm_i[3][3],mm_j[3][3];
-  const float mag_faci = MU0_1 * f_i * wi_dr * r_inv /(rhoi*rhoi);
-  const float mag_facj = MU0_1 * f_j * wj_dr * r_inv /(rhoj*rhoj);
-  //float magacc[3],magcorr[3];
   
+  for(int i=0;i<3;i++)
+    for(int j=0;j<3;j++)
+  	{
+	mm_i[i][j] = pi->Bfld[i]*pi->Bfld[j];
+  	
+	mm_j[i][j] = pj->Bfld[i]*pj->Bfld[j];
+	}
+  for(int j=0;j<3;j++){
+  	mm_i[j][j] -= 0.5*pi->Bfld[j]*pi->Bfld[j];
+  	mm_j[j][j] -= 0.5*pj->Bfld[j]*pj->Bfld[j];
+  }
+///////////////////////////////
+  for(int i=0;i<3;i++)
+    for(int j=0;j<3;j++)
+    {  
+       pi->a_hydro[i] -= mj * (mm_i[i][j]*mag_faci+mm_j[i][j]*mag_facj) * dx[j];
+       
+       pj->a_hydro[i] += mi * (mm_i[i][j]*mag_faci+mm_j[i][j]*mag_facj) * dx[j];
+     }
   for(int i=0;i<3;++i)
-    for(int j=0;j<3;++j)
-  	mm_i[i][j]=pi->Bfld[i]*pi->Bfld[j];
-  for(int i=0;i<3;++i)
-  	mm_i[i][i]-=0.5*b2_i;
- //   for(int j=0;j<3;++j)
-  //	mm_i[i][i]-=0.5*pi->Bfld[j]*pi->Bfld[j];
-  
-  for(int i=0;i<3;++i)
-    for(int j=0;j<3;++j)
-  	mm_j[i][j]=pj->Bfld[i]*pj->Bfld[j];
-  for(int i=0;i<3;++i)
-  	mm_j[i][i]-=0.5*b2_j;
-  //  for(int j=0;j<3;++j)
-  //	mm_j[i][i]-=0.5*pj->Bfld[j]*pj->Bfld[j];
-  
-  
-  for(int i=0;i<2;++i)
-    for(int j=0;j<3;++j)
-     pi->a_hydro[i] += mj * (mm_i[i][j]*mag_faci+mm_j[i][j]*mag_facj)*dx[j];
- for(int i=0;i<2;++i)
-    for(int j=0;j<3;++j)
-     pi->a_hydro[i] -= mj * pi->Bfld[i] * (pi->Bfld[j]*mag_faci+pj->Bfld[j]*mag_facj)*dx[j];
-  for(int i=0;i<2;++i)
-    for(int j=0;j<3;++j)
-     pj->a_hydro[i] += mi * (mm_i[i][j]*mag_faci+mm_j[i][j]*mag_facj)*dx[j];
-  //Take out the divergence term  
-  for(int i=0;i<2;++i)
-    for(int j=0;j<3;++j)
+    for(int j=0;j<3;j++)
+    {
+     pi->a_hydro[i] += mj * pi->Bfld[i] * (pi->Bfld[j]*mag_faci+pj->Bfld[j]*mag_facj)*dx[j];
      pj->a_hydro[i] -= mi * pj->Bfld[i] * (pi->Bfld[j]*mag_faci+pj->Bfld[j]*mag_facj)*dx[j];
-
+    }
+/////////////////////
+*/
 #endif
 
   /* Get the time derivative for h. */
@@ -489,10 +493,14 @@ __attribute__((always_inline)) INLINE static void runner_iact_force(
  * @param H Current Hubble parameter.
  */
 __attribute__((always_inline)) INLINE static void runner_iact_nonsym_force(
-    float r2, const float *dx, float hi, float hj, struct part *restrict pi,
-    const struct part *restrict pj, float a, float H) {
+    const float r2, const float dx[3], const float hi, const float hj,
+    struct part *restrict pi, const struct part *restrict pj, const float a,
+    const float H) {
 
   float wi, wj, wi_dx, wj_dx;
+#ifdef GADGET_MHD
+  const float MU0_1 = 1.0/(4.0*M_PI);
+#endif
 
 #ifdef SWIFT_DEBUG_CHECKS
   if (pi->time_bin >= time_bin_inhibited)
@@ -507,7 +515,7 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_force(
 
   /* Get r and 1/r. */
   const float r = sqrtf(r2);
-  const float r_inv = 1.0f / r;
+  const float r_inv = r ? 1.0f / r : 0.0f;
 
   /* Get some values in local variables. */
   const float mj = pj->mass;
@@ -557,7 +565,6 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_force(
   const float mu_ij = fac_mu * r_inv * omega_ij; /* This is 0 or negative */
 
   /* Signal velocity */
-  const float MU0_1 = 1.0/(4.0*M_PI);
 #ifndef GADGET_MHD
   const float v_sig = ci + cj - const_viscosity_beta * mu_ij;
 #else
@@ -583,7 +590,7 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_force(
 
   /* Now construct the full viscosity term */
   const float rho_ij = 0.5f * (rhoi + rhoj);
-  const float visc = -0.25f * v_sig * mu_ij *10* (balsara_i + balsara_j) / rho_ij;
+  const float visc = -0.25f * v_sig * mu_ij * (balsara_i + balsara_j) / rho_ij;
 
   /* Now, convolve with the kernel */
   const float visc_term = 0.5f * visc * (wi_dr + wj_dr) * r_inv;
@@ -592,7 +599,11 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_force(
 
   /* Eventually got the acceleration */
   const float acc = visc_term + sph_term;
-
+#ifdef GADGET_MHD
+  //const float uiu=123.0;
+  //printf("MMI\n %f",uiu);
+  printf("MMI| %f ",MU0_1);
+#endif
   /* Use the force Luke ! */
   pi->a_hydro[0] -= mj * acc * dx[0];
   pi->a_hydro[1] -= mj * acc * dx[1];
@@ -600,34 +611,31 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_force(
   
   /* Eventually got the MHD accel */ 
 #ifdef GADGET_MHD
-  float mm_i[3][3],mm_j[3][3];
-  const float mag_faci = MU0_1 * f_i * wi_dr * r_inv /(rhoi*rhoi);
+/*  const float mag_faci = MU0_1 * f_i * wi_dr * r_inv /(rhoi*rhoi);
   const float mag_facj = MU0_1 * f_j * wj_dr * r_inv /(rhoj*rhoj);
+  float mm_i[3][3],mm_j[3][3];
   
+  for(int i=0;i<3;i++)
+    for(int j=0;j<3;j++)
+  	{
+	mm_i[i][j] = 1.0;//pi->Bfld[i]*pi->Bfld[j];
+  	
+	mm_j[i][j] = 1.0;//pj->Bfld[i]*pj->Bfld[j];
+	 }
+  for(int j=0;j<3;j++)
+  	{mm_i[j][j]-=0.5*pi->Bfld[j]*pi->Bfld[j];
+  	 mm_j[j][j]-=0.5*pj->Bfld[j]*pj->Bfld[j];}
+//////////////////////////////////
+  for(int i=0;i<3;i++)
+    for(int j=0;j<3;j++){
+          pi->a_hydro[i] -= mj * (mm_i[i][j]*mag_faci+mm_j[i][j]*mag_facj)*dx[j];
+	 }
+
+//Take out the divergence term  
   for(int i=0;i<3;++i)
     for(int j=0;j<3;++j)
-  	mm_i[i][j]=pi->Bfld[i]*pi->Bfld[j];
-  for(int i=0;i<3;++i)
-  	mm_i[i][i]-=0.5*b2_i;
- //   for(int j=0;j<3;++j)
- // 	mm_i[i][i]-=0.5*pi->Bfld[j]*pi->Bfld[j];
-  
-  for(int i=0;i<3;++i)
-    for(int j=0;j<3;++j)
-  	mm_j[i][j]=pj->Bfld[i]*pj->Bfld[j];
-  for(int i=0;i<3;++i)
-  	mm_j[i][i]-=0.5*b2_j;
-//    for(int j=0;j<3;++j)
-//  	mm_j[i][i]-=0.5*pj->Bfld[j]*pj->Bfld[j];
-  
-  
-  for(int i=0;i<2;++i)
-    for(int j=0;j<3;++j)
-          pi->a_hydro[i] += mj * (mm_i[i][j]*mag_faci+mm_j[i][j]*mag_facj)*dx[j];
-  //Take out the divergence term  
-  for(int i=0;i<2;++i)
-    for(int j=0;j<3;++j)
-	  pi->a_hydro[i] -= mj * pi->Bfld[i] * (pi->Bfld[j]*mag_faci+pj->Bfld[j]*mag_facj)*dx[j];
+	  pi->a_hydro[i] += mj * pi->Bfld[i] * (pi->Bfld[j]*mag_faci+pj->Bfld[j]*mag_facj)*dx[j];
+*/
 #endif
 
   /* Get the time derivative for h. */

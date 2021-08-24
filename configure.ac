@@ -1688,6 +1688,7 @@ case "$with_mhd" in
       AC_DEFINE([GADGET_MHD_EULER_TEST], [2], [SPMHD Euler Potential tst])
    ;;
    DInduction)
+      AC_DEFINE([GADGET_MHD], [1], [Gadget-2 SPMHD])
       AC_DEFINE([GADGET_MHD_DI], [1], [SPMHD Direct Induction])
    ;;
    *)

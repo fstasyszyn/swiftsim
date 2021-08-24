@@ -342,6 +342,7 @@ void test(void) {
     printParticle_single(&pi2, &xpi);
     print_bytes(&pi, sizeof(struct part));
     print_bytes(&pi2, sizeof(struct part));
+    for(int i=0;i<3;i++)printf("\n %e",pi.a_hydro[i]-pi2.a_hydro[i]);
     error("Particles 'pi' do not match after force (byte = %d)", i_not_ok);
   }
   if (j_not_ok) {
@@ -349,6 +350,7 @@ void test(void) {
     printParticle_single(&pj2, &xpj);
     print_bytes(&pj, sizeof(struct part));
     print_bytes(&pj2, sizeof(struct part));
+    for(int i=0;i<3;i++)printf("\n %e",pj.a_hydro[i]-pj2.a_hydro[i]);
     error("Particles 'pj' do not match after force (byte = %d)", j_not_ok);
   }
 }

@@ -544,9 +544,9 @@ __attribute__((always_inline)) INLINE static void hydro_end_density(
 #ifdef GADGET_MHD
   p->divB *= h_inv_dim_plus_one * a_inv2 * rho_inv;
 #ifdef GADGET_MHD_EULER // COSMOLOGICAL PARAM
-  for (int i = 0; i < 3; ++i) p->Grad_ep[0][i] *= h_inv_dim_plus_one * cosmo->a_inv * rho_inv;
-  for (int i = 0; i < 3; ++i) p->Grad_ep[1][i] *= h_inv_dim_plus_one * cosmo->a_inv * rho_inv;
-  for (int i = 0; i < 3; ++i) p->Bfld[i] = p->Grad_ep[0][(i+1)%3]*p->Grad_ep[1][(i+2)%3]
+  for (int i = 0; i < 3; i++) p->Grad_ep[0][i] *= h_inv_dim_plus_one * cosmo->a_inv * rho_inv;
+  for (int i = 0; i < 3; i++) p->Grad_ep[1][i] *= h_inv_dim_plus_one * cosmo->a_inv * rho_inv;
+  for (int i = 0; i < 3; i++) p->Bfld[i] = p->Grad_ep[0][(i+1)%3]*p->Grad_ep[1][(i+2)%3]
   			                 - p->Grad_ep[0][(i+2)%3]*p->Grad_ep[1][(i+1)%3];
 #endif
 #endif
