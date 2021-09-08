@@ -686,6 +686,15 @@ if test "$enable_ubsan" = "yes"; then
    fi
 fi
 
+
+# MPI mesh gravity
+AC_ARG_ENABLE([mpi-mesh-gravity],
+	[AS_HELP_STRING([--enable-mpi-mesh-gravity],
+		[enable parallel mesh gravity (requires FFTW MPI library) @<:@no/yes@:>@]
+	)],
+	[with_mpi_mesh_gravity="${enableval}"],
+	[with_mpi_mesh_gravity="no"]
+)
 # Autoconf stuff.
 AC_PROG_INSTALL
 AC_PROG_MAKE_SET
@@ -858,6 +867,8 @@ AH_VERBATIM([__STDC_FORMAT_MACROS],
 # is given FFTW must be found.
 # If FFTW is found, we check whether this is the threaded version.
 have_fftw="no"
+have_mpi_fftw="no"
+have_threaded_fftw="no"
 AC_ARG_WITH([fftw],
     [AS_HELP_STRING([--with-fftw=PATH],
        [root directory where fftw is installed @<:@yes/no@:>@]
@@ -917,7 +928,33 @@ if test "x$with_fftw" != "xno"; then
          AC_DEFINE([HAVE_THREADED_FFTW],1,[The threaded FFTW library appears to be present.])
          FFTW_LIBS=$FFTW_THREADED_LIBS
          FFTW_INCS=$FFTW_THREADED_INCS
-	 have_fftw="yes - threaded"
+
+      fi
+   fi
+
+   # If MPI mesh gravity is not disabled, check whether we have the MPI version of FFTW
+   if test "x$enable_mpi" = "xyes" -a "x$with_mpi_mesh_gravity" != "xno"; then
+      # Was FFTW's location specifically given?
+      if test "x$with_fftw" != "xyes" -a "x$with_fftw" != "xtest" -a "x$with_fftw" != "x"; then
+         FFTW_MPI_LIBS="-L$with_fftw/lib -lfftw3_mpi -lfftw3"
+         FFTW_MPI_INCS="-I$with_fftw/include"
+      else
+         FFTW_MPI_LIBS="-lfftw3_mpi -lfftw3"
+         FFTW_MPI_INCS=""
+      fi
+
+      # Verify that the library has MPI support
+      AC_CHECK_LIB([fftw3],[fftw_mpi_init],[have_mpi_fftw="yes"],
+                   [have_mpi_fftw="no"], $FFTW_MPI_LIBS)
+
+      # If found, update things. Don't add MPI flags to FFTW_*_LIBS etc because
+      # we don't want to link the MPI library into the non-MPI swift executable.
+      if test "x$have_mpi_fftw" = "xyes"; then
+         AC_DEFINE([HAVE_MPI_FFTW],1,[The MPI FFTW library appears to be present.])
+      else
+         if test "x$with_mpi_mesh_gravity" = "xyes" ; then
+            AC_MSG_ERROR("Unable to find FFTW MPI library for MPI mesh gravity")
+         fi
       fi
    fi
 fi
@@ -929,6 +966,7 @@ AC_ARG_WITH([arm-fftw],
     [with_arm_fftw="$withval"],
     [with_arm_fftw=no]
 )
+have_arm_fftw="no"
 if test "x$with_arm_fftw" != "xno"; then
 
    # Was FFTW's location specifically given?
@@ -945,14 +983,12 @@ if test "x$with_arm_fftw" != "xno"; then
       AC_CHECK_LIB([armpl_lp64],[fftw_malloc],[have_fftw="yes"],[have_fftw="no"],$FFTW_LIBS)
       if test "x$have_arm_fftw" != "xno"; then
       	 AC_DEFINE([HAVE_FFTW],1,[The FFTW library appears to be present.])
-	 have_fftw="yes - ARM"
       fi
    # FFTW was specified, check that it was a valid location.
    else
       AC_CHECK_LIB([armpl_lp64],[fftw_malloc],
          AC_DEFINE([HAVE_FFTW],1,[The FFTW library appears to be present.]),
          AC_MSG_ERROR(something is wrong with the FFTW library!), $FFTW_LIBS)
-      have_fftw="yes - ARM"
    fi
 
    # FFTW was requested not to be used.
@@ -989,6 +1025,10 @@ fi
 AC_SUBST([FFTW_LIBS])
 AC_SUBST([FFTW_INCS])
 AM_CONDITIONAL([HAVEFFTW],[test -n "$FFTW_LIBS"])
+
+AC_SUBST([FFTW_MPI_LIBS])
+AC_SUBST([FFTW_MPI_INCS])
+AM_CONDITIONAL([HAVEMPIFFTW],[test -n "$FFTW_MPI_LIBS"])
 
 #  Check for -lprofiler usually part of the gperftools along with tcmalloc.
 have_profiler="no"
@@ -1523,7 +1563,7 @@ AC_SUBST([NUMA_INCS])
 # As an example for this, see the call to AC_ARG_WITH for cooling.
 AC_ARG_WITH([subgrid],
 	[AS_HELP_STRING([--with-subgrid=<subgrid>],
-		[Master switch for subgrid methods. Inexperienced user should start here. Options are: @<:@none, GEAR, QLA, EAGLE, EAGLE-XL default: none@:>@]
+		[Master switch for subgrid methods. Inexperienced user should start here. Options are: @<:@none, GEAR, QLA, QLA-EAGLE, EAGLE, EAGLE-XL default: none@:>@]
 	)],
 	[with_subgrid="$withval"],
 	[with_subgrid=none]
@@ -1559,6 +1599,18 @@ case "$with_subgrid" in
    ;;
    QLA)
 	with_subgrid_cooling=QLA
+	with_subgrid_chemistry=QLA
+	with_subgrid_tracers=none
+	with_subgrid_entropy_floor=QLA
+	with_subgrid_stars=basic
+	with_subgrid_star_formation=QLA
+	with_subgrid_feedback=none
+	with_subgrid_black_holes=none
+	with_subgrid_sink=none
+	enable_fof=no
+   ;;
+   QLA-EAGLE)
+	with_subgrid_cooling=QLA-EAGLE
 	with_subgrid_chemistry=QLA
 	with_subgrid_tracers=none
 	with_subgrid_entropy_floor=QLA
@@ -2047,6 +2099,10 @@ case "$with_cooling" in
       AC_DEFINE([COOLING_QLA], [1], [Cooling following the Quick-Lyman-alpha model])
       with_cooling="QLA (Ploeckinger+20 tables) with constant primordial Z"
    ;;
+   QLA-EAGLE)
+      AC_DEFINE([COOLING_QLA_EAGLE], [1], [Cooling following the Quick-Lyman-alpha model])
+      with_cooling="QLA (Wiersma+09 tables) with constant primordial Z"
+   ;;
    EAGLE)
       AC_DEFINE([COOLING_EAGLE], [1], [Cooling following the EAGLE model (Wiersma+09 tables)])
       with_cooling="EAGLE (Wiersma+09 tables)"
@@ -2491,6 +2547,9 @@ case "$with_rt" in
       AC_DEFINE([RT_DEBUG], [1], [debugging scheme])
       AC_DEFINE([SWIFT_RT_DEBUG_CHECKS], [1], [additional debugging checks for RT])
    ;;
+   SPHM1RT)
+      AC_DEFINE([RT_SPHM1RT], [1], [SPHM1RT radiative transfer scheme (Chan+21: 2102.08404)])
+   ;;
    *)
       AC_MSG_ERROR([Unknown radiative transfer scheme: $with_rt])
    ;;
@@ -2527,7 +2586,8 @@ DX_INIT_DOXYGEN(SWIFT, doc/Doxyfile, doc/)
 AM_CONDITIONAL([HAVE_DOXYGEN], [test "$ac_cv_path_ac_pt_DX_DOXYGEN" != ""])
 
 # Check if using QLA cooling
-AM_CONDITIONAL([HAVEQLACOOLING], [test "${with_cooling:0:3}" = "QLA"])
+AM_CONDITIONAL([HAVEQLACOOLING], [test "${with_cooling:0:6}" = "QLA (P"])
+AM_CONDITIONAL([HAVEQLAEAGLECOOLING], [test "${with_cooling:0:6}" = "QLA (W"])
 
 # Check if using EAGLE cooling
 AM_CONDITIONAL([HAVEEAGLECOOLING], [test "${with_cooling:0:5}" = "EAGLE"])
@@ -2622,7 +2682,10 @@ AC_MSG_RESULT([
    HDF5 enabled         : $with_hdf5
     - parallel          : $have_parallel_hdf5
    METIS/ParMETIS       : $have_metis / $have_parmetis
-   FFTW3 enabled        : $have_fftw
+   FFTW3 enabled        : $have_fftw   
+    - threaded          : $have_threaded_fftw
+    - MPI               : $have_mpi_fftw
+    - ARM               : $have_arm_fftw
    GSL enabled          : $have_gsl
    libNUMA enabled      : $have_numa
    GRACKLE enabled      : $have_grackle
@@ -2677,4 +2740,5 @@ AC_MSG_RESULT([
 
    Continuous Sim. Data Stream : $with_csds
 
- ------------------------])
+ ------------------------]
+)

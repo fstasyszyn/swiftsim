@@ -63,7 +63,14 @@ void engine_dump_restarts(struct engine *e, int drifted_all, int force) {
 #endif
     if (dump) {
 
-      if (e->nodeID == 0) message("Writing restart files");
+      if (e->nodeID == 0) {
+
+        /* Flush the time-step file to avoid gaps in case of crashes
+         * before the next automated flush */
+        fflush(e->file_timesteps);
+
+        message("Writing restart files");
+      }
 
       /* Clean out the previous saved files, if found. Do this now as we are
        * MPI synchronized. */
@@ -795,8 +802,7 @@ void engine_compute_next_fof_time(struct engine *e) {
     if (e->policy & engine_policy_cosmology) {
       const float next_fof_time =
           exp(e->ti_next_fof * e->time_base) * e->cosmology->a_begin;
-      // if (e->verbose)
-      message("Next FoF time set to a=%e.", next_fof_time);
+      if (e->verbose) message("Next FoF time set to a=%e.", next_fof_time);
     } else {
       const float next_fof_time = e->ti_next_fof * e->time_base + e->time_begin;
       if (e->verbose) message("Next FoF time set to t=%e.", next_fof_time);
