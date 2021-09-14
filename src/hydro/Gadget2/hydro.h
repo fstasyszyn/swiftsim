@@ -489,6 +489,37 @@ __attribute__((always_inline)) INLINE static void hydro_init_part(
   p->density.rot_v[0] = 0.f;
   p->density.rot_v[1] = 0.f;
   p->density.rot_v[2] = 0.f;
+#ifdef GADGET_MHD
+  p->divB    = 0.f;
+  p->Bfld[0] = 0.f;
+  p->Bfld[1] = 0.f;
+  p->Bfld[2] = 0.f;
+#ifdef GADGET_MHD_DI
+  p->Bpred[0] = 0.f;
+  p->Bpred[1] = 0.f;
+  p->Bpred[2] = 0.f;
+  p->dBdt[0] = 0.f;
+  p->dBdt[1] = 0.f;
+  p->dBdt[2] = 0.f;
+#endif
+#ifdef GADGET_MHD_EULER
+  for (int i = 0; i < 3; ++i) p->Grad_ep[0][i]=0.f;
+  for (int i = 0; i < 3; ++i) p->Grad_ep[1][i]=0.f;
+#endif
+#ifdef GADGET_MHD_VPOT
+  p->Apot[0] = 0.f;
+  p->Apot[1] = 0.f;
+  p->Apot[2] = 0.f;
+  p->Apred[0] = 0.f;
+  p->Apred[1] = 0.f;
+  p->Apred[2] = 0.f;
+  p->dAdt[0] = 0.f;
+  p->dAdt[1] = 0.f;
+  p->dAdt[1] = 0.f;
+  p->divA = 0.f; 
+  p->GauA = 0.f; 
+#endif
+#endif
 }
 
 /**
