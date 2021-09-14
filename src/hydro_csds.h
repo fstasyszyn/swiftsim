@@ -32,11 +32,7 @@
 #if defined(MINIMAL_SPH)
 #error TODO
 #elif defined(GADGET2_SPH)
-#ifndef GADGET_MHD
 #include "./hydro/Gadget2/hydro_csds.h"
-#else
-#include "./hydro/GadgetMHD/hydro_csds.h"
-#endif
 #elif defined(HOPKINS_PE_SPH)
 #error TODO
 #elif defined(HOPKINS_PU_SPH)
