@@ -562,6 +562,15 @@ __attribute__((always_inline)) INLINE static void hydro_end_density(
 
   /* Finish calculation of the (physical) velocity divergence */
   p->density.div_v *= h_inv_dim_plus_one * a_inv2 * rho_inv;
+#ifdef GADGET_MHD
+  p->divB *= h_inv_dim_plus_one * a_inv2 * rho_inv;
+#ifdef GADGET_MHD_EULER // COSMOLOGICAL PARAM
+  for (int i = 0; i < 3; i++) p->Grad_ep[0][i] *= h_inv_dim_plus_one * cosmo->a_inv * rho_inv;
+  for (int i = 0; i < 3; i++) p->Grad_ep[1][i] *= h_inv_dim_plus_one * cosmo->a_inv * rho_inv;
+  for (int i = 0; i < 3; i++) p->Bfld[i] = p->Grad_ep[0][(i+1)%3]*p->Grad_ep[1][(i+2)%3]
+  			                 - p->Grad_ep[0][(i+2)%3]*p->Grad_ep[1][(i+1)%3];
+#endif
+#endif
 }
 
 /**
@@ -589,6 +598,17 @@ __attribute__((always_inline)) INLINE static void hydro_part_has_no_neighbours(
   p->density.rot_v[0] = 0.f;
   p->density.rot_v[1] = 0.f;
   p->density.rot_v[2] = 0.f;
+#ifdef GADGET_MHD
+// Remember to check if this is fine in every method
+  p->divB    = 0.f;
+#ifdef GADGET_MHD_EULER
+  p->Bfld[0] = 0.f;
+  p->Bfld[1] = 0.f;
+  p->Bfld[2] = 0.f;
+  for (int i = 0; i < 3; ++i) p->Grad_ep[0][i]=0.f;
+  for (int i = 0; i < 3; ++i) p->Grad_ep[1][i]=0.f;
+#endif
+#endif
 }
 
 /**

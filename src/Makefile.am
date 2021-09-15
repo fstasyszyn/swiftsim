@@ -180,15 +180,9 @@ nobase_noinst_HEADERS += hydro/Minimal/hydro_parameters.h
 nobase_noinst_HEADERS += hydro/Phantom/hydro.h hydro/Phantom/hydro_iact.h hydro/Phantom/hydro_io.h 
 nobase_noinst_HEADERS += hydro/Phantom/hydro_debug.h hydro/Phantom/hydro_part.h 
 nobase_noinst_HEADERS += hydro/Phantom/hydro_parameters.h 
-if HAVE_NONE_MHD
 nobase_noinst_HEADERS += hydro/Gadget2/hydro.h hydro/Gadget2/hydro_iact.h hydro/Gadget2/hydro_io.h 
 nobase_noinst_HEADERS += hydro/Gadget2/hydro_debug.h hydro/Gadget2/hydro_part.h 
 nobase_noinst_HEADERS += hydro/Gadget2/hydro_parameters.h hydro/Gadget2/hydro_csds.h 
-else
-nobase_noinst_HEADERS += hydro/GadgetMHD/hydro.h hydro/GadgetMHD/hydro_iact.h hydro/GadgetMHD/hydro_io.h 
-nobase_noinst_HEADERS += hydro/GadgetMHD/hydro_debug.h hydro/GadgetMHD/hydro_part.h 
-nobase_noinst_HEADERS += hydro/GadgetMHD/hydro_parameters.h hydro/GadgetMHD/hydro_csds.h 
-endif
 nobase_noinst_HEADERS += hydro/PressureEntropy/hydro.h hydro/PressureEntropy/hydro_iact.h hydro/PressureEntropy/hydro_io.h 
 nobase_noinst_HEADERS += hydro/PressureEntropy/hydro_debug.h hydro/PressureEntropy/hydro_part.h 
 nobase_noinst_HEADERS += hydro/PressureEntropy/hydro_parameters.h 
