@@ -136,6 +136,20 @@ __attribute__((always_inline)) INLINE static void runner_iact_density(
   pi->divB -= faci * dBdr;
   pj->divB -= facj * dBdr;
 
+#ifdef GADGET_MHD_DI
+  pi->dBdt[0] += faci * ((pi->Bfld[0] * dv[1] - pi->Bfld[1] * dv[0]) * dx[1]
+  		        +(pi->Bfld[0] * dv[2] - pi->Bfld[2] * dv[0]) * dx[2]);
+  pi->dBdt[1] += faci * ((pi->Bfld[1] * dv[2] - pi->Bfld[2] * dv[1]) * dx[2]
+  		        +(pi->Bfld[1] * dv[0] - pi->Bfld[0] * dv[1]) * dx[0]);
+  pi->dBdt[2] += faci * ((pi->Bfld[2] * dv[0] - pi->Bfld[0] * dv[2]) * dx[0]
+  		        +(pi->Bfld[2] * dv[1] - pi->Bfld[1] * dv[2]) * dx[1]);
+  pj->dBdt[0] += facj * ((pj->Bfld[0] * dv[1] - pj->Bfld[1] * dv[0]) * dx[1]
+  		        +(pj->Bfld[0] * dv[2] - pj->Bfld[2] * dv[0]) * dx[2]);
+  pj->dBdt[1] += facj * ((pj->Bfld[1] * dv[2] - pj->Bfld[2] * dv[1]) * dx[2]
+  		        +(pj->Bfld[1] * dv[0] - pj->Bfld[0] * dv[1]) * dx[0]);
+  pj->dBdt[2] += facj * ((pj->Bfld[2] * dv[0] - pj->Bfld[0] * dv[2]) * dx[0]
+  		        +(pj->Bfld[2] * dv[1] - pj->Bfld[1] * dv[2]) * dx[1]);
+#endif
 #ifdef GADGET_MHD_EULER
   dalpha = pi->ep[0] - pj->ep[0];
   dbeta  = pi->ep[1] - pj->ep[1];
@@ -253,6 +267,15 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_density(
   	dB[i]= pi->Bfld[i] - pj->Bfld[i];
   const double dBdr = dB[0]*dx[0] + dB[1]*dx[1] + dB[2]*dx[2];
   pi->divB -= fac * dBdr;
+
+#ifdef GADGET_MHD_DI
+  pi->dBdt[0] += fac * ((pi->Bfld[0] * dv[1] - pi->Bfld[1] * dv[0]) * dx[1]
+  		        +(pi->Bfld[0] * dv[2] - pi->Bfld[2] * dv[0]) * dx[2]);
+  pi->dBdt[1] += fac * ((pi->Bfld[1] * dv[2] - pi->Bfld[2] * dv[1]) * dx[2]
+  		        +(pi->Bfld[1] * dv[0] - pi->Bfld[0] * dv[1]) * dx[0]);
+  pi->dBdt[2] += fac * ((pi->Bfld[2] * dv[0] - pi->Bfld[0] * dv[2]) * dx[0]
+  		        +(pi->Bfld[2] * dv[1] - pi->Bfld[1] * dv[2]) * dx[1]);
+#endif
 
 #ifdef GADGET_MHD_EULER
   dalpha = pi->ep[0] - pj->ep[0];
@@ -647,24 +670,35 @@ __attribute__((always_inline)) INLINE static void runner_iact_force(
 #ifdef GADGET_MHD
   const float mag_faci = MU0_1 * f_i * wi_dr * r_inv /(rhoi*rhoi);
   const float mag_facj = MU0_1 * f_j * wj_dr * r_inv /(rhoj*rhoj);
-  float mm_i[3][3],mm_j[3][3];
-  
-  for(int i=0;i<3;i++)
-    for(int j=0;j<3;j++)
-  	{
-	mm_i[i][j] = pi->Bfld[i]*pi->Bfld[j];
-  	
-	mm_j[i][j] = pj->Bfld[i]*pj->Bfld[j];
-	}
-  for(int j=0;j<3;j++)
-  	{mm_i[j][j] -= 0.5*pi->Bfld[j]*pi->Bfld[j];
-  	 mm_j[j][j] -= 0.5*pj->Bfld[j]*pj->Bfld[j];}
+//  float mm_i[3][3],mm_j[3][3];
+//  
+//  for(int i=0;i<3;i++)
+//    for(int j=0;j<3;j++)
+//  	{
+//	mm_i[i][j] = pi->Bfld[i]*pi->Bfld[j];
+ // 	
+//	mm_j[i][j] = pj->Bfld[i]*pj->Bfld[j];
+//	}
+//  for(int j=0;j<3;j++)
+//  	{mm_i[j][j] -= 0.5*pi->Bfld[j]*pi->Bfld[j];
+//  	 mm_j[j][j] -= 0.5*pj->Bfld[j]*pj->Bfld[j];}
 ///////////////////////////////
   for(int i=0;i<3;i++)
     for(int j=0;j<3;j++)
     {  
-       pi->a_hydro[i] -= mj * (mm_i[i][j]*mag_faci+mm_j[i][j]*mag_facj) * dx[j];
-       pj->a_hydro[i] += mi * (mm_i[i][j]*mag_faci+mm_j[i][j]*mag_facj) * dx[j];
+       //pi->a_hydro[i] -= mj * (mm_i[i][j]*mag_faci+mm_j[i][j]*mag_facj) * dx[j];
+       //pj->a_hydro[i] += mi * (mm_i[i][j]*mag_faci+mm_j[i][j]*mag_facj) * dx[j];
+          pi->a_hydro[i] -= mj * ((pi->Bfld[i]*pi->Bfld[j])*mag_faci
+	  + ( pj->Bfld[i]*pj->Bfld[j])*mag_facj)*dx[j];
+	 if(i==j)
+          pi->a_hydro[i] += mj * 0.5 * ((pi->Bfld[i]*pi->Bfld[j])*mag_faci
+	  + ( pj->Bfld[i]*pj->Bfld[j])*mag_facj)*dx[j];
+
+         pj->a_hydro[i] += mi * ((pi->Bfld[i]*pi->Bfld[j])*mag_faci
+	  + ( pj->Bfld[i]*pj->Bfld[j])*mag_facj)*dx[j];
+	 if(i==j)
+         pj->a_hydro[i] -= mi * 0.5 * ((pi->Bfld[i]*pi->Bfld[j])*mag_faci
+	  + ( pj->Bfld[i]*pj->Bfld[j])*mag_facj)*dx[j];
      }
 //Take out the divergence term  
   for(int i=0;i<3;++i)
@@ -826,21 +860,26 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_force(
 #ifdef GADGET_MHD
   const float mag_faci = MU0_1 * f_i * wi_dr * r_inv /(rhoi*rhoi);
   const float mag_facj = MU0_1 * f_j * wj_dr * r_inv /(rhoj*rhoj);
-  float mm_i[3][3],mm_j[3][3];
+//  float mm_i[3][3],mm_j[3][3];
   
-  for(int i=0;i<3;i++)
-    for(int j=0;j<3;j++)
-  	{
-	mm_i[i][j] = pi->Bfld[i]*pi->Bfld[j];
-	mm_j[i][j] = pj->Bfld[i]*pj->Bfld[j];
-	 }
-  for(int j=0;j<3;j++)
-  	{mm_i[j][j]-=0.5*pi->Bfld[j]*pi->Bfld[j];
-  	 mm_j[j][j]-=0.5*pj->Bfld[j]*pj->Bfld[j];}
+ // for(int i=0;i<3;i++)
+ //   for(int j=0;j<3;j++)
+//  	{
+//	mm_i[i][j] = pi->Bfld[i]*pi->Bfld[j];
+//	mm_j[i][j] = pj->Bfld[i]*pj->Bfld[j];
+//	 }
+//  for(int j=0;j<3;j++)
+//  	{mm_i[j][j]-=0.5*pi->Bfld[j]*pi->Bfld[j];
+//  	 mm_j[j][j]-=0.5*pj->Bfld[j]*pj->Bfld[j];}
 //////////////////////////////////
   for(int i=0;i<3;i++)
     for(int j=0;j<3;j++){
-          pi->a_hydro[i] -= mj * (mm_i[i][j]*mag_faci+mm_j[i][j]*mag_facj)*dx[j];
+//          pi->a_hydro[i] -= mj * (mm_i[i][j]*mag_faci+mm_j[i][j]*mag_facj)*dx[j];
+          pi->a_hydro[i] -= mj * ((pi->Bfld[i]*pi->Bfld[j])*mag_faci
+	  + ( pj->Bfld[i]*pj->Bfld[j])*mag_facj)*dx[j];
+	 if(i==j)
+          pi->a_hydro[i] += mj * 0.5 * ((pi->Bfld[i]*pi->Bfld[j])*mag_faci
+	  + ( pj->Bfld[i]*pj->Bfld[j])*mag_facj)*dx[j];
 	 }
 
 //Take out the divergence term  

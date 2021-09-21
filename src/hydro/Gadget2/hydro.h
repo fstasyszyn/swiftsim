@@ -491,28 +491,25 @@ __attribute__((always_inline)) INLINE static void hydro_init_part(
   p->density.rot_v[2] = 0.f;
 #ifdef GADGET_MHD
   p->divB    = 0.f;
-  p->Bfld[0] = 0.f;
-  p->Bfld[1] = 0.f;
-  p->Bfld[2] = 0.f;
 #ifdef GADGET_MHD_DI
-  p->Bpred[0] = 0.f;
-  p->Bpred[1] = 0.f;
-  p->Bpred[2] = 0.f;
+  p->Bpred[0] = p->Bfld[0];
+  p->Bpred[1] = p->Bfld[1];
+  p->Bpred[2] = p->Bfld[2];
   p->dBdt[0] = 0.f;
   p->dBdt[1] = 0.f;
   p->dBdt[2] = 0.f;
 #endif
 #ifdef GADGET_MHD_EULER
+  p->Bfld[0] = 0.f;
+  p->Bfld[1] = 0.f;
+  p->Bfld[2] = 0.f;
   for (int i = 0; i < 3; ++i) p->Grad_ep[0][i]=0.f;
   for (int i = 0; i < 3; ++i) p->Grad_ep[1][i]=0.f;
 #endif
 #ifdef GADGET_MHD_VPOT
-  p->Apot[0] = 0.f;
-  p->Apot[1] = 0.f;
-  p->Apot[2] = 0.f;
-  p->Apred[0] = 0.f;
-  p->Apred[1] = 0.f;
-  p->Apred[2] = 0.f;
+  p->Apred[0] = p->Apot[0] ;
+  p->Apred[1] = p->Apot[1] ;
+  p->Apred[2] = p->Apot[2] ;
   p->dAdt[0] = 0.f;
   p->dAdt[1] = 0.f;
   p->dAdt[1] = 0.f;
@@ -564,6 +561,11 @@ __attribute__((always_inline)) INLINE static void hydro_end_density(
   p->density.div_v *= h_inv_dim_plus_one * a_inv2 * rho_inv;
 #ifdef GADGET_MHD
   p->divB *= h_inv_dim_plus_one * a_inv2 * rho_inv;
+#ifdef GADGET_MHD_DI
+  p->dBdt[0] *= h_inv_dim_plus_one * a_inv2 * rho_inv;
+  p->dBdt[1] *= h_inv_dim_plus_one * a_inv2 * rho_inv;
+  p->dBdt[2] *= h_inv_dim_plus_one * a_inv2 * rho_inv;
+#endif
 #ifdef GADGET_MHD_EULER // COSMOLOGICAL PARAM
   for (int i = 0; i < 3; i++) p->Grad_ep[0][i] *= h_inv_dim_plus_one * cosmo->a_inv * rho_inv;
   for (int i = 0; i < 3; i++) p->Grad_ep[1][i] *= h_inv_dim_plus_one * cosmo->a_inv * rho_inv;
@@ -769,6 +771,12 @@ __attribute__((always_inline)) INLINE static void hydro_predict_extra(
     const struct hydro_props *hydro_props,
     const struct entropy_floor_properties *floor_props) {
 
+#ifdef GADGET_MHD_DI
+  p->Bpred[0] += p->dBdt[0] * dt_therm;
+  p->Bpred[1] += p->dBdt[1] * dt_therm;
+  p->Bpred[2] += p->dBdt[2] * dt_therm;
+#endif
+  
   /* Predict the entropy */
   p->entropy += p->entropy_dt * dt_therm;
 
@@ -859,6 +867,12 @@ __attribute__((always_inline)) INLINE static void hydro_kick_extra(
     float dt_grav, float dt_hydro, float dt_kick_corr,
     const struct cosmology *cosmo, const struct hydro_props *hydro_props,
     const struct entropy_floor_properties *floor_props) {
+
+#ifdef GADGET_MHD_DI
+  p->Bfld[0] += p->dBdt[0] * dt_hydro;
+  p->Bfld[1] += p->dBdt[1] * dt_hydro;
+  p->Bfld[2] += p->dBdt[2] * dt_hydro;
+#endif
 
   /* Integrate the entropy forward in time */
   const float delta_entropy = p->entropy_dt * dt_therm;
