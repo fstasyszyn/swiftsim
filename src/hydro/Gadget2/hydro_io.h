@@ -58,16 +58,18 @@ INLINE static void hydro_read_particles(struct part* parts,
 #ifdef GADGET_MHD  
 // MISS DI/APOT
   list += *num_fields;
+#ifdef GADGET_MHD_EULER 
+  *num_fields += 3;
+#else
   *num_fields += 1;
+#endif
   
   list[0]  = io_make_input_field("Bfield", FLOAT, 3, OPTIONAL,
                                 UNIT_CONV_NO_UNITS, parts, Bfld);
 #ifdef GADGET_MHD_EULER 
-  list += *num_fields;
-  *num_fields += 2;
-  list[0]  = io_make_input_field("EPalpha", FLOAT, 1, OPTIONAL,
+  list[1]  = io_make_input_field("EPalpha", FLOAT, 1, OPTIONAL,
                                 UNIT_CONV_NO_UNITS, parts, ep[0]);
-  list[1]  = io_make_input_field("EPbeta" , FLOAT, 1, OPTIONAL,
+  list[2]  = io_make_input_field("EPbeta" , FLOAT, 1, OPTIONAL,
                                 UNIT_CONV_NO_UNITS, parts, ep[1]);
 #endif
 #endif
@@ -227,9 +229,12 @@ INLINE static void hydro_write_particles(const struct part* parts,
       convert_part_potential,
       "Co-moving gravitational potential at position of the particles");
 #ifdef GADGET_MHD 
-/// MISS DI/APOT
   list += *num_fields;
+#ifdef GADGET_MHD_EULER 
+  *num_fields += 4;
+#else
   *num_fields += 2;
+#endif
   list[0] = io_make_output_field(
       "Bfield", FLOAT, 3, UNIT_CONV_NO_UNITS, -2.f, parts, Bfld,
       "co-moving Magnetic Field of the particles");
@@ -237,12 +242,10 @@ INLINE static void hydro_write_particles(const struct part* parts,
       "divB", FLOAT, 1, UNIT_CONV_NO_UNITS, -0.f, parts, divB,
       "co-moving DivB of the particles");
 #ifdef GADGET_MHD_EULER 
-  list += *num_fields;
-  *num_fields += 2;
-  list[0] = io_make_output_field(
+  list[2] = io_make_output_field(
       "EPalpha", FLOAT, 1, UNIT_CONV_NO_UNITS, -0.f, parts, ep[0],
       "co-moving Alpha Potential of the particles");
-  list[1] = io_make_output_field(
+  list[3] = io_make_output_field(
       "EPbeta" , FLOAT, 1, UNIT_CONV_NO_UNITS, -0.f, parts, ep[1],
       "co-moving Beta Potential of the particles");
 #endif
