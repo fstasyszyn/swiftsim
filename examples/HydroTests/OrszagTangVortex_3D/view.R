@@ -8,19 +8,29 @@ do_heat <- function(file){
 hea=h5readAttributes(file,"/Header")
 xx=h5read(file,"/PartType0/Coordinates")
 rr=h5read(file,"/PartType0/Densities")
+vv=h5read(file,"/PartType0/Velocities")
 bb=h5read(file,"/PartType0/Bfield")
 divb=h5read(file,"/PartType0/divB")
 z=xx[3,]
-jj=which(z<0.2)
+jj=which(z<0.1)
 x=xx[1,]
 y=xx[2,]
 print(c("Tiempo: ", hea$Time))
 
 BB=bb[1,]*bb[1,]+bb[2,]*bb[2,]+bb[3,]*bb[3,]
+VV=vv[1,]*vv[1,]+vv[2,]*vv[2,]+vv[3,]*vv[3,]
 
-adata=interp(x[jj],y[jj],(divb[jj]),nx=128,ny=128)
-#adata=interp(x[jj],y[jj],log10(rr[jj]),nx=128,ny=128)
-#adata=interp(x[jj],y[jj],log10(BB[jj]),nx=128,ny=128)
-image.plot(adata)
+adata0=interp(x[jj],y[jj],(divb[jj]),nx=128,ny=128)
+adata1=interp(x[jj],y[jj],log10(rr[jj]),nx=128,ny=128)
+adata2=interp(x[jj],y[jj],log10(BB[jj]),nx=128,ny=128)
+adata3=interp(x[jj],y[jj],log10(VV[jj]),nx=128,ny=128)
+
+par(mfrow=c(2,2))
+
+image.plot(adata0,main="DivB")
+image.plot(adata1,main="Density")
+image.plot(adata2,main="B2")
+image.plot(adata3,main="V2")
+
 return(0)
 }
