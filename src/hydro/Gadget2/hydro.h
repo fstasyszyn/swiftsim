@@ -492,9 +492,9 @@ __attribute__((always_inline)) INLINE static void hydro_init_part(
 #ifdef GADGET_MHD
   p->divB    = 0.f;
 #ifdef GADGET_MHD_DI
-  p->Bpred[0] = p->Bfld[0];
-  p->Bpred[1] = p->Bfld[1];
-  p->Bpred[2] = p->Bfld[2];
+  p->BPred[0] = p->Bfld[0];
+  p->BPred[1] = p->Bfld[1];
+  p->BPred[2] = p->Bfld[2];
   p->dBdt[0] = 0.f;
   p->dBdt[1] = 0.f;
   p->dBdt[2] = 0.f;
@@ -772,9 +772,9 @@ __attribute__((always_inline)) INLINE static void hydro_predict_extra(
     const struct entropy_floor_properties *floor_props) {
 
 #ifdef GADGET_MHD_DI
-  p->Bpred[0] += p->dBdt[0] * dt_therm;
-  p->Bpred[1] += p->dBdt[1] * dt_therm;
-  p->Bpred[2] += p->dBdt[2] * dt_therm;
+  p->BPred[0] += p->dBdt[0] * dt_therm;
+  p->BPred[1] += p->dBdt[1] * dt_therm;
+  p->BPred[2] += p->dBdt[2] * dt_therm;
 #endif
   
   /* Predict the entropy */
