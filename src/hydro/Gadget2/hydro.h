@@ -450,8 +450,15 @@ __attribute__((always_inline)) INLINE static float hydro_compute_timestep(
   /* CFL condition */
   const float dt_cfl = 2.f * kernel_gamma * CFL * cosmo->a * p->h /
                        (cosmo->a_factor_sound_speed * p->force.v_sig);
-
+#ifndef GADGET_MHD  
   return dt_cfl;
+#else  
+  //Check if really needed
+  const float MU0_1 = 1.0/(4.0*M_PI);
+  float dt_divB=0.f;
+  dt_divB = p->divB != 0.f ? 2.f * sqrtf(p->rho /(MU0_1*p->divB *p->divB)) : 2.f* dt_cfl;
+  return min(dt_cfl,dt_divB);
+#endif
 }
 
 /**
@@ -492,12 +499,12 @@ __attribute__((always_inline)) INLINE static void hydro_init_part(
 #ifdef GADGET_MHD
   p->divB    = 0.f;
 #ifdef GADGET_MHD_DI
-  p->BPred[0] = p->Bfld[0];
-  p->BPred[1] = p->Bfld[1];
-  p->BPred[2] = p->Bfld[2];
   p->dBdt[0] = 0.f;
   p->dBdt[1] = 0.f;
   p->dBdt[2] = 0.f;
+  p->Bsmooth[0] = 0.f;
+  p->Bsmooth[1] = 0.f;
+  p->Bsmooth[2] = 0.f;
 #endif
 #ifdef GADGET_MHD_EULER
   p->Bfld[0] = 0.f;
@@ -507,9 +514,9 @@ __attribute__((always_inline)) INLINE static void hydro_init_part(
   for (int i = 0; i < 3; ++i) p->Grad_ep[1][i]=0.f;
 #endif
 #ifdef GADGET_MHD_VPOT
-  p->Apred[0] = p->Apot[0] ;
-  p->Apred[1] = p->Apot[1] ;
-  p->Apred[2] = p->Apot[2] ;
+//  p->Apred[0] = p->Apot[0] ;
+//  p->Apred[1] = p->Apot[1] ;
+//  p->Apred[2] = p->Apot[2] ;
   p->dAdt[0] = 0.f;
   p->dAdt[1] = 0.f;
   p->dAdt[1] = 0.f;
@@ -565,6 +572,10 @@ __attribute__((always_inline)) INLINE static void hydro_end_density(
   p->dBdt[0] *= h_inv_dim_plus_one * a_inv2 * rho_inv;
   p->dBdt[1] *= h_inv_dim_plus_one * a_inv2 * rho_inv;
   p->dBdt[2] *= h_inv_dim_plus_one * a_inv2 * rho_inv;
+  p->Bsmooth[0] *= h_inv_dim * a_inv2 * rho_inv;
+  p->Bsmooth[1] *= h_inv_dim * a_inv2 * rho_inv;
+  p->Bsmooth[2] *= h_inv_dim * a_inv2 * rho_inv;
+//  for (int i = 0; i < 3; i++) p->Bfld[i] = p->Bsmooth[i];
 #endif
 #ifdef GADGET_MHD_EULER // COSMOLOGICAL PARAM
   for (int i = 0; i < 3; i++) p->Grad_ep[0][i] *= h_inv_dim_plus_one * cosmo->a_inv * rho_inv;
@@ -732,6 +743,11 @@ __attribute__((always_inline)) INLINE static void hydro_reset_predicted_values(
   p->v[0] = xp->v_full[0];
   p->v[1] = xp->v_full[1];
   p->v[2] = xp->v_full[2];
+#ifdef GADGET_MHD
+  p->BPred[0] = p->Bfld[0];
+  p->BPred[1] = p->Bfld[1];
+  p->BPred[2] = p->Bfld[2];
+#endif
 
   /* Re-set the entropy */
   p->entropy = xp->entropy_full;

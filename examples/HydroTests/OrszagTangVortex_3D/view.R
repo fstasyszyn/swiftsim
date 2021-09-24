@@ -26,8 +26,7 @@ adata2=interp(x[jj],y[jj],log10(BB[jj]),nx=128,ny=128)
 adata3=interp(x[jj],y[jj],log10(VV[jj]),nx=128,ny=128)
 
 par(mfrow=c(2,2))
-
-image.plot(adata0,main="DivB")
+image.plot(adata0,main=c("DivB at ",hea$Time))
 image.plot(adata1,main="Density")
 image.plot(adata2,main="B2")
 image.plot(adata3,main="V2")

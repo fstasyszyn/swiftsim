@@ -118,11 +118,12 @@ struct part {
 #ifdef GADGET_MHD 
   /* Magnetic field */
   float Bfld[3];
+  float BPred[3];
   float divB;
 #ifdef GADGET_MHD_DI 
   /* Direct Induction */
-  float BPred[3];
   float dBdt[3];
+  float Bsmooth[3];
 #endif
 #ifdef GADGET_MHD_APOT 
   /* Vector Potential */
