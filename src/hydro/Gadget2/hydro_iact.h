@@ -135,6 +135,12 @@ __attribute__((always_inline)) INLINE static void runner_iact_density(
   const double dBdr = dB[0]*dx[0] + dB[1]*dx[1] + dB[2]*dx[2];
   pi->divB -= faci * dBdr;
   pj->divB -= facj * dBdr;
+  pi->Bsmooth[0] += mj * wi * r_inv * pj->Bfld[0];
+  pi->Bsmooth[1] += mj * wi * r_inv * pj->Bfld[1];
+  pi->Bsmooth[2] += mj * wi * r_inv * pj->Bfld[2];
+  pj->Bsmooth[0] += mi * wj * r_inv * pi->Bfld[0];
+  pj->Bsmooth[1] += mi * wj * r_inv * pi->Bfld[1];
+  pj->Bsmooth[2] += mi * wj * r_inv * pi->Bfld[2];
 
 #ifdef GADGET_MHD_DI
   pi->dBdt[0] += faci * ((pi->BPred[0] * dv[1] - pi->BPred[1] * dv[0]) * dx[1]
@@ -149,12 +155,6 @@ __attribute__((always_inline)) INLINE static void runner_iact_density(
   		        +(pj->BPred[1] * dv[0] - pj->BPred[0] * dv[1]) * dx[0]);
   pj->dBdt[2] += facj * ((pj->BPred[2] * dv[0] - pj->BPred[0] * dv[2]) * dx[0]
   		        +(pj->BPred[2] * dv[1] - pj->BPred[1] * dv[2]) * dx[1]);
-  pi->Bsmooth[0] += mj * wi * r_inv * pj->Bfld[0];
-  pi->Bsmooth[1] += mj * wi * r_inv * pj->Bfld[1];
-  pi->Bsmooth[2] += mj * wi * r_inv * pj->Bfld[2];
-  pj->Bsmooth[0] += mi * wj * r_inv * pi->Bfld[0];
-  pj->Bsmooth[1] += mi * wj * r_inv * pi->Bfld[1];
-  pj->Bsmooth[2] += mi * wj * r_inv * pi->Bfld[2];
 #endif
 #ifdef GADGET_MHD_EULER
   dalpha = pi->ep[0] - pj->ep[0];
@@ -274,6 +274,9 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_density(
   const double dBdr = dB[0]*dx[0] + dB[1]*dx[1] + dB[2]*dx[2];
   pi->divB -= fac * dBdr;
 
+  pi->Bsmooth[0] += mj * wi * r_inv * pj->Bfld[0];
+  pi->Bsmooth[1] += mj * wi * r_inv * pj->Bfld[1];
+  pi->Bsmooth[2] += mj * wi * r_inv * pj->Bfld[2];
 #ifdef GADGET_MHD_DI
   pi->dBdt[0] += fac * ((pi->BPred[0] * dv[1] - pi->BPred[1] * dv[0]) * dx[1]
   		        +(pi->BPred[0] * dv[2] - pi->BPred[2] * dv[0]) * dx[2]);
@@ -281,9 +284,6 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_density(
   		        +(pi->BPred[1] * dv[0] - pi->BPred[0] * dv[1]) * dx[0]);
   pi->dBdt[2] += fac * ((pi->BPred[2] * dv[0] - pi->BPred[0] * dv[2]) * dx[0]
   		        +(pi->BPred[2] * dv[1] - pi->BPred[1] * dv[2]) * dx[1]);
-  pi->Bsmooth[0] += mj * wi * r_inv * pj->BPred[0];
-  pi->Bsmooth[1] += mj * wi * r_inv * pj->BPred[1];
-  pi->Bsmooth[2] += mj * wi * r_inv * pj->BPred[2];
 #endif
 
 #ifdef GADGET_MHD_EULER
@@ -741,25 +741,25 @@ __attribute__((always_inline)) INLINE static void runner_iact_force(
      pi->a_hydro[i] += mj * pi->Bfld[i] * (pi->Bfld[j]*mag_faci+pj->Bfld[j]*mag_facj)*dx[j];
      pj->a_hydro[i] -= mi * pj->Bfld[i] * (pi->Bfld[j]*mag_faci+pj->Bfld[j]*mag_facj)*dx[j];
     }*/
-/*  pi->a_hydro[0] += mj * pi->Bfld[0] * (pi->Bfld[0]*mag_faci+pj->Bfld[0]*mag_facj)*dx[0];
-  pi->a_hydro[0] += mj * pi->Bfld[0] * (pi->Bfld[1]*mag_faci+pj->Bfld[1]*mag_facj)*dx[1];
-  pi->a_hydro[0] += mj * pi->Bfld[0] * (pi->Bfld[2]*mag_faci+pj->Bfld[2]*mag_facj)*dx[2];
-  pi->a_hydro[1] += mj * pi->Bfld[1] * (pi->Bfld[0]*mag_faci+pj->Bfld[0]*mag_facj)*dx[0];
-  pi->a_hydro[1] += mj * pi->Bfld[1] * (pi->Bfld[1]*mag_faci+pj->Bfld[1]*mag_facj)*dx[1];
-  pi->a_hydro[1] += mj * pi->Bfld[1] * (pi->Bfld[2]*mag_faci+pj->Bfld[2]*mag_facj)*dx[2];
-  pi->a_hydro[2] += mj * pi->Bfld[2] * (pi->Bfld[0]*mag_faci+pj->Bfld[0]*mag_facj)*dx[0];
-  pi->a_hydro[2] += mj * pi->Bfld[2] * (pi->Bfld[1]*mag_faci+pj->Bfld[1]*mag_facj)*dx[1];
-  pi->a_hydro[2] += mj * pi->Bfld[2] * (pi->Bfld[2]*mag_faci+pj->Bfld[2]*mag_facj)*dx[2];
+  pi->a_hydro[0] += mj * pi->BPred[0] * (pi->BPred[0]*mag_faci+pj->BPred[0]*mag_facj)*dx[0];
+  pi->a_hydro[0] += mj * pi->BPred[0] * (pi->BPred[1]*mag_faci+pj->BPred[1]*mag_facj)*dx[1];
+  pi->a_hydro[0] += mj * pi->BPred[0] * (pi->BPred[2]*mag_faci+pj->BPred[2]*mag_facj)*dx[2];
+  pi->a_hydro[1] += mj * pi->BPred[1] * (pi->BPred[0]*mag_faci+pj->BPred[0]*mag_facj)*dx[0];
+  pi->a_hydro[1] += mj * pi->BPred[1] * (pi->BPred[1]*mag_faci+pj->BPred[1]*mag_facj)*dx[1];
+  pi->a_hydro[1] += mj * pi->BPred[1] * (pi->BPred[2]*mag_faci+pj->BPred[2]*mag_facj)*dx[2];
+  pi->a_hydro[2] += mj * pi->BPred[2] * (pi->BPred[0]*mag_faci+pj->BPred[0]*mag_facj)*dx[0];
+  pi->a_hydro[2] += mj * pi->BPred[2] * (pi->BPred[1]*mag_faci+pj->BPred[1]*mag_facj)*dx[1];
+  pi->a_hydro[2] += mj * pi->BPred[2] * (pi->BPred[2]*mag_faci+pj->BPred[2]*mag_facj)*dx[2];
  
-  pj->a_hydro[0] -= mi * pj->Bfld[0] * (pi->Bfld[0]*mag_faci+pj->Bfld[0]*mag_facj)*dx[0];
-  pj->a_hydro[0] -= mi * pj->Bfld[0] * (pi->Bfld[1]*mag_faci+pj->Bfld[1]*mag_facj)*dx[1];
-  pj->a_hydro[0] -= mi * pj->Bfld[0] * (pi->Bfld[2]*mag_faci+pj->Bfld[2]*mag_facj)*dx[2];
-  pj->a_hydro[1] -= mi * pj->Bfld[1] * (pi->Bfld[0]*mag_faci+pj->Bfld[0]*mag_facj)*dx[0];
-  pj->a_hydro[1] -= mi * pj->Bfld[1] * (pi->Bfld[1]*mag_faci+pj->Bfld[1]*mag_facj)*dx[1];
-  pj->a_hydro[1] -= mi * pj->Bfld[1] * (pi->Bfld[2]*mag_faci+pj->Bfld[2]*mag_facj)*dx[2];
-  pj->a_hydro[2] -= mi * pj->Bfld[2] * (pi->Bfld[0]*mag_faci+pj->Bfld[0]*mag_facj)*dx[0];
-  pj->a_hydro[2] -= mi * pj->Bfld[2] * (pi->Bfld[1]*mag_faci+pj->Bfld[1]*mag_facj)*dx[1];
-  pj->a_hydro[2] -= mi * pj->Bfld[2] * (pi->Bfld[2]*mag_faci+pj->Bfld[2]*mag_facj)*dx[2];*/
+  pj->a_hydro[0] -= mi * pj->BPred[0] * (pi->BPred[0]*mag_faci+pj->BPred[0]*mag_facj)*dx[0];
+  pj->a_hydro[0] -= mi * pj->BPred[0] * (pi->BPred[1]*mag_faci+pj->BPred[1]*mag_facj)*dx[1];
+  pj->a_hydro[0] -= mi * pj->BPred[0] * (pi->BPred[2]*mag_faci+pj->BPred[2]*mag_facj)*dx[2];
+  pj->a_hydro[1] -= mi * pj->BPred[1] * (pi->BPred[0]*mag_faci+pj->BPred[0]*mag_facj)*dx[0];
+  pj->a_hydro[1] -= mi * pj->BPred[1] * (pi->BPred[1]*mag_faci+pj->BPred[1]*mag_facj)*dx[1];
+  pj->a_hydro[1] -= mi * pj->BPred[1] * (pi->BPred[2]*mag_faci+pj->BPred[2]*mag_facj)*dx[2];
+  pj->a_hydro[2] -= mi * pj->BPred[2] * (pi->BPred[0]*mag_faci+pj->BPred[0]*mag_facj)*dx[0];
+  pj->a_hydro[2] -= mi * pj->BPred[2] * (pi->BPred[1]*mag_faci+pj->BPred[1]*mag_facj)*dx[1];
+  pj->a_hydro[2] -= mi * pj->BPred[2] * (pi->BPred[2]*mag_faci+pj->BPred[2]*mag_facj)*dx[2];
 #endif
 
   /* Get the time derivative for h. */
@@ -951,15 +951,15 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_force(
 //  for(int i=0;i<3;++i)
 //    for(int j=0;j<3;++j)
 //	  pi->a_hydro[i] += mj * pi->Bfld[i] * (pi->Bfld[j]*mag_faci+pj->Bfld[j]*mag_facj)*dx[j];
-/*  pi->a_hydro[0] += mj * pi->Bfld[0] * (pi->Bfld[0]*mag_faci+pj->Bfld[0]*mag_facj)*dx[0];
-  pi->a_hydro[0] += mj * pi->Bfld[0] * (pi->Bfld[1]*mag_faci+pj->Bfld[1]*mag_facj)*dx[1];
-  pi->a_hydro[0] += mj * pi->Bfld[0] * (pi->Bfld[2]*mag_faci+pj->Bfld[2]*mag_facj)*dx[2];
-  pi->a_hydro[1] += mj * pi->Bfld[1] * (pi->Bfld[0]*mag_faci+pj->Bfld[0]*mag_facj)*dx[0];
-  pi->a_hydro[1] += mj * pi->Bfld[1] * (pi->Bfld[1]*mag_faci+pj->Bfld[1]*mag_facj)*dx[1];
-  pi->a_hydro[1] += mj * pi->Bfld[1] * (pi->Bfld[2]*mag_faci+pj->Bfld[2]*mag_facj)*dx[2];
-  pi->a_hydro[2] += mj * pi->Bfld[2] * (pi->Bfld[0]*mag_faci+pj->Bfld[0]*mag_facj)*dx[0];
-  pi->a_hydro[2] += mj * pi->Bfld[2] * (pi->Bfld[1]*mag_faci+pj->Bfld[1]*mag_facj)*dx[1];
-  pi->a_hydro[2] += mj * pi->Bfld[2] * (pi->Bfld[2]*mag_faci+pj->Bfld[2]*mag_facj)*dx[2];*/
+  pi->a_hydro[0] += mj * pi->BPred[0] * (pi->BPred[0]*mag_faci+pj->BPred[0]*mag_facj)*dx[0];
+  pi->a_hydro[0] += mj * pi->BPred[0] * (pi->BPred[1]*mag_faci+pj->BPred[1]*mag_facj)*dx[1];
+  pi->a_hydro[0] += mj * pi->BPred[0] * (pi->BPred[2]*mag_faci+pj->BPred[2]*mag_facj)*dx[2];
+  pi->a_hydro[1] += mj * pi->BPred[1] * (pi->BPred[0]*mag_faci+pj->BPred[0]*mag_facj)*dx[0];
+  pi->a_hydro[1] += mj * pi->BPred[1] * (pi->BPred[1]*mag_faci+pj->BPred[1]*mag_facj)*dx[1];
+  pi->a_hydro[1] += mj * pi->BPred[1] * (pi->BPred[2]*mag_faci+pj->BPred[2]*mag_facj)*dx[2];
+  pi->a_hydro[2] += mj * pi->BPred[2] * (pi->BPred[0]*mag_faci+pj->BPred[0]*mag_facj)*dx[0];
+  pi->a_hydro[2] += mj * pi->BPred[2] * (pi->BPred[1]*mag_faci+pj->BPred[1]*mag_facj)*dx[1];
+  pi->a_hydro[2] += mj * pi->BPred[2] * (pi->BPred[2]*mag_faci+pj->BPred[2]*mag_facj)*dx[2];
 #endif
 
   /* Get the time derivative for h. */

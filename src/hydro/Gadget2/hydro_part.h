@@ -120,10 +120,10 @@ struct part {
   float Bfld[3];
   float BPred[3];
   float divB;
+  float Bsmooth[3];
 #ifdef GADGET_MHD_DI 
   /* Direct Induction */
   float dBdt[3];
-  float Bsmooth[3];
 #endif
 #ifdef GADGET_MHD_APOT 
   /* Vector Potential */
