@@ -135,12 +135,12 @@ __attribute__((always_inline)) INLINE static void runner_iact_density(
   const double dBdr = dB[0]*dx[0] + dB[1]*dx[1] + dB[2]*dx[2];
   pi->divB -= faci * dBdr;
   pj->divB -= facj * dBdr;
-  pi->Bsmooth[0] += mj * wi * r_inv * pj->Bfld[0];
-  pi->Bsmooth[1] += mj * wi * r_inv * pj->Bfld[1];
-  pi->Bsmooth[2] += mj * wi * r_inv * pj->Bfld[2];
-  pj->Bsmooth[0] += mi * wj * r_inv * pi->Bfld[0];
-  pj->Bsmooth[1] += mi * wj * r_inv * pi->Bfld[1];
-  pj->Bsmooth[2] += mi * wj * r_inv * pi->Bfld[2];
+  pi->Bsmooth[0] += mj * wi * pj->Bfld[0];
+  pi->Bsmooth[1] += mj * wi * pj->Bfld[1];
+  pi->Bsmooth[2] += mj * wi * pj->Bfld[2];
+  pj->Bsmooth[0] += mi * wj * pi->Bfld[0];
+  pj->Bsmooth[1] += mi * wj * pi->Bfld[1];
+  pj->Bsmooth[2] += mi * wj * pi->Bfld[2];
 
 #ifdef GADGET_MHD_DI
   pi->dBdt[0] += faci * ((pi->BPred[0] * dv[1] - pi->BPred[1] * dv[0]) * dx[1]
@@ -274,9 +274,9 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_density(
   const double dBdr = dB[0]*dx[0] + dB[1]*dx[1] + dB[2]*dx[2];
   pi->divB -= fac * dBdr;
 
-  pi->Bsmooth[0] += mj * wi * r_inv * pj->Bfld[0];
-  pi->Bsmooth[1] += mj * wi * r_inv * pj->Bfld[1];
-  pi->Bsmooth[2] += mj * wi * r_inv * pj->Bfld[2];
+  pi->Bsmooth[0] += mj * wi * pj->Bfld[0];
+  pi->Bsmooth[1] += mj * wi * pj->Bfld[1];
+  pi->Bsmooth[2] += mj * wi * pj->Bfld[2];
 #ifdef GADGET_MHD_DI
   pi->dBdt[0] += fac * ((pi->BPred[0] * dv[1] - pi->BPred[1] * dv[0]) * dx[1]
   		        +(pi->BPred[0] * dv[2] - pi->BPred[2] * dv[0]) * dx[2]);

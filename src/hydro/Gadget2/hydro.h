@@ -568,9 +568,9 @@ __attribute__((always_inline)) INLINE static void hydro_end_density(
   p->density.div_v *= h_inv_dim_plus_one * a_inv2 * rho_inv;
 #ifdef GADGET_MHD
   p->divB *= h_inv_dim_plus_one * a_inv2 * rho_inv;
-  p->Bsmooth[0] *= h_inv_dim * a_inv2 * rho_inv;
-  p->Bsmooth[1] *= h_inv_dim * a_inv2 * rho_inv;
-  p->Bsmooth[2] *= h_inv_dim * a_inv2 * rho_inv;
+  p->Bsmooth[0] *= a_inv2 * rho_inv;
+  p->Bsmooth[1] *= a_inv2 * rho_inv;
+  p->Bsmooth[2] *= a_inv2 * rho_inv;
   for (int i = 0; i < 3; i++) p->Bfld[i] = p->Bsmooth[i];
 #ifdef GADGET_MHD_DI
   p->dBdt[0] *= h_inv_dim_plus_one * a_inv2 * rho_inv;
@@ -582,8 +582,7 @@ __attribute__((always_inline)) INLINE static void hydro_end_density(
   for (int i = 0; i < 3; i++) p->Grad_ep[1][i] *= h_inv_dim_plus_one * cosmo->a_inv * rho_inv;
   for (int i = 0; i < 3; i++) p->Bfld[i] = p->Grad_ep[0][(i+1)%3]*p->Grad_ep[1][(i+2)%3]
   			                 - p->Grad_ep[0][(i+2)%3]*p->Grad_ep[1][(i+1)%3];
-  //for (int i = 0; i < 3; i++) p->BPred[i] = p->Bfld[i];
-  p->BPred = p->Bfld;
+  for (int i = 0; i < 3; i++) p->BPred[i] = p->Bfld[i];
 #endif
 #endif
 }

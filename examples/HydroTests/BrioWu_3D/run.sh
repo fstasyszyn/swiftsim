@@ -15,4 +15,4 @@ fi
 # Run SWIFT
 ../../swift --hydro --threads=4 BrioWu.yml 2>&1 | tee output.log
 
-python plotSolution.py 1
+#python plotSolution.py 1
