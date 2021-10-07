@@ -227,7 +227,10 @@ AC_ARG_VAR(MPIRUN, Path to the mpirun command if non-standard)
 LT_INIT
 
 # Need C99 and inline support.
-AC_PROG_CC_C99
+m4_warn([obsolete],
+[AC_PROG_CC_C99 is obsolete; use AC_PROG_CC
+])dnl
+AC_REQUIRE(AC_PROG_CC)
 AC_C_INLINE
 
 # If debugging try to show inlined functions.
@@ -698,7 +701,15 @@ AC_ARG_ENABLE([mpi-mesh-gravity],
 # Autoconf stuff.
 AC_PROG_INSTALL
 AC_PROG_MAKE_SET
-AC_HEADER_STDC
+m4_warn([obsolete],
+[The preprocessor macro `STDC_HEADERS' is obsolete.
+  Except in unusual embedded environments, you can safely include all
+  ISO C90 headers unconditionally.])dnl
+# Autoupdate added the next two lines to ensure that your configure
+# script's behavior did not change.  They are probably safe to remove.
+AC_CHECK_INCLUDES_DEFAULT
+AC_PROG_EGREP
+
 
 # Check for the libraries we will need.
 AC_CHECK_LIB(m,sqrt,,AC_MSG_ERROR(something is wrong with the math library!))
@@ -1435,7 +1446,20 @@ AC_CHECK_HEADERS([altivec.h], [], [],
 ])
 
 # Check for timing functions needed by cycle.h.
-AC_HEADER_TIME
+m4_warn([obsolete],
+[Update your code to rely only on HAVE_SYS_TIME_H,
+then remove this warning and the obsolete code below it.
+All current systems provide time.h; it need not be checked for.
+Not all systems provide sys/time.h, but those that do, all allow
+you to include it and time.h simultaneously.])dnl
+AC_CHECK_HEADERS_ONCE([sys/time.h])
+# Obsolete code to be removed.
+if test $ac_cv_header_sys_time_h = yes; then
+  AC_DEFINE([TIME_WITH_SYS_TIME],[1],[Define to 1 if you can safely include both <sys/time.h>
+	     and <time.h>.  This macro is obsolete.])
+fi
+# End of obsolete code.
+
 AC_CHECK_HEADERS([sys/time.h c_asm.h intrinsics.h mach/mach_time.h])
 AC_CHECK_TYPE([hrtime_t],[AC_DEFINE(HAVE_HRTIME_T, 1, [Define to 1 if hrtime_t
 is defined in <sys/time.h>])],,
@@ -1454,12 +1478,12 @@ AC_LINK_IFELSE([AC_LANG_PROGRAM(
 AC_MSG_RESULT($rtc_ok)
 
 # Special timers for the ARM v7 platforms (taken from FFTW-3 to match their cycle.h)
-AC_ARG_ENABLE(armv7a-cntvct, [AC_HELP_STRING([--enable-armv7a-cntvct],[enable the cycle counter on Armv7a via the CNTVCT register])], have_armv7acntvct=$enableval)
+AC_ARG_ENABLE(armv7a-cntvct, [AS_HELP_STRING([--enable-armv7a-cntvct],[enable the cycle counter on Armv7a via the CNTVCT register])], have_armv7acntvct=$enableval)
 if test "$have_armv7acntvct"x = "yes"x; then
 	AC_DEFINE(HAVE_ARMV7A_CNTVCT,1,[Define if you have enabled the CNTVCT cycle counter on ARMv7a])
 fi
 
-AC_ARG_ENABLE(armv7a-pmccntr, [AC_HELP_STRING([--enable-armv7a-pmccntr],[enable the cycle counter on Armv7a via the PMCCNTR register])], have_armv7apmccntr=$enableval)
+AC_ARG_ENABLE(armv7a-pmccntr, [AS_HELP_STRING([--enable-armv7a-pmccntr],[enable the cycle counter on Armv7a via the PMCCNTR register])], have_armv7apmccntr=$enableval)
 if test "$have_armv7apmccntr"x = "yes"x; then
 	AC_DEFINE(HAVE_ARMV7A_PMCCNTR,1,[Define if you have enabled the PMCCNTR cycle counter on ARMv7a])
 fi
@@ -1723,25 +1747,25 @@ AC_ARG_WITH([mhd],
 
 case "$with_mhd" in
    none)
-      AC_DEFINE([NONE_MHD], [1], [No MHD])
+      AC_DEFINE([MHD_NONE], [1], [No MHD])
    ;;
    euler)
-      AC_DEFINE([GADGET_MHD], [1], [Gadget-2 SPMHD])
-      AC_DEFINE([GADGET_MHD_EULER], [1], [SPMHD Euler Potential])
+      AC_DEFINE([MHD_BASE], [1], [SPMHD])
+      AC_DEFINE([MHD_EULER], [1], [SPMHD Euler Potential])
    ;;
    eulerBRIO)
-      AC_DEFINE([GADGET_MHD], [1], [Gadget-2 SPMHD])
-      AC_DEFINE([GADGET_MHD_EULER], [1], [SPMHD Euler Potential])
-      AC_DEFINE([GADGET_MHD_EULER_TEST], [1], [SPMHD Euler Potential tst])
+      AC_DEFINE([MHD_BASE], [1], [SPMHD])
+      AC_DEFINE([MHD_EULER], [1], [SPMHD Euler Potential])
+      AC_DEFINE([MHD_EULER_TEST], [1], [SPMHD Euler Potential ShockTube Test])
    ;;
    eulerVORT)
-      AC_DEFINE([GADGET_MHD], [1], [Gadget-2 SPMHD])
-      AC_DEFINE([GADGET_MHD_EULER], [1], [SPMHD Euler Potential])
-      AC_DEFINE([GADGET_MHD_EULER_TEST], [2], [SPMHD Euler Potential tst])
+      AC_DEFINE([MHD_BASE], [1], [SPMHD])
+      AC_DEFINE([MHD_EULER], [1], [SPMHD Euler Potential])
+      AC_DEFINE([MHD_EULER_TEST], [2], [SPMHD Euler Potential Vortex Test])
    ;;
    DInduction)
-      AC_DEFINE([GADGET_MHD], [1], [Gadget-2 SPMHD])
-      AC_DEFINE([GADGET_MHD_DI], [1], [SPMHD Direct Induction])
+      AC_DEFINE([MHD_BASE], [1], [SPMHD])
+      AC_DEFINE([MHD_DI], [1], [SPMHD Direct Induction])
    ;;
    *)
       AC_MSG_ERROR([Unknown Magneto-hydrodynamics scheme: $with_mhd])
@@ -1852,7 +1876,7 @@ if test "$enable_debug_interactions" != "no"; then
       [enable_debug_interactions="yes (Logging up to $enableval neighbours)"]
     fi
   else
-    [enable_debug_interactions="no (only available for gadget2/MHD hydro scheme)"]
+    [enable_debug_interactions="no (only available for gadget2 hydro scheme)"]
   fi
 fi
 
@@ -2612,7 +2636,7 @@ AM_CONDITIONAL([HAVE_SPHENIX], [test "$with_hydro" = "sphenix"])
 AM_CONDITIONAL([HAVE_GADGET2], [test "$with_hydro" = "gadget2"])
 
 # check if using GADGET-MHD
-AM_CONDITIONAL([HAVE_NONE_MHD], [test "$with_mhd" = "none"])
+AM_CONDITIONAL([HAVE_MHD_NONE], [test "$with_mhd" = "none"])
 
 # check if using none chemistry
 AM_CONDITIONAL([HAVE_CHEMISTRY_NONE], [test "$with_chemistry" = "none"])
