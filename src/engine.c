@@ -399,15 +399,23 @@ void engine_repartition_trigger(struct engine *e) {
         FILE *memlog = NULL;
         if (!opened) {
           timelog = fopen("rank_cpu_balance.log", "w");
+          if (timelog == NULL)
+            error("Could not create file 'rank_cpu_balance.log'.");
           fprintf(timelog, "# step rank user sys sum\n");
 
           memlog = fopen("rank_memory_balance.log", "w");
+          if (memlog == NULL)
+            error("Could not create file 'rank_memory_balance.log'.");
           fprintf(memlog, "# step rank resident\n");
 
           opened = 1;
         } else {
           timelog = fopen("rank_cpu_balance.log", "a");
+          if (timelog == NULL)
+            error("Could not open file 'rank_cpu_balance.log' for writing.");
           memlog = fopen("rank_memory_balance.log", "a");
+          if (memlog == NULL)
+            error("Could not open file 'rank_memory_balance.log' for writing.");
         }
 
         for (int k = 0; k < e->nr_nodes * 3; k += 3) {
@@ -716,9 +724,13 @@ void engine_exchange_proxy_multipoles(struct engine *e) {
  * memory and link all the cells that have tasks and all cells
  * deeper in the tree.
  *
+ * When running FOF, we only need #gpart arrays so we restrict
+ * the allocations to this particle type only
+ *
  * @param e The #engine.
+ * @param fof Are we allocating buffers just for FOF?
  */
-void engine_allocate_foreign_particles(struct engine *e) {
+void engine_allocate_foreign_particles(struct engine *e, const int fof) {
 
 #ifdef WITH_MPI
 
@@ -773,7 +785,7 @@ void engine_allocate_foreign_particles(struct engine *e) {
 
   /* Allocate space for the foreign particles we will receive */
   size_t old_size_parts_foreign = s->size_parts_foreign;
-  if (count_parts_in > s->size_parts_foreign) {
+  if (!fof && count_parts_in > s->size_parts_foreign) {
     if (s->parts_foreign != NULL) swift_free("parts_foreign", s->parts_foreign);
     s->size_parts_foreign = engine_foreign_alloc_margin * count_parts_in;
     if (swift_memalign("parts_foreign", (void **)&s->parts_foreign, part_align,
@@ -795,7 +807,7 @@ void engine_allocate_foreign_particles(struct engine *e) {
 
   /* Allocate space for the foreign particles we will receive */
   size_t old_size_sparts_foreign = s->size_sparts_foreign;
-  if (count_sparts_in > s->size_sparts_foreign) {
+  if (!fof && count_sparts_in > s->size_sparts_foreign) {
     if (s->sparts_foreign != NULL)
       swift_free("sparts_foreign", s->sparts_foreign);
     s->size_sparts_foreign = engine_foreign_alloc_margin * count_sparts_in;
@@ -812,7 +824,7 @@ void engine_allocate_foreign_particles(struct engine *e) {
 
   /* Allocate space for the foreign particles we will receive */
   size_t old_size_bparts_foreign = s->size_bparts_foreign;
-  if (count_bparts_in > s->size_bparts_foreign) {
+  if (!fof && count_bparts_in > s->size_bparts_foreign) {
     if (s->bparts_foreign != NULL)
       swift_free("bparts_foreign", s->bparts_foreign);
     s->size_bparts_foreign = engine_foreign_alloc_margin * count_bparts_in;
@@ -863,7 +875,7 @@ void engine_allocate_foreign_particles(struct engine *e) {
   for (int k = 0; k < nr_proxies; k++) {
     for (int j = 0; j < e->proxies[k].nr_cells_in; j++) {
 
-      if (e->proxies[k].cells_in_type[j] & proxy_cell_type_hydro) {
+      if (!fof && e->proxies[k].cells_in_type[j] & proxy_cell_type_hydro) {
 
         const size_t count_parts =
             cell_link_foreign_parts(e->proxies[k].cells_in[j], parts);
@@ -877,7 +889,7 @@ void engine_allocate_foreign_particles(struct engine *e) {
         gparts = &gparts[count_gparts];
       }
 
-      if (with_stars) {
+      if (!fof && with_stars) {
 
         /* For stars, we just use the numbers in the top-level cells */
         cell_link_sparts(e->proxies[k].cells_in[j], sparts);
@@ -885,7 +897,7 @@ void engine_allocate_foreign_particles(struct engine *e) {
                          space_extra_sparts];
       }
 
-      if (with_black_holes) {
+      if (!fof && with_black_holes) {
 
         /* For black holes, we just use the numbers in the top-level cells */
         cell_link_bparts(e->proxies[k].cells_in[j], bparts);
@@ -1379,7 +1391,7 @@ int engine_prepare(struct engine *e) {
     drifted_all = 1;
 
     engine_fof(e, e->dump_catalogue_when_seeding, /*dump_debug=*/0,
-               /*seed_black_holes=*/1);
+               /*seed_black_holes=*/1, /*foreign buffers allocated=*/1);
 
     if (e->dump_catalogue_when_seeding) e->snapshot_output_count++;
   }
@@ -2503,7 +2515,8 @@ void engine_reconstruct_multipoles(struct engine *e) {
 }
 
 /**
- * @brief Split the underlying space into regions and assign to separate nodes.
+ * @brief Split the underlying space into regions, construct proxies and
+ * distribute the particles where they belong.
  *
  * @param e The #engine.
  * @param initial_partition structure defining the cell partition technique
@@ -2521,102 +2534,20 @@ void engine_split(struct engine *e, struct partition *initial_partition) {
   /* Make the proxies. */
   engine_makeproxies(e);
 
-  /* Re-allocate the local parts. */
-  if (e->verbose)
-    message("Re-allocating parts array from %zu to %zu.", s->size_parts,
-            (size_t)(s->nr_parts * engine_redistribute_alloc_margin));
-  s->size_parts = s->nr_parts * engine_redistribute_alloc_margin;
-  struct part *parts_new = NULL;
-  struct xpart *xparts_new = NULL;
-  if (swift_memalign("parts", (void **)&parts_new, part_align,
-                     sizeof(struct part) * s->size_parts) != 0 ||
-      swift_memalign("xparts", (void **)&xparts_new, xpart_align,
-                     sizeof(struct xpart) * s->size_parts) != 0)
-    error("Failed to allocate new part data.");
+  /* Turn off the csds to avoid writing the communications to
+   * the CSDS (since we haven't properly started the run yet) */
+  const int with_csds = e->policy & engine_policy_csds;
+  if (with_csds) e->policy &= ~engine_policy_csds;
 
-  if (s->nr_parts > 0) {
-    memcpy(parts_new, s->parts, sizeof(struct part) * s->nr_parts);
-    memcpy(xparts_new, s->xparts, sizeof(struct xpart) * s->nr_parts);
-  }
-  swift_free("parts", s->parts);
-  swift_free("xparts", s->xparts);
-  s->parts = parts_new;
-  s->xparts = xparts_new;
+  /* Move the particles to the ranks they belong to */
+  engine_redistribute(e);
 
-  /* Re-link the gparts to their parts. */
-  if (s->nr_parts > 0 && s->nr_gparts > 0)
-    part_relink_gparts_to_parts(s->parts, s->nr_parts, 0);
-
-  /* Re-allocate the local sparts. */
-  if (e->verbose)
-    message("Re-allocating sparts array from %zu to %zu.", s->size_sparts,
-            (size_t)(s->nr_sparts * engine_redistribute_alloc_margin));
-  s->size_sparts = s->nr_sparts * engine_redistribute_alloc_margin;
-  struct spart *sparts_new = NULL;
-  if (swift_memalign("sparts", (void **)&sparts_new, spart_align,
-                     sizeof(struct spart) * s->size_sparts) != 0)
-    error("Failed to allocate new spart data.");
-
-  if (s->nr_sparts > 0)
-    memcpy(sparts_new, s->sparts, sizeof(struct spart) * s->nr_sparts);
-  swift_free("sparts", s->sparts);
-  s->sparts = sparts_new;
-
-  /* Re-link the gparts to their sparts. */
-  if (s->nr_sparts > 0 && s->nr_gparts > 0)
-    part_relink_gparts_to_sparts(s->sparts, s->nr_sparts, 0);
-
-  /* Re-allocate the local bparts. */
-  if (e->verbose)
-    message("Re-allocating bparts array from %zu to %zu.", s->size_bparts,
-            (size_t)(s->nr_bparts * engine_redistribute_alloc_margin));
-  s->size_bparts = s->nr_bparts * engine_redistribute_alloc_margin;
-  struct bpart *bparts_new = NULL;
-  if (swift_memalign("bparts", (void **)&bparts_new, bpart_align,
-                     sizeof(struct bpart) * s->size_bparts) != 0)
-    error("Failed to allocate new bpart data.");
-
-  if (s->nr_bparts > 0)
-    memcpy(bparts_new, s->bparts, sizeof(struct bpart) * s->nr_bparts);
-  swift_free("bparts", s->bparts);
-  s->bparts = bparts_new;
-
-  /* Re-link the gparts to their bparts. */
-  if (s->nr_bparts > 0 && s->nr_gparts > 0)
-    part_relink_gparts_to_bparts(s->bparts, s->nr_bparts, 0);
-
-  /* Re-allocate the local gparts. */
-  if (e->verbose)
-    message("Re-allocating gparts array from %zu to %zu.", s->size_gparts,
-            (size_t)(s->nr_gparts * engine_redistribute_alloc_margin));
-  s->size_gparts = s->nr_gparts * engine_redistribute_alloc_margin;
-  struct gpart *gparts_new = NULL;
-  if (swift_memalign("gparts", (void **)&gparts_new, gpart_align,
-                     sizeof(struct gpart) * s->size_gparts) != 0)
-    error("Failed to allocate new gpart data.");
-
-  if (s->nr_gparts > 0)
-    memcpy(gparts_new, s->gparts, sizeof(struct gpart) * s->nr_gparts);
-  swift_free("gparts", s->gparts);
-  s->gparts = gparts_new;
-
-  /* Re-link everything to the gparts. */
-  if (s->nr_gparts > 0)
-    part_relink_all_parts_to_gparts(s->gparts, s->nr_gparts, s->parts, s->sinks,
-                                    s->sparts, s->bparts, &e->threadpool);
-
-#ifdef SWIFT_DEBUG_CHECKS
-
-  /* Verify that the links are correct */
-  part_verify_links(s->parts, s->gparts, s->sinks, s->sparts, s->bparts,
-                    s->nr_parts, s->nr_gparts, s->nr_sinks, s->nr_sparts,
-                    s->nr_bparts, e->verbose);
-#endif
+  /* Turn it back on */
+  if (with_csds) e->policy |= engine_policy_csds;
 
   if (e->verbose)
     message("took %.3f %s.", clocks_from_ticks(getticks() - tic),
             clocks_getunit());
-
 #else
   error("SWIFT was not compiled with MPI support.");
 #endif

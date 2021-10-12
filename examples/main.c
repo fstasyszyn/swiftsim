@@ -954,6 +954,10 @@ int main(int argc, char *argv[]) {
     io_prepare_output_fields(output_options, with_cosmology, with_fof,
                              with_structure_finding, e.verbose);
 
+#if defined(SWIFT_DEBUG_TASKS)
+    task_create_name_files("task_labels");
+#endif
+
     /* Not restarting so look for the ICs. */
     /* Initialize unit system and constants */
     units_init_from_params(&us, params, "InternalUnitSystem");
@@ -1472,12 +1476,6 @@ int main(int argc, char *argv[]) {
 #ifdef WITH_MPI
     /* Split the space. */
     engine_split(&e, &initial_partition);
-    /* Turn off the csds to avoid writing the communications */
-    if (with_csds) e.policy &= ~engine_policy_csds;
-
-    engine_redistribute(&e);
-    /* Turn it back on */
-    if (with_csds) e.policy |= engine_policy_csds;
 #endif
 
     /* Initialise the particles */
@@ -1504,7 +1502,7 @@ int main(int argc, char *argv[]) {
       /* Run FoF first, if we're adding FoF info to the snapshot */
       if (with_fof && e.snapshot_invoke_fof) {
         engine_fof(&e, /*dump_results=*/1, /*dump_debug=*/0,
-                   /*seed_black_holes=*/0);
+                   /*seed_black_holes=*/0, /*buffers allocated=*/1);
       }
 
       engine_dump_snapshot(&e);
@@ -1732,7 +1730,7 @@ int main(int argc, char *argv[]) {
 
       if (with_fof && e.snapshot_invoke_fof) {
         engine_fof(&e, /*dump_results=*/1, /*dump_debug=*/0,
-                   /*seed_black_holes=*/0);
+                   /*seed_black_holes=*/0, /*buffers allocated=*/1);
       }
 
 #ifdef HAVE_VELOCIRAPTOR
