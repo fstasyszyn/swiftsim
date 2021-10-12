@@ -72,7 +72,7 @@ INLINE static void hydro_read_particles(struct part* parts,
 #endif
   
   list[0]  = io_make_input_field("Bfield", FLOAT, 3, OPTIONAL,
-                                UNIT_CONV_NO_UNITS, parts, bfld.B_full);
+                                UNIT_CONV_NO_UNITS, parts, bfld.B_pred);
 #ifdef MHD_EULER 
   list[1]  = io_make_input_field("EPalpha", FLOAT, 1, OPTIONAL,
                                 UNIT_CONV_NO_UNITS, parts, bfld.ep[0]);
@@ -279,7 +279,7 @@ INLINE static void hydro_write_particles(const struct part* parts,
   *num_fields += 2;
 #endif
   list[0] = io_make_output_field(
-      "Bfield", FLOAT, 3, UNIT_CONV_NO_UNITS, -2.f, parts, bfld.B_full,
+      "Bfield", FLOAT, 3, UNIT_CONV_NO_UNITS, -2.f, parts, bfld.B_pred,
       "co-moving Magnetic Field of the particles");
   list[1] = io_make_output_field(
       "divB", FLOAT, 1, UNIT_CONV_NO_UNITS, -0.f, parts, bfld.divB,

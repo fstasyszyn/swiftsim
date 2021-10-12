@@ -277,7 +277,7 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_density(
      pi->bfld.Grad_ep[0][i] += faci * dalpha * dx[i];
   
   for(int i=0;i<3;++i)  
-     pi->Grad_ep[1][i] += faci * dbeta  * dx[i];
+     pi->bfld.Grad_ep[1][i] += faci * dbeta  * dx[i];
   
 #endif  /* MHD_EULER */
 #endif  /* MHD_BASE */
