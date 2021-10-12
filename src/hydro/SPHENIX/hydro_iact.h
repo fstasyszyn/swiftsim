@@ -52,9 +52,9 @@ __attribute__((always_inline)) INLINE static void runner_iact_density(
 
   const float r = sqrtf(r2);
 
-#ifdef GADGET_MHD
+#ifdef MHD_BASE
   double dB[3];
-#ifdef GADGET_MHD_EULER
+#ifdef MHD_EULER
   double dalpha, dbeta;
 #endif
 #endif
@@ -114,7 +114,7 @@ __attribute__((always_inline)) INLINE static void runner_iact_density(
   pj->density.rot_v[1] += facj * curlvr[1];
   pj->density.rot_v[2] += facj * curlvr[2];
 
-#ifdef GADGET_MHD
+#ifdef MHD_BASE
   for(int i=0;i<3;++i)
   	dB[i]= pi->bfld.B_pred[i] - pj->bfld.B_pred[i];
   const double dBdr = dB[0]*dx[0] + dB[1]*dx[1] + dB[2]*dx[2];
@@ -127,7 +127,7 @@ __attribute__((always_inline)) INLINE static void runner_iact_density(
   pj->bfld.Bsm[1] += mi * wj * pi->bfld.B_pred[1];
   pj->bfld.Bsm[2] += mi * wj * pi->bfld.B_pred[2];
 
-#ifdef GADGET_MHD_DI
+#ifdef MHD_DI
   pi->bfld.dBdt[0] += faci * ((pi->bfld.BPred[0] * dv[1] - pi->bfld.BPred[1] * dv[0]) * dx[1]
   		        +(pi->bfld.BPred[0] * dv[2] - pi->bfld.BPred[2] * dv[0]) * dx[2]);
   pi->bfld.dBdt[1] += faci * ((pi->bfld.BPred[1] * dv[2] - pi->bfld.BPred[2] * dv[1]) * dx[2]
@@ -141,17 +141,17 @@ __attribute__((always_inline)) INLINE static void runner_iact_density(
   pj->bfld.dBdt[2] += facj * ((pj->bfld.BPred[2] * dv[0] - pj->bfld.BPred[0] * dv[2]) * dx[0]
   		        +(pj->bfld.BPred[2] * dv[1] - pj->bfld.BPred[1] * dv[2]) * dx[1]);
 #endif
-#ifdef GADGET_MHD_EULER
+#ifdef MHD_EULER
   dalpha = pi->bfld.ep[0] - pj->bfld.ep[0];
   dbeta  = pi->bfld.ep[1] - pj->bfld.ep[1];
 
-#if GADGET_MHD_EULER_TEST == 1
+#if MHD_EULER_TEST == 1
 // BrioWu
   const float LBOX=1.0;
   dalpha = (( dalpha > LBOX/2.0 ) ? dalpha-LBOX : ( ( dalpha < -LBOX/2.0 ) ? dalpha+LBOX: dalpha));
   dbeta  = (( dbeta > 0.75*LBOX/2.0 ) ? dbeta-0.75*LBOX : ( ( dbeta < -0.75*LBOX/2.0 ) ? dbeta+0.75*LBOX: dbeta));
 #endif
-#if GADGET_MHD_EULER_TEST == 2
+#if MHD_EULER_TEST == 2
 // VORTEX
   const float LBOX=1.0;
   dbeta  = (( dbeta  > LBOX/2.0 ) ? dbeta-LBOX  : ( ( dbeta  < -LBOX/2.0 ) ? dbeta+LBOX : dbeta));
@@ -167,8 +167,8 @@ __attribute__((always_inline)) INLINE static void runner_iact_density(
 
   for(int i=0;i<3;++i)  
   pj->bfld.Grad_ep[1][i] += facj * dbeta*dx[i];
-#endif  /* GADGET_MHD_EULER */
-#endif  /* GADGET_MHD */
+#endif  /* MHD_EULER */
+#endif  /* MHD_BASE */
 
 #ifdef SWIFT_HYDRO_DENSITY_CHECKS
   pi->n_density += wi;
@@ -197,9 +197,9 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_density(
 
   float wi, wi_dx;
   float dv[3], curlvr[3];
-#ifdef GADGET_MHD
+#ifdef MHD_BASE
   double dB[3];
-#ifdef GADGET_MHD_EULER
+#ifdef MHD_EULER
   double dalpha, dbeta;
 #endif
 #endif
@@ -240,7 +240,7 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_density(
   pi->density.rot_v[1] += faci * curlvr[1];
   pi->density.rot_v[2] += faci * curlvr[2];
 
-#ifdef GADGET_MHD
+#ifdef MHD_BASE
   for(int i=0;i<3;++i)
   	dB[i]= pi->bfld.B_pred[i] - pj->bfld.B_pred[i];
   const double dBdr = dB[0]*dx[0] + dB[1]*dx[1] + dB[2]*dx[2];
@@ -249,7 +249,7 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_density(
   pi->bfld.Bsm[0] += mj * wi * pj->bfld.B_pred[0];
   pi->bfld.Bsm[1] += mj * wi * pj->bfld.B_pred[1];
   pi->bfld.Bsm[2] += mj * wi * pj->bfld.B_pred[2];
-#ifdef GADGET_MHD_DI
+#ifdef MHD_DI
   pi->bfld.dBdt[0] += fac * ((pi->bfld.B_pred[0] * dv[1] - pi->bfld.B_pred[1] * dv[0]) * dx[1]
   		        +(pi->bfld.B_pred[0] * dv[2] - pi->bfld.B_pred[2] * dv[0]) * dx[2]);
   pi->bfld.dBdt[1] += fac * ((pi->bfld.B_pred[1] * dv[2] - pi->bfld.B_pred[2] * dv[1]) * dx[2]
@@ -258,17 +258,17 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_density(
   		        +(pi->bfld.B_pred[2] * dv[1] - pi->bfld.B_pred[1] * dv[2]) * dx[1]);
 #endif
 
-#ifdef GADGET_MHD_EULER
+#ifdef MHD_EULER
   dalpha = pi->bfld.ep[0] - pj->bfld.ep[0];
   dbeta  = pi->bfld.ep[1] - pj->bfld.ep[1];
   
-#if GADGET_MHD_EULER_TEST == 1
+#if MHD_EULER_TEST == 1
 // BrioWu
   const float LBOX=1.0;
   dalpha = (( dalpha > LBOX/2.0 ) ? dalpha-LBOX : ( ( dalpha < -LBOX/2.0 ) ? dalpha+LBOX: dalpha));
   dbeta  = (( dbeta > 0.75*LBOX/2.0 ) ? dbeta-0.75*LBOX : ( ( dbeta < -0.75*LBOX/2.0 ) ? dbeta+0.75*LBOX: dbeta));
 #endif
-#if GADGET_MHD_EULER_TEST == 2
+#if MHD_EULER_TEST == 2
 // VORTEX
   const float LBOX=1.0;
   dbeta  = (( dbeta  > LBOX/2.0 ) ? dbeta-LBOX  : ( ( dbeta  < -LBOX/2.0 ) ? dbeta+LBOX : dbeta));
@@ -279,8 +279,8 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_density(
   for(int i=0;i<3;++i)  
   pi->Grad_ep[1][i] += fac * dbeta  * dx[i];
   
-#endif  /* GADGET_MHD_EULER */
-#endif  /* GADGET_MHD */
+#endif  /* MHD_EULER */
+#endif  /* MHD_BASE */
 
 #ifdef SWIFT_HYDRO_DENSITY_CHECKS
   pi->n_density += wi;
@@ -458,7 +458,7 @@ __attribute__((always_inline)) INLINE static void runner_iact_force(
     struct part* restrict pi, struct part* restrict pj, const float a,
     const float H) {
 
-#ifdef GADGET_MHD
+#ifdef MHD_BASE
   const float MU0_1 = 1.0/(4.0*M_PI);
 #endif
   /* Cosmological factors entering the EoMs */
@@ -507,7 +507,7 @@ __attribute__((always_inline)) INLINE static void runner_iact_force(
   const float mu_ij = fac_mu * r_inv * omega_ij; /* This is 0 or negative */
 
   /* Compute sound speeds and signal velocity */
-#ifndef GADGET_MHD
+#ifndef MHD_BASE
   const float v_sig = pi->force.soundspeed + pj->force.soundspeed -
                       const_viscosity_beta * mu_ij;
 #else
@@ -569,7 +569,7 @@ __attribute__((always_inline)) INLINE static void runner_iact_force(
   pj->a_hydro[2] += mi * acc * dx[2];
 
   /* Eventually got the MHD accel */ 
-#ifdef GADGET_MHD
+#ifdef MHD_BASE
   const float mag_faci = MU0_1 * f_i * wi_dr * r_inv /(rhoi*rhoi);
   const float mag_facj = MU0_1 * f_j * wj_dr * r_inv /(rhoj*rhoj);
 //  float mm_i[3][3],mm_j[3][3];
@@ -720,7 +720,7 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_force(
     struct part* restrict pi, const struct part* restrict pj, const float a,
     const float H) {
 
-#ifdef GADGET_MHD
+#ifdef MHD_BASE
   const float MU0_1 = 1.0/(4.0*M_PI);
 #endif
   /* Cosmological factors entering the EoMs */
@@ -769,7 +769,7 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_force(
   const float mu_ij = fac_mu * r_inv * omega_ij; /* This is 0 or negative */
 
   /* Compute sound speeds and signal velocity */
-#ifndef GADGET_MHD
+#ifndef MHD_BASE
   const float v_sig = pi->force.soundspeed + pj->force.soundspeed -
                       const_viscosity_beta * mu_ij;
 #else
@@ -827,7 +827,7 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_force(
   pi->a_hydro[2] -= mj * acc * dx[2];
 
   /* Eventually got the MHD accel */ 
-#ifdef GADGET_MHD
+#ifdef MHD_BASE
   const float mag_faci = MU0_1 * f_i * wi_dr * r_inv /(rhoi*rhoi);
   const float mag_facj = MU0_1 * f_j * wj_dr * r_inv /(rhoj*rhoj);
   //float mm_i[3][3],mm_j[3][3];

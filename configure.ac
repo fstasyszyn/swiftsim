@@ -26,11 +26,11 @@ if test -n "$ac_unrecognized_opts"; then
         no)
         ;;
         fatal)
-            { $as_echo "$as_me: error: unrecognized options: $ac_unrecognized_opts" >&2
+            { AS_ECHO(["$as_me: error: unrecognized options: $ac_unrecognized_opts"]) >&2
               { (exit 1); exit 1; }; }
         ;;
         *)
-            $as_echo "$as_me: WARNING: unrecognized options: $ac_unrecognized_opts" >&2
+            AS_ECHO(["$as_me: WARNING: unrecognized options: $ac_unrecognized_opts"]) >&2
         ;;
     esac
 fi
@@ -47,7 +47,7 @@ AC_CONFIG_MACRO_DIR([m4])
 : ${CFLAGS=""}
 
 # Generate header file.
-AM_CONFIG_HEADER(config.h)
+AC_CONFIG_HEADERS(config.h)
 
 # Find and test the compiler.
 AX_CHECK_ENABLE_DEBUG
@@ -228,7 +228,13 @@ LT_INIT
 
 # Need C99 and inline support.
 m4_warn([obsolete],
+[m4_warn([obsolete],
+[m4_warn([obsolete],
 [AC_PROG_CC_C99 is obsolete; use AC_PROG_CC
+])dnl
+AC_REQUIRE(AC_PROG_CC) is obsolete; use AC_PROG_CC
+])dnl
+AC_REQUIRE(AC_PROG_CC) is obsolete; use AC_PROG_CC
 ])dnl
 AC_REQUIRE(AC_PROG_CC)
 AC_C_INLINE

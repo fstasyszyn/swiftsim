@@ -115,17 +115,17 @@ struct part {
 
   /* Entropy time derivative */
   float entropy_dt;
-#ifdef GADGET_MHD 
+#ifdef MHD_BASE 
   /* Magnetic field */
   float Bfld[3];
   float BPred[3];
   float divB;
   float Bsmooth[3];
-#ifdef GADGET_MHD_DI 
+#ifdef MHD_DI 
   /* Direct Induction */
   float dBdt[3];
 #endif
-#ifdef GADGET_MHD_APOT 
+#ifdef MHD_APOT 
   /* Vector Potential */
   float Apot[3];
   float APred[3];
@@ -133,7 +133,7 @@ struct part {
   float divA,GauA;
 #endif
 
-#ifdef GADGET_MHD_EULER 
+#ifdef MHD_EULER 
   /* Euler Potentials */
   float ep[2]; // alpha and beta
   float Grad_ep[2][3];

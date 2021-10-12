@@ -55,10 +55,10 @@ INLINE static void hydro_read_particles(struct part* parts,
                                 UNIT_CONV_ACCELERATION, parts, a_hydro);
   list[7] = io_make_input_field("Density", FLOAT, 1, OPTIONAL,
                                 UNIT_CONV_DENSITY, parts, rho);
-#ifdef GADGET_MHD  
-// MISS DI/APOT
+#ifdef MHD_BASE  
+// MISSING APOT
   list += *num_fields;
-#ifdef GADGET_MHD_EULER 
+#ifdef MHD_EULER 
   *num_fields += 3;
 #else
   *num_fields += 1;
@@ -66,7 +66,7 @@ INLINE static void hydro_read_particles(struct part* parts,
   
   list[0]  = io_make_input_field("Bfield", FLOAT, 3, OPTIONAL,
                                 UNIT_CONV_NO_UNITS, parts, Bfld);
-#ifdef GADGET_MHD_EULER 
+#ifdef MHD_EULER 
   list[1]  = io_make_input_field("EPalpha", FLOAT, 1, OPTIONAL,
                                 UNIT_CONV_NO_UNITS, parts, ep[0]);
   list[2]  = io_make_input_field("EPbeta" , FLOAT, 1, OPTIONAL,
@@ -228,9 +228,9 @@ INLINE static void hydro_write_particles(const struct part* parts,
       "Potentials", FLOAT, 1, UNIT_CONV_POTENTIAL, -1.f, parts, xparts,
       convert_part_potential,
       "Co-moving gravitational potential at position of the particles");
-#ifdef GADGET_MHD 
+#ifdef MHD_BASE 
   list += *num_fields;
-#ifdef GADGET_MHD_EULER 
+#ifdef MHD_EULER 
   *num_fields += 4;
 #else
   *num_fields += 2;
@@ -241,7 +241,7 @@ INLINE static void hydro_write_particles(const struct part* parts,
   list[1] = io_make_output_field(
       "divB", FLOAT, 1, UNIT_CONV_NO_UNITS, -0.f, parts, divB,
       "co-moving DivB of the particles");
-#ifdef GADGET_MHD_EULER 
+#ifdef MHD_EULER 
   list[2] = io_make_output_field(
       "EPalpha", FLOAT, 1, UNIT_CONV_NO_UNITS, -0.f, parts, ep[0],
       "co-moving Alpha Potential of the particles");
@@ -249,7 +249,7 @@ INLINE static void hydro_write_particles(const struct part* parts,
       "EPbeta" , FLOAT, 1, UNIT_CONV_NO_UNITS, -0.f, parts, ep[1],
       "co-moving Beta Potential of the particles");
 #endif
-#endif //GADGET_MHD
+#endif // MHD_BASE
 #ifdef DEBUG_INTERACTIONS_SPH
 
   list += *num_fields;

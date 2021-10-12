@@ -154,18 +154,18 @@ struct part {
 
   } diffusion;
 
-#ifdef GADGET_MHD 
+#ifdef MHD_BASE 
   /* Magnetic field */
   struct {
     float B_full[3];  // B at full step
     float B_pred[3];  // predicted B for the Kick
     float divB;       // not always needed but fine
     float Bsm[3];     //smoothed B field (not always needed)
-#ifdef GADGET_MHD_DI 
+#ifdef MHD_DI 
   /* Direct Induction */
     float dBdt[3];
 #endif
-#ifdef GADGET_MHD_APOT 
+#ifdef MHD_APOT 
   /* Vector Potential */
     float A_full[3];
     float A_pred[3];
@@ -173,7 +173,7 @@ struct part {
     float divA,GauA;
 #endif
 
-#ifdef GADGET_MHD_EULER 
+#ifdef MHD_EULER 
   /* Euler Potentials */
     float ep[2]; // alpha and beta
     float Grad_ep[2][3];

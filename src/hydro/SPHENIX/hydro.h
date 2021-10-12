@@ -520,24 +520,24 @@ __attribute__((always_inline)) INLINE static void hydro_init_part(
   p->viscosity.div_v = 0.f;
   p->diffusion.laplace_u = 0.f;
 
-#ifdef GADGET_MHD
+#ifdef MHD_BASE
   p->bfld.divB    = 0.f;
   p->bfld.Bsm[0] = 0.f;
   p->bfld.Bsm[1] = 0.f;
   p->bfld.Bsm[2] = 0.f;
-#ifdef GADGET_MHD_DI
+#ifdef MHD_DI
   p->bfld.dBdt[0] = 0.f;
   p->bfld.dBdt[1] = 0.f;
   p->bfld.dBdt[2] = 0.f;
 #endif
-#ifdef GADGET_MHD_EULER
+#ifdef MHD_EULER
   p->bfld.B_full[0] = 0.f;
   p->bfld.B_full[1] = 0.f;
   p->bfld.B_full[2] = 0.f;
   for (int i = 0; i < 3; ++i) p->bfld.Grad_ep[0][i]=0.f;
   for (int i = 0; i < 3; ++i) p->bfld.Grad_ep[1][i]=0.f;
 #endif
-#ifdef GADGET_MHD_VPOT
+#ifdef MHD_VPOT
   p->bfld.dAdt[0] = 0.f;
   p->bfld.dAdt[1] = 0.f;
   p->bfld.dAdt[1] = 0.f;
@@ -609,18 +609,18 @@ __attribute__((always_inline)) INLINE static void hydro_end_density(
   p->viscosity.div_v *= h_inv_dim_plus_one * rho_inv * a_inv2;
   p->viscosity.div_v += cosmo->H * hydro_dimension;
 
-#ifdef GADGET_MHD
+#ifdef MHD_BASE
   p->bfld.divB *= h_inv_dim_plus_one * a_inv2 * rho_inv;
   p->bfld.Bsm[0] *= a_inv2 * rho_inv;
   p->bfld.Bsm[1] *= a_inv2 * rho_inv;
   p->bfld.Bsm[2] *= a_inv2 * rho_inv;
   for (int i = 0; i < 3; i++) p->bfld.B_full[i] = p->bfld.Bsm[i];
-#ifdef GADGET_MHD_DI
+#ifdef MHD_DI
   p->bfld.dBdt[0] *= h_inv_dim_plus_one * a_inv2 * rho_inv;
   p->bfld.dBdt[1] *= h_inv_dim_plus_one * a_inv2 * rho_inv;
   p->bfld.dBdt[2] *= h_inv_dim_plus_one * a_inv2 * rho_inv;
 #endif
-#ifdef GADGET_MHD_EULER // COSMOLOGICAL PARAM
+#ifdef MHD_EULER // COSMOLOGICAL PARAM
   for (int i = 0; i < 3; i++) p->bfld.Grad_ep[0][i] *= h_inv_dim_plus_one * cosmo->a_inv * rho_inv;
   for (int i = 0; i < 3; i++) p->bfld.Grad_ep[1][i] *= h_inv_dim_plus_one * cosmo->a_inv * rho_inv;
   for (int i = 0; i < 3; i++) p->bfld.B_full[i] = p->bfld.Grad_ep[0][(i+1)%3]*p->bfld.Grad_ep[1][(i+2)%3]
@@ -776,10 +776,10 @@ __attribute__((always_inline)) INLINE static void hydro_part_has_no_neighbours(
   p->viscosity.div_v = 0.f;
   p->diffusion.laplace_u = 0.f;
 
-#ifdef GADGET_MHD
+#ifdef MHD_BASE
 // Remember to check if this is fine in every method
   p->bfld.divB    = 0.f;
-#ifdef GADGET_MHD_EULER
+#ifdef MHD_EULER
   p->bfld.B_full[0] = 0.f;
   p->bfld.B_full[1] = 0.f;
   p->bfld.B_full[2] = 0.f;
@@ -955,7 +955,7 @@ __attribute__((always_inline)) INLINE static void hydro_reset_predicted_values(
   p->v[0] = xp->v_full[0];
   p->v[1] = xp->v_full[1];
   p->v[2] = xp->v_full[2];
-#ifdef GADGET_MHD
+#ifdef MHD_BASE
   p->bfld.B_pred[0] = p->bfld.B_full[0];
   p->bfld.B_pred[1] = p->bfld.B_full[1];
   p->bfld.B_pred[2] = p->bfld.B_full[2];
@@ -1002,7 +1002,7 @@ __attribute__((always_inline)) INLINE static void hydro_predict_extra(
     const struct hydro_props *hydro_props,
     const struct entropy_floor_properties *floor_props) {
 
-#ifdef GADGET_MHD_DI
+#ifdef MHD_DI
   p->blfd.B_pred[0] += p->blfd.dBdt[0] * dt_therm;
   p->blfd.B_pred[1] += p->blfd.dBdt[1] * dt_therm;
   p->blfd.B_pred[2] += p->blfd.dBdt[2] * dt_therm;
@@ -1097,7 +1097,7 @@ __attribute__((always_inline)) INLINE static void hydro_kick_extra(
     const struct cosmology *cosmo, const struct hydro_props *hydro_props,
     const struct entropy_floor_properties *floor_props) {
 
-#ifdef GADGET_MHD_DI
+#ifdef MHD_DI
   p->bfld.B_full[0] += p->bfld.dBdt[0] * dt_hydro;
   p->bfld.B_full[1] += p->bfld.dBdt[1] * dt_hydro;
   p->bfld.B_full[2] += p->bfld.dBdt[2] * dt_hydro;
