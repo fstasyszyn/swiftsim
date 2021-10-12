@@ -471,369 +471,370 @@ __attribute__((always_inline)) INLINE static float hydro_compute_timestep(
   const float dt_cfl = 2.f * kernel_gamma * CFL_condition * cosmo->a * p->h /
                        (cosmo->a_factor_sound_speed * p->viscosity.v_sig);
 
-  return dt_cfl;
-}
+	  return dt_cfl;
+	}
 
-/**
- * @brief Does some extra hydro operations once the actual physical time step
- * for the particle is known.
- *
- * @param p The particle to act upon.
- * @param dt Physical time step of the particle during the next step.
- */
-__attribute__((always_inline)) INLINE static void hydro_timestep_extra(
-    struct part *p, float dt) {}
+	/**
+	 * @brief Does some extra hydro operations once the actual physical time step
+	 * for the particle is known.
+	 *
+	 * @param p The particle to act upon.
+	 * @param dt Physical time step of the particle during the next step.
+	 */
+	__attribute__((always_inline)) INLINE static void hydro_timestep_extra(
+	    struct part *p, float dt) {}
 
-/**
- * @brief Operations performed when a particle gets removed from the
- * simulation volume.
- *
- * @param p The particle.
- * @param xp The extended particle data.
- * @param time The simulation time.
- */
-__attribute__((always_inline)) INLINE static void hydro_remove_part(
-    const struct part *p, const struct xpart *xp, const double time) {}
+	/**
+	 * @brief Operations performed when a particle gets removed from the
+	 * simulation volume.
+	 *
+	 * @param p The particle.
+	 * @param xp The extended particle data.
+	 * @param time The simulation time.
+	 */
+	__attribute__((always_inline)) INLINE static void hydro_remove_part(
+	    const struct part *p, const struct xpart *xp, const double time) {}
 
-/**
- * @brief Prepares a particle for the density calculation.
- *
- * Zeroes all the relevant arrays in preparation for the sums taking place in
- * the various density loop over neighbours. Typically, all fields of the
- * density sub-structure of a particle get zeroed in here.
- *
- * @param p The particle to act upon
- * @param hs #hydro_space containing hydro specific space information.
- */
-__attribute__((always_inline)) INLINE static void hydro_init_part(
-    struct part *restrict p, const struct hydro_space *hs) {
+	/**
+	 * @brief Prepares a particle for the density calculation.
+	 *
+	 * Zeroes all the relevant arrays in preparation for the sums taking place in
+	 * the various density loop over neighbours. Typically, all fields of the
+	 * density sub-structure of a particle get zeroed in here.
+	 *
+	 * @param p The particle to act upon
+	 * @param hs #hydro_space containing hydro specific space information.
+	 */
+	__attribute__((always_inline)) INLINE static void hydro_init_part(
+	    struct part *restrict p, const struct hydro_space *hs) {
 
-  p->density.wcount = 0.f;
-  p->density.wcount_dh = 0.f;
-  p->rho = 0.f;
-  p->density.rho_dh = 0.f;
+	  p->density.wcount = 0.f;
+	  p->density.wcount_dh = 0.f;
+	  p->rho = 0.f;
+	  p->density.rho_dh = 0.f;
 
-  p->density.rot_v[0] = 0.f;
-  p->density.rot_v[1] = 0.f;
-  p->density.rot_v[2] = 0.f;
+	  p->density.rot_v[0] = 0.f;
+	  p->density.rot_v[1] = 0.f;
+	  p->density.rot_v[2] = 0.f;
 
-  p->viscosity.div_v = 0.f;
-  p->diffusion.laplace_u = 0.f;
+	  p->viscosity.div_v = 0.f;
+	  p->diffusion.laplace_u = 0.f;
 
-#ifdef MHD_BASE
-  p->bfld.divB    = 0.f;
-  p->bfld.Bsm[0] = 0.f;
-  p->bfld.Bsm[1] = 0.f;
-  p->bfld.Bsm[2] = 0.f;
-#ifdef MHD_DI
-  p->bfld.dBdt[0] = 0.f;
-  p->bfld.dBdt[1] = 0.f;
-  p->bfld.dBdt[2] = 0.f;
-#endif
-#ifdef MHD_EULER
-  p->bfld.B_full[0] = 0.f;
-  p->bfld.B_full[1] = 0.f;
-  p->bfld.B_full[2] = 0.f;
-  for (int i = 0; i < 3; ++i) p->bfld.Grad_ep[0][i]=0.f;
-  for (int i = 0; i < 3; ++i) p->bfld.Grad_ep[1][i]=0.f;
-#endif
-#ifdef MHD_VPOT
-  p->bfld.dAdt[0] = 0.f;
-  p->bfld.dAdt[1] = 0.f;
-  p->bfld.dAdt[1] = 0.f;
-  p->bfld.divA = 0.f; 
-  p->bfld.GauA = 0.f; 
-#endif
-#endif
-#ifdef SWIFT_HYDRO_DENSITY_CHECKS
-  p->N_density = 1; /* Self contribution */
-  p->N_force = 0;
-  p->N_gradient = 1;
-  p->N_density_exact = 0;
-  p->N_force_exact = 0;
-  p->rho_exact = 0.f;
-  p->n_gradient = 0.f;
-  p->n_gradient_exact = 0.f;
-  p->n_density = 0.f;
-  p->n_density_exact = 0.f;
-  p->n_force = 0.f;
-  p->n_force_exact = 0.f;
-  p->inhibited_exact = 0;
-  p->limited_part = 0;
-#endif
-}
+	#ifdef MHD_BASE
+	  p->bfld.divB    = 0.f;
+	  p->bfld.Bsm[0] = 0.f;
+	  p->bfld.Bsm[1] = 0.f;
+	  p->bfld.Bsm[2] = 0.f;
+	#ifdef MHD_DI
+	  p->bfld.dBdt[0] = 0.f;
+	  p->bfld.dBdt[1] = 0.f;
+	  p->bfld.dBdt[2] = 0.f;
+	#endif
+	#ifdef MHD_EULER
+	  p->bfld.B_full[0] = 0.f;
+	  p->bfld.B_full[1] = 0.f;
+	  p->bfld.B_full[2] = 0.f;
+	  for (int i = 0; i < 3; ++i) p->bfld.Grad_ep[0][i]=0.f;
+	  for (int i = 0; i < 3; ++i) p->bfld.Grad_ep[1][i]=0.f;
+	#endif
+	#ifdef MHD_VPOT
+	  p->bfld.dAdt[0] = 0.f;
+	  p->bfld.dAdt[1] = 0.f;
+	  p->bfld.dAdt[1] = 0.f;
+	  p->bfld.divA = 0.f; 
+	  p->bfld.GauA = 0.f; 
+	#endif
+	#endif // MHD_BASE
+	#ifdef SWIFT_HYDRO_DENSITY_CHECKS
+	  p->N_density = 1; /* Self contribution */
+	  p->N_force = 0;
+	  p->N_gradient = 1;
+	  p->N_density_exact = 0;
+	  p->N_force_exact = 0;
+	  p->rho_exact = 0.f;
+	  p->n_gradient = 0.f;
+	  p->n_gradient_exact = 0.f;
+	  p->n_density = 0.f;
+	  p->n_density_exact = 0.f;
+	  p->n_force = 0.f;
+	  p->n_force_exact = 0.f;
+	  p->inhibited_exact = 0;
+	  p->limited_part = 0;
+	#endif
+	}
 
-/**
- * @brief Finishes the density calculation.
- *
- * Multiplies the density and number of neighbours by the appropiate constants
- * and add the self-contribution term.
- * Additional quantities such as velocity gradients will also get the final
- * terms added to them here.
- *
- * Also adds/multiplies the cosmological terms if need be.
- *
- * @param p The particle to act upon
- * @param cosmo The cosmological model.
- */
-__attribute__((always_inline)) INLINE static void hydro_end_density(
-    struct part *restrict p, const struct cosmology *cosmo) {
+	/**
+	 * @brief Finishes the density calculation.
+	 *
+	 * Multiplies the density and number of neighbours by the appropiate constants
+	 * and add the self-contribution term.
+	 * Additional quantities such as velocity gradients will also get the final
+	 * terms added to them here.
+	 *
+	 * Also adds/multiplies the cosmological terms if need be.
+	 *
+	 * @param p The particle to act upon
+	 * @param cosmo The cosmological model.
+	 */
+	__attribute__((always_inline)) INLINE static void hydro_end_density(
+	    struct part *restrict p, const struct cosmology *cosmo) {
 
-  /* Some smoothing length multiples. */
-  const float h = p->h;
-  const float h_inv = 1.0f / h;                       /* 1/h */
-  const float h_inv_dim = pow_dimension(h_inv);       /* 1/h^d */
-  const float h_inv_dim_plus_one = h_inv_dim * h_inv; /* 1/h^(d+1) */
+	  /* Some smoothing length multiples. */
+	  const float h = p->h;
+	  const float h_inv = 1.0f / h;                       /* 1/h */
+	  const float h_inv_dim = pow_dimension(h_inv);       /* 1/h^d */
+	  const float h_inv_dim_plus_one = h_inv_dim * h_inv; /* 1/h^(d+1) */
 
-  /* Final operation on the density (add self-contribution). */
-  p->rho += p->mass * kernel_root;
-  p->density.rho_dh -= hydro_dimension * p->mass * kernel_root;
-  p->density.wcount += kernel_root;
-  p->density.wcount_dh -= hydro_dimension * kernel_root;
+	  /* Final operation on the density (add self-contribution). */
+	  p->rho += p->mass * kernel_root;
+	  p->density.rho_dh -= hydro_dimension * p->mass * kernel_root;
+	  p->density.wcount += kernel_root;
+	  p->density.wcount_dh -= hydro_dimension * kernel_root;
 
-  /* Finish the calculation by inserting the missing h-factors */
-  p->rho *= h_inv_dim;
-  p->density.rho_dh *= h_inv_dim_plus_one;
-  p->density.wcount *= h_inv_dim;
-  p->density.wcount_dh *= h_inv_dim_plus_one;
+	  /* Finish the calculation by inserting the missing h-factors */
+	  p->rho *= h_inv_dim;
+	  p->density.rho_dh *= h_inv_dim_plus_one;
+	  p->density.wcount *= h_inv_dim;
+	  p->density.wcount_dh *= h_inv_dim_plus_one;
 
-  const float rho_inv = 1.f / p->rho;
-  const float a_inv2 = cosmo->a2_inv;
+	  const float rho_inv = 1.f / p->rho;
+	  const float a_inv2 = cosmo->a2_inv;
 
-  /* Finish calculation of the velocity curl components */
-  p->density.rot_v[0] *= h_inv_dim_plus_one * a_inv2 * rho_inv;
-  p->density.rot_v[1] *= h_inv_dim_plus_one * a_inv2 * rho_inv;
-  p->density.rot_v[2] *= h_inv_dim_plus_one * a_inv2 * rho_inv;
+	  /* Finish calculation of the velocity curl components */
+	  p->density.rot_v[0] *= h_inv_dim_plus_one * a_inv2 * rho_inv;
+	  p->density.rot_v[1] *= h_inv_dim_plus_one * a_inv2 * rho_inv;
+	  p->density.rot_v[2] *= h_inv_dim_plus_one * a_inv2 * rho_inv;
 
-  /* Finish calculation of the velocity divergence */
-  p->viscosity.div_v *= h_inv_dim_plus_one * rho_inv * a_inv2;
-  p->viscosity.div_v += cosmo->H * hydro_dimension;
+	  /* Finish calculation of the velocity divergence */
+	  p->viscosity.div_v *= h_inv_dim_plus_one * rho_inv * a_inv2;
+	  p->viscosity.div_v += cosmo->H * hydro_dimension;
 
-#ifdef MHD_BASE
-  p->bfld.divB *= h_inv_dim_plus_one * a_inv2 * rho_inv;
-  p->bfld.Bsm[0] *= a_inv2 * rho_inv;
-  p->bfld.Bsm[1] *= a_inv2 * rho_inv;
-  p->bfld.Bsm[2] *= a_inv2 * rho_inv;
-  for (int i = 0; i < 3; i++) p->bfld.B_full[i] = p->bfld.Bsm[i];
-#ifdef MHD_DI
-  p->bfld.dBdt[0] *= h_inv_dim_plus_one * a_inv2 * rho_inv;
-  p->bfld.dBdt[1] *= h_inv_dim_plus_one * a_inv2 * rho_inv;
-  p->bfld.dBdt[2] *= h_inv_dim_plus_one * a_inv2 * rho_inv;
-#endif
-#ifdef MHD_EULER // COSMOLOGICAL PARAM
-  for (int i = 0; i < 3; i++) p->bfld.Grad_ep[0][i] *= h_inv_dim_plus_one * cosmo->a_inv * rho_inv;
-  for (int i = 0; i < 3; i++) p->bfld.Grad_ep[1][i] *= h_inv_dim_plus_one * cosmo->a_inv * rho_inv;
-  for (int i = 0; i < 3; i++) p->bfld.B_full[i] = p->bfld.Grad_ep[0][(i+1)%3]*p->bfld.Grad_ep[1][(i+2)%3]
-  			                        - p->bfld.Grad_ep[0][(i+2)%3]*p->bfld.Grad_ep[1][(i+1)%3];
+	#ifdef MHD_BASE
+	  p->bfld.divB *= h_inv_dim_plus_one * a_inv2 * rho_inv;
+	  p->bfld.Bsm[0] *= a_inv2 * rho_inv;
+	  p->bfld.Bsm[1] *= a_inv2 * rho_inv;
+	  p->bfld.Bsm[2] *= a_inv2 * rho_inv;
+	  for (int i = 0; i < 3; i++) p->bfld.B_full[i] = p->bfld.Bsm[i];
+	#ifdef MHD_DI
+	  p->bfld.dBdt[0] *= h_inv_dim_plus_one * a_inv2 * rho_inv;
+	  p->bfld.dBdt[1] *= h_inv_dim_plus_one * a_inv2 * rho_inv;
+	  p->bfld.dBdt[2] *= h_inv_dim_plus_one * a_inv2 * rho_inv;
+	#endif
+	#ifdef MHD_EULER // COSMOLOGICAL PARAM
+	  for (int i = 0; i < 3; i++) p->bfld.Grad_ep[0][i] *= h_inv_dim_plus_one * cosmo->a_inv * rho_inv;
+	  for (int i = 0; i < 3; i++) p->bfld.Grad_ep[1][i] *= h_inv_dim_plus_one * cosmo->a_inv * rho_inv;
+	  for (int i = 0; i < 3; i++) p->bfld.B_full[i] = p->bfld.Grad_ep[0][(i+1)%3]*p->bfld.Grad_ep[1][(i+2)%3]
+							- p->bfld.Grad_ep[0][(i+2)%3]*p->bfld.Grad_ep[1][(i+1)%3];
 
-#endif
-#ifdef SWIFT_HYDRO_DENSITY_CHECKS
-  p->n_density += kernel_root;
-  p->n_density *= h_inv_dim;
-#endif
-}
+	#endif
+	#endif // MHD_BASE
+	#ifdef SWIFT_HYDRO_DENSITY_CHECKS
+	  p->n_density += kernel_root;
+	  p->n_density *= h_inv_dim;
+	#endif
+	}
 
-/**
- * @brief Prepare a particle for the gradient calculation.
- *
- * This function is called after the density loop and before the gradient loop.
- *
- * We use it to set the physical timestep for the particle and to copy the
- * actual velocities, which we need to boost our interfaces during the flux
- * calculation. We also initialize the variables used for the time step
- * calculation.
- *
- * @param p The particle to act upon.
- * @param xp The extended particle data to act upon.
- * @param cosmo The cosmological model.
- * @param hydro_props Hydrodynamic properties.
- */
-__attribute__((always_inline)) INLINE static void hydro_prepare_gradient(
-    struct part *restrict p, struct xpart *restrict xp,
-    const struct cosmology *cosmo, const struct hydro_props *hydro_props) {
+	/**
+	 * @brief Prepare a particle for the gradient calculation.
+	 *
+	 * This function is called after the density loop and before the gradient loop.
+	 *
+	 * We use it to set the physical timestep for the particle and to copy the
+	 * actual velocities, which we need to boost our interfaces during the flux
+	 * calculation. We also initialize the variables used for the time step
+	 * calculation.
+	 *
+	 * @param p The particle to act upon.
+	 * @param xp The extended particle data to act upon.
+	 * @param cosmo The cosmological model.
+	 * @param hydro_props Hydrodynamic properties.
+	 */
+	__attribute__((always_inline)) INLINE static void hydro_prepare_gradient(
+	    struct part *restrict p, struct xpart *restrict xp,
+	    const struct cosmology *cosmo, const struct hydro_props *hydro_props) {
 
-  const float fac_B = cosmo->a_factor_Balsara_eps;
+	  const float fac_B = cosmo->a_factor_Balsara_eps;
 
-  /* Compute the norm of the curl */
-  const float curl_v = sqrtf(p->density.rot_v[0] * p->density.rot_v[0] +
-                             p->density.rot_v[1] * p->density.rot_v[1] +
-                             p->density.rot_v[2] * p->density.rot_v[2]);
+	  /* Compute the norm of the curl */
+	  const float curl_v = sqrtf(p->density.rot_v[0] * p->density.rot_v[0] +
+				     p->density.rot_v[1] * p->density.rot_v[1] +
+				     p->density.rot_v[2] * p->density.rot_v[2]);
 
-  /* Compute the norm of div v */
-  const float abs_div_v = fabsf(p->viscosity.div_v);
+	  /* Compute the norm of div v */
+	  const float abs_div_v = fabsf(p->viscosity.div_v);
 
-  /* Compute the sound speed  */
-  const float pressure = hydro_get_comoving_pressure(p);
-  const float pressure_including_floor =
-      pressure_floor_get_comoving_pressure(p, pressure, cosmo);
-  const float soundspeed =
-      gas_soundspeed_from_pressure(p->rho, pressure_including_floor);
+	  /* Compute the sound speed  */
+	  const float pressure = hydro_get_comoving_pressure(p);
+	  const float pressure_including_floor =
+	      pressure_floor_get_comoving_pressure(p, pressure, cosmo);
+	  const float soundspeed =
+	      gas_soundspeed_from_pressure(p->rho, pressure_including_floor);
 
-  /* Compute the Balsara switch */
-  const float balsara =
-      abs_div_v / (abs_div_v + curl_v + 0.0001f * soundspeed * fac_B / p->h);
+	  /* Compute the Balsara switch */
+	  const float balsara =
+	      abs_div_v / (abs_div_v + curl_v + 0.0001f * soundspeed * fac_B / p->h);
 
-  /* Compute the "grad h" term  - Note here that we have \tilde{x}
-   * as 1 as we use the local number density to find neighbours. This
-   * introduces a j-component that is considered in the force loop,
-   * meaning that this cached grad_h_term gives:
-   *
-   * f_ij = 1.f - grad_h_term_i / m_j */
-  const float common_factor = p->h * hydro_dimension_inv / p->density.wcount;
-  float grad_h_term;
+	  /* Compute the "grad h" term  - Note here that we have \tilde{x}
+	   * as 1 as we use the local number density to find neighbours. This
+	   * introduces a j-component that is considered in the force loop,
+	   * meaning that this cached grad_h_term gives:
+	   *
+	   * f_ij = 1.f - grad_h_term_i / m_j */
+	  const float common_factor = p->h * hydro_dimension_inv / p->density.wcount;
+	  float grad_h_term;
 
-  /* Ignore changing-kernel effects when h ~= h_max */
-  if (p->h > 0.9999f * hydro_props->h_max) {
-    grad_h_term = 0.f;
-  } else {
-    grad_h_term = common_factor * p->density.rho_dh /
-                  (1.f + common_factor * p->density.wcount_dh);
-  }
+	  /* Ignore changing-kernel effects when h ~= h_max */
+	  if (p->h > 0.9999f * hydro_props->h_max) {
+	    grad_h_term = 0.f;
+	  } else {
+	    grad_h_term = common_factor * p->density.rho_dh /
+			  (1.f + common_factor * p->density.wcount_dh);
+	  }
 
-  /* Update variables. */
-  p->force.f = grad_h_term;
-  p->force.pressure = pressure_including_floor;
-  p->force.soundspeed = soundspeed;
-  p->force.balsara = balsara;
-}
+	  /* Update variables. */
+	  p->force.f = grad_h_term;
+	  p->force.pressure = pressure_including_floor;
+	  p->force.soundspeed = soundspeed;
+	  p->force.balsara = balsara;
+	}
 
-/**
- * @brief Resets the variables that are required for a gradient calculation.
- *
- * This function is called after hydro_prepare_gradient.
- *
- * @param p The particle to act upon.
- * @param xp The extended particle data to act upon.
- * @param cosmo The cosmological model.
- */
-__attribute__((always_inline)) INLINE static void hydro_reset_gradient(
-    struct part *restrict p) {
+	/**
+	 * @brief Resets the variables that are required for a gradient calculation.
+	 *
+	 * This function is called after hydro_prepare_gradient.
+	 *
+	 * @param p The particle to act upon.
+	 * @param xp The extended particle data to act upon.
+	 * @param cosmo The cosmological model.
+	 */
+	__attribute__((always_inline)) INLINE static void hydro_reset_gradient(
+	    struct part *restrict p) {
 
-  p->viscosity.v_sig = 2.f * p->force.soundspeed;
-  p->force.alpha_visc_max_ngb = p->viscosity.alpha;
-}
+	  p->viscosity.v_sig = 2.f * p->force.soundspeed;
+	  p->force.alpha_visc_max_ngb = p->viscosity.alpha;
+	}
 
-/**
- * @brief Finishes the gradient calculation.
- *
- * Just a wrapper around hydro_gradients_finalize, which can be an empty method,
- * in which case no gradients are used.
- *
- * This method also initializes the force loop variables.
- *
- * @param p The particle to act upon.
- */
-__attribute__((always_inline)) INLINE static void hydro_end_gradient(
-    struct part *p) {
+	/**
+	 * @brief Finishes the gradient calculation.
+	 *
+	 * Just a wrapper around hydro_gradients_finalize, which can be an empty method,
+	 * in which case no gradients are used.
+	 *
+	 * This method also initializes the force loop variables.
+	 *
+	 * @param p The particle to act upon.
+	 */
+	__attribute__((always_inline)) INLINE static void hydro_end_gradient(
+	    struct part *p) {
 
-  /* Some smoothing length multiples. */
-  const float h = p->h;
-  const float h_inv = 1.0f / h;                       /* 1/h */
-  const float h_inv_dim = pow_dimension(h_inv);       /* 1/h^d */
-  const float h_inv_dim_plus_one = h_inv_dim * h_inv; /* 1/h^(d+1) */
+	  /* Some smoothing length multiples. */
+	  const float h = p->h;
+	  const float h_inv = 1.0f / h;                       /* 1/h */
+	  const float h_inv_dim = pow_dimension(h_inv);       /* 1/h^d */
+	  const float h_inv_dim_plus_one = h_inv_dim * h_inv; /* 1/h^(d+1) */
 
-  /* Include the extra factors in the del^2 u */
+	  /* Include the extra factors in the del^2 u */
 
-  p->diffusion.laplace_u *= 2.f * h_inv_dim_plus_one;
+	  p->diffusion.laplace_u *= 2.f * h_inv_dim_plus_one;
 
-#ifdef SWIFT_HYDRO_DENSITY_CHECKS
-  p->n_gradient += kernel_root;
-#endif
-}
+	#ifdef SWIFT_HYDRO_DENSITY_CHECKS
+	  p->n_gradient += kernel_root;
+	#endif
+	}
 
-/**
- * @brief Sets all particle fields to sensible values when the #part has 0 ngbs.
- *
- * In the desperate case where a particle has no neighbours (likely because
- * of the h_max ceiling), set the particle fields to something sensible to avoid
- * NaNs in the next calculations.
- *
- * @param p The particle to act upon
- * @param xp The extended particle data to act upon
- * @param cosmo The cosmological model.
- */
-__attribute__((always_inline)) INLINE static void hydro_part_has_no_neighbours(
-    struct part *restrict p, struct xpart *restrict xp,
-    const struct cosmology *cosmo) {
+	/**
+	 * @brief Sets all particle fields to sensible values when the #part has 0 ngbs.
+	 *
+	 * In the desperate case where a particle has no neighbours (likely because
+	 * of the h_max ceiling), set the particle fields to something sensible to avoid
+	 * NaNs in the next calculations.
+	 *
+	 * @param p The particle to act upon
+	 * @param xp The extended particle data to act upon
+	 * @param cosmo The cosmological model.
+	 */
+	__attribute__((always_inline)) INLINE static void hydro_part_has_no_neighbours(
+	    struct part *restrict p, struct xpart *restrict xp,
+	    const struct cosmology *cosmo) {
 
-  /* Some smoothing length multiples. */
-  const float h = p->h;
-  const float h_inv = 1.0f / h;                 /* 1/h */
-  const float h_inv_dim = pow_dimension(h_inv); /* 1/h^d */
+	  /* Some smoothing length multiples. */
+	  const float h = p->h;
+	  const float h_inv = 1.0f / h;                 /* 1/h */
+	  const float h_inv_dim = pow_dimension(h_inv); /* 1/h^d */
 
-  /* Re-set problematic values */
-  p->rho = p->mass * kernel_root * h_inv_dim;
-  p->viscosity.v_sig = 0.f;
-  p->density.wcount = kernel_root * h_inv_dim;
-  p->density.rho_dh = 0.f;
-  p->density.wcount_dh = 0.f;
+	  /* Re-set problematic values */
+	  p->rho = p->mass * kernel_root * h_inv_dim;
+	  p->viscosity.v_sig = 0.f;
+	  p->density.wcount = kernel_root * h_inv_dim;
+	  p->density.rho_dh = 0.f;
+	  p->density.wcount_dh = 0.f;
 
-  p->density.rot_v[0] = 0.f;
-  p->density.rot_v[1] = 0.f;
-  p->density.rot_v[2] = 0.f;
+	  p->density.rot_v[0] = 0.f;
+	  p->density.rot_v[1] = 0.f;
+	  p->density.rot_v[2] = 0.f;
 
-  /* Probably not shocking, so this is safe to do */
-  p->viscosity.div_v = 0.f;
-  p->diffusion.laplace_u = 0.f;
+	  /* Probably not shocking, so this is safe to do */
+	  p->viscosity.div_v = 0.f;
+	  p->diffusion.laplace_u = 0.f;
 
-#ifdef MHD_BASE
-// Remember to check if this is fine in every method
-  p->bfld.divB    = 0.f;
-#ifdef MHD_EULER
-  p->bfld.B_full[0] = 0.f;
-  p->bfld.B_full[1] = 0.f;
-  p->bfld.B_full[2] = 0.f;
-  for (int i = 0; i < 3; ++i) p->bfld.Grad_ep[0][i]=0.f;
-  for (int i = 0; i < 3; ++i) p->bfld.Grad_ep[1][i]=0.f;
-#endif
-#endif
-}
+	#ifdef MHD_BASE
+	// Remember to check if this is fine in every method
+	  p->bfld.divB    = 0.f;
+	#ifdef MHD_EULER
+	  p->bfld.B_full[0] = 0.f;
+	  p->bfld.B_full[1] = 0.f;
+	  p->bfld.B_full[2] = 0.f;
+	  for (int i = 0; i < 3; ++i) p->bfld.Grad_ep[0][i]=0.f;
+	  for (int i = 0; i < 3; ++i) p->bfld.Grad_ep[1][i]=0.f;
+	#endif
+	#endif
+	}
 
-/**
- * @brief Prepare a particle for the force calculation.
- *
- * This function is called in the ghost task to convert some quantities coming
- * from the density loop over neighbours into quantities ready to be used in the
- * force loop over neighbours. Quantities are typically read from the density
- * sub-structure and written to the force sub-structure.
- * Examples of calculations done here include the calculation of viscosity term
- * constants, thermal conduction terms, hydro conversions, etc.
- *
- * @param p The particle to act upon
- * @param xp The extended particle data to act upon
- * @param cosmo The current cosmological model.
- * @param hydro_props Hydrodynamic properties.
- * @param dt_alpha The time-step used to evolve non-cosmological quantities such
- *                 as the artificial viscosity.
- */
-__attribute__((always_inline)) INLINE static void hydro_prepare_force(
-    struct part *restrict p, struct xpart *restrict xp,
-    const struct cosmology *cosmo, const struct hydro_props *hydro_props,
-    const float dt_alpha) {
+	/**
+	 * @brief Prepare a particle for the force calculation.
+	 *
+	 * This function is called in the ghost task to convert some quantities coming
+	 * from the density loop over neighbours into quantities ready to be used in the
+	 * force loop over neighbours. Quantities are typically read from the density
+	 * sub-structure and written to the force sub-structure.
+	 * Examples of calculations done here include the calculation of viscosity term
+	 * constants, thermal conduction terms, hydro conversions, etc.
+	 *
+	 * @param p The particle to act upon
+	 * @param xp The extended particle data to act upon
+	 * @param cosmo The current cosmological model.
+	 * @param hydro_props Hydrodynamic properties.
+	 * @param dt_alpha The time-step used to evolve non-cosmological quantities such
+	 *                 as the artificial viscosity.
+	 */
+	__attribute__((always_inline)) INLINE static void hydro_prepare_force(
+	    struct part *restrict p, struct xpart *restrict xp,
+	    const struct cosmology *cosmo, const struct hydro_props *hydro_props,
+	    const float dt_alpha) {
 
-  /* Here we need to update the artificial viscosity */
+	  /* Here we need to update the artificial viscosity */
 
-  /* We use in this function that h is the radius of support */
-  const float kernel_support_physical = p->h * cosmo->a * kernel_gamma;
-  const float kernel_support_physical_inv = 1.f / kernel_support_physical;
-  const float v_sig_physical = p->viscosity.v_sig * cosmo->a_factor_sound_speed;
-  const float pressure = hydro_get_comoving_pressure(p);
-  const float pressure_including_floor =
-      pressure_floor_get_comoving_pressure(p, pressure, cosmo);
-  const float soundspeed_physical =
-      gas_soundspeed_from_pressure(p->rho, pressure_including_floor) *
-      cosmo->a_factor_sound_speed;
+	  /* We use in this function that h is the radius of support */
+	  const float kernel_support_physical = p->h * cosmo->a * kernel_gamma;
+	  const float kernel_support_physical_inv = 1.f / kernel_support_physical;
+	  const float v_sig_physical = p->viscosity.v_sig * cosmo->a_factor_sound_speed;
+	  const float pressure = hydro_get_comoving_pressure(p);
+	  const float pressure_including_floor =
+	      pressure_floor_get_comoving_pressure(p, pressure, cosmo);
+	  const float soundspeed_physical =
+	      gas_soundspeed_from_pressure(p->rho, pressure_including_floor) *
+	      cosmo->a_factor_sound_speed;
 
-  const float sound_crossing_time_inverse =
-      soundspeed_physical * kernel_support_physical_inv;
+	  const float sound_crossing_time_inverse =
+	      soundspeed_physical * kernel_support_physical_inv;
 
-  /* Construct time differential of div.v implicitly following the ANARCHY spec
-   */
+	  /* Construct time differential of div.v implicitly following the ANARCHY spec
+	   */
 
-  const float div_v_dt =
-      dt_alpha == 0.f
-          ? 0.f
-          : (p->viscosity.div_v - p->viscosity.div_v_previous_step) / dt_alpha;
+	  const float div_v_dt =
+	      dt_alpha == 0.f
+		  ? 0.f
+		  : (p->viscosity.div_v - p->viscosity.div_v_previous_step) / dt_alpha;
 
   /* Construct the source term for the AV; if shock detected this is _positive_
    * as div_v_dt should be _negative_ before the shock hits */
@@ -1003,9 +1004,9 @@ __attribute__((always_inline)) INLINE static void hydro_predict_extra(
     const struct entropy_floor_properties *floor_props) {
 
 #ifdef MHD_DI
-  p->blfd.B_pred[0] += p->blfd.dBdt[0] * dt_therm;
-  p->blfd.B_pred[1] += p->blfd.dBdt[1] * dt_therm;
-  p->blfd.B_pred[2] += p->blfd.dBdt[2] * dt_therm;
+  p->bfld.B_pred[0] += p->bfld.dBdt[0] * dt_therm;
+  p->bfld.B_pred[1] += p->bfld.dBdt[1] * dt_therm;
+  p->bfld.B_pred[2] += p->bfld.dBdt[2] * dt_therm;
 #endif
 
 /* Predict the internal energy */

@@ -72,7 +72,7 @@ INLINE static void hydro_read_particles(struct part* parts,
 #endif
   
   list[0]  = io_make_input_field("Bfield", FLOAT, 3, OPTIONAL,
-                                UNIT_CONV_NO_UNITS, parts, blfd.B_full);
+                                UNIT_CONV_NO_UNITS, parts, bfld.B_full);
 #ifdef MHD_EULER 
   list[1]  = io_make_input_field("EPalpha", FLOAT, 1, OPTIONAL,
                                 UNIT_CONV_NO_UNITS, parts, bfld.ep[0]);
