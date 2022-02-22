@@ -44,8 +44,8 @@ from swift_rt_debug_io import get_snap_data
 
 
 # some behaviour options
-skip_snap_zero = True  # skip snap_0000.hdf5
-skip_last_snap = True  # skip snap_0max.hdf5
+skip_snap_zero = False  # skip snap_0000.hdf5
+skip_last_snap = False  # skip snap_0max.hdf5
 print_diffs = True  # print differences you find
 break_on_diff = False  # quit when you find a difference
 
@@ -67,7 +67,6 @@ def check_hydro_sanity(snapdata):
     - RT transport calls >= RT gradient calls?
     """
 
-    nsnaps = len(snapdata)
     npart = snapdata[0].gas.coords.shape[0]
 
     print("Checking hydro")
@@ -78,7 +77,7 @@ def check_hydro_sanity(snapdata):
     for snap in snapdata:
 
         gas = snap.gas
-        stars = snap.stars
+        # stars = snap.stars
 
         # has a particle been called at least once?
         called = (
@@ -98,7 +97,7 @@ def check_hydro_sanity(snapdata):
         fishy = np.logical_and(mask, called)
         if fishy.any():
             # has particle been active in the meantime?
-            print("- checking hydro sanity pt2; snapshot", snap.snapnr)
+            print("- checking hydro sanity pt2.1; snapshot", snap.snapnr)
             if np.count_nonzero(mask) == npart:
                 print("--- WARNING: zero particles finished injection")
             else:
@@ -121,7 +120,7 @@ def check_hydro_sanity(snapdata):
         mask = gas.GradientsDone != 1
         fishy = np.logical_and(mask, called)
         if fishy.any():
-            print("- checking hydro sanity pt2; snapshot", snap.snapnr)
+            print("- checking hydro sanity pt2.2; snapshot", snap.snapnr)
             if np.count_nonzero(mask) == npart:
                 print("---WARNING: zero particles finished gradient")
             else:
@@ -144,7 +143,7 @@ def check_hydro_sanity(snapdata):
         mask = gas.TransportDone != 1
         fishy = np.logical_and(mask, called)
         if fishy.any():
-            print("- checking hydro sanity pt2; snapshot", snap.snapnr)
+            print("- checking hydro sanity pt2.3; snapshot", snap.snapnr)
             if np.count_nonzero(mask) == npart:
                 print("--- WARNING: zero particles finished transport")
             else:
@@ -167,7 +166,7 @@ def check_hydro_sanity(snapdata):
         mask = gas.ThermochemistryDone != 1
         fishy = np.logical_and(mask, called)
         if fishy.any():
-            print("- checking hydro sanity pt2; snapshot", snap.snapnr)
+            print("- checking hydro sanity pt2.4; snapshot", snap.snapnr)
             if np.count_nonzero(mask) == npart:
                 print("--- WARNING: zero particles finished thermochemistry")
             else:
@@ -189,52 +188,24 @@ def check_hydro_sanity(snapdata):
         # at least the number of calls to transport interactions
         # in RT interactions
         # --------------------------------------------------------------
-        if (
-            gas.RTCallsIactTransportInteraction < gas.RTCallsIactGradientInteraction
-        ).any():
-            print("- checking hydro sanity pt2; snapshot", snap.snapnr)
+        fishy = gas.RTCallsIactTransportInteraction < gas.RTCallsIactGradientInteraction
+        if fishy.any():
+            print("- checking hydro sanity pt2.5; snapshot", snap.snapnr)
             print(
                 "--- Found RT transport calls iact < gradient calls iact:",
-                np.count_nonzero(
-                    gas.RTCallsIactTransport < gas.RTCallsIactGradientInteraction
-                ),
+                np.count_nonzero(fishy),
                 "/",
                 npart,
             )
-            if break_on_diff:
-                quit()
-        if (gas.RTCallsIactTransport < gas.RTCallsIactGradient).any():
-            print("- checking hydro sanity pt2; snapshot", snap.snapnr)
-            print(
-                "--- Found RT transport calls < gradient calls:",
-                np.count_nonzero(
-                    gas.RTCallsIactTransport < gas.RTCallsIactGradientInteraction
-                ),
-                "/",
-                npart,
-            )
-            if break_on_diff:
-                quit()
-
-        # --------------------------------------------------------------
-        # check that we didn't loose any radiation
-        # --------------------------------------------------------------
-        sum_gas_tot = gas.RadiationAbsorbedTot.sum()
-        if snap.has_stars:
-            sum_star_tot = stars.RadiationEmittedTot.sum()
-        else:
-            sum_star_tot = 0.0
-
-        if sum_gas_tot != sum_star_tot:
-            print("- checking hydro sanity pt2; snapshot", snap.snapnr)
-            print(
-                "--- Total emitted and absorbed radiation not equal: Gas",
-                sum_gas_tot,
-                "stars",
-                sum_star_tot,
-                "diff",
-                sum_star_tot - sum_gas_tot,
-            )
+            if print_diffs:
+                print(
+                    "RTCallsIactTransportInteraction",
+                    gas.RTCallsIactTransportInteraction[fishy],
+                )
+                print(
+                    "RTCallsIactGradientInteraction",
+                    gas.RTCallsIactGradientInteraction[fishy],
+                )
             if break_on_diff:
                 quit()
 
@@ -248,8 +219,6 @@ def check_stars_sanity(snapdata):
     """
 
     print("Checking stars")
-
-    nsnaps = len(snapdata)
 
     # ----------------------------------------------
     #  check consistency of individual snapshots
@@ -280,6 +249,72 @@ def check_stars_sanity(snapdata):
     return
 
 
+def check_stars_hydro_interaction_sanity(snapdata):
+    """
+    Sanity checks for hydro vs star interaction
+    call counts.
+    - are calls each step equal?
+    - are total calls each step equal?
+    """
+
+    print("Checking hydro vs stars")
+
+    # ----------------------------------------------
+    # check absolute values of every snapshot
+    # ----------------------------------------------
+    for snap in snapdata:
+
+        gas = snap.gas
+        stars = snap.stars
+
+        # --------------------------------------------------------------
+        # check that we didn't lose any radiation
+        # --------------------------------------------------------------
+        sum_gas_tot_radiation = gas.RadiationAbsorbedTot.sum()
+        if snap.has_stars:
+            sum_star_tot_radiation = stars.RadiationEmittedTot.sum()
+        else:
+            sum_star_tot_radiation = 0.0
+
+        if sum_gas_tot_radiation != sum_star_tot_radiation:
+            print("- checking hydro v star sanity pt1; snapshot", snap.snapnr)
+            print(
+                "--- Total emitted and absorbed radiation not equal: Gas",
+                sum_gas_tot_radiation,
+                "stars",
+                sum_star_tot_radiation,
+                "diff",
+                sum_star_tot_radiation - sum_gas_tot_radiation,
+            )
+            if break_on_diff:
+                quit()
+
+        # --------------------------------------------------------------
+        # check that we have the correct amount of interactions recorded
+        # for injection prep between stars and gas
+        # --------------------------------------------------------------
+        sum_gas_tot_prep = gas.InjectPrepCountsTot.sum()
+        if snap.has_stars:
+            sum_star_tot_prep = stars.InjectPrepCountsTot.sum()
+        else:
+            sum_star_tot_prep = 0.0
+
+        if sum_gas_tot_prep != sum_star_tot_prep:
+            print("- checking hydro v star sanity pt2; snapshot", snap.snapnr)
+            print(
+                "--- Total interactions between gas and stars in prep is wrong:",
+                sum_gas_tot_prep,
+                "stars",
+                sum_star_tot_prep,
+                "diff",
+                sum_star_tot_prep - sum_gas_tot_prep,
+            )
+            if break_on_diff:
+                quit()
+
+    return
+
+
 def main():
     """
     Main function to run.
@@ -293,6 +328,9 @@ def main():
 
     check_hydro_sanity(snapdata)
     check_stars_sanity(snapdata)
+    check_stars_hydro_interaction_sanity(snapdata)
+
+    return
 
 
 if __name__ == "__main__":
