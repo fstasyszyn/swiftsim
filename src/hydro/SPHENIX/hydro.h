@@ -684,9 +684,24 @@ __attribute__((always_inline)) INLINE static void hydro_prepare_gradient(
 	  /* Ignore changing-kernel effects when h ~= h_max */
   if (p->h > 0.9999f * hydro_props->h_max) {
     grad_h_term = 0.f;
+    warning("h ~ h_max for particle with ID %lld (h: %g)", p->id, p->h);
   } else {
-    grad_h_term = common_factor * p->density.rho_dh /
-		  (1.f + common_factor * p->density.wcount_dh);
+    const float grad_W_term = common_factor * p->density.wcount_dh;
+    if (grad_W_term < -0.9999f) {
+      /* if we get here, we either had very small neighbour contributions
+         (which should be treated as a no neighbour case in the ghost) or
+         a very weird particle distribution (e.g. particles sitting on
+         top of each other). Either way, we cannot use the normal
+         expression, since that would lead to overflow or excessive round
+         off and cause excessively high accelerations in the force loop */
+      grad_h_term = 0.f;
+      warning(
+          "grad_W_term very small for particle with ID %lld (h: %g, wcount: "
+          "%g, wcount_dh: %g)",
+          p->id, p->h, p->density.wcount, p->density.wcount_dh);
+    } else {
+      grad_h_term = common_factor * p->density.rho_dh / (1.f + grad_W_term);
+    }
   }
 	  /* Update variables. */
   p->force.f = grad_h_term;
@@ -751,7 +766,13 @@ __attribute__((always_inline)) INLINE static void hydro_part_has_no_neighbours(
   const float h = p->h;
   const float h_inv = 1.0f / h;                 /* 1/h */
   const float h_inv_dim = pow_dimension(h_inv); /* 1/h^d */
-	  /* Re-set problematic values */
+
+  warning(
+      "Gas particle with ID %lld treated as having no neighbours (h: %g, "
+      "wcount: %g).",
+      p->id, h, p->density.wcount);
+
+  /* Re-set problematic values */
   p->rho = p->mass * kernel_root * h_inv_dim;
   p->viscosity.v_sig = 0.f;
   p->density.wcount = kernel_root * h_inv_dim;
