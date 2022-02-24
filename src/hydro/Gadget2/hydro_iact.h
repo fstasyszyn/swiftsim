@@ -135,12 +135,12 @@ __attribute__((always_inline)) INLINE static void runner_iact_density(
   const double dBdr = dB[0]*dx[0] + dB[1]*dx[1] + dB[2]*dx[2];
   pi->divB -= faci * dBdr;
   pj->divB -= facj * dBdr;
-  pi->Bsmooth[0] += mj * wi * pj->Bfld[0];
-  pi->Bsmooth[1] += mj * wi * pj->Bfld[1];
-  pi->Bsmooth[2] += mj * wi * pj->Bfld[2];
-  pj->Bsmooth[0] += mi * wj * pi->Bfld[0];
-  pj->Bsmooth[1] += mi * wj * pi->Bfld[1];
-  pj->Bsmooth[2] += mi * wj * pi->Bfld[2];
+//  pi->Bsmooth[0] += mj * wi * pj->Bfld[0];
+//  pi->Bsmooth[1] += mj * wi * pj->Bfld[1];
+//  pi->Bsmooth[2] += mj * wi * pj->Bfld[2];
+//  pj->Bsmooth[0] += mi * wj * pi->Bfld[0];
+//  pj->Bsmooth[1] += mi * wj * pi->Bfld[1];
+//  pj->Bsmooth[2] += mi * wj * pi->Bfld[2];
 
 #ifdef MHD_DI
   pi->dBdt[0] += faci * ((pi->BPred[0] * dv[1] - pi->BPred[1] * dv[0]) * dx[1]
@@ -171,17 +171,16 @@ __attribute__((always_inline)) INLINE static void runner_iact_density(
   const float LBOX=1.0;
   dbeta  = (( dbeta  > LBOX/2.0 ) ? dbeta-LBOX  : ( ( dbeta  < -LBOX/2.0 ) ? dbeta+LBOX : dbeta));
 #endif
-  for(int i=0;i<3;++i)  
+  for(int i=0;i<3;++i) 
+  { 
   pi->Grad_ep[0][i] += faci * dalpha*dx[i];
 
-  for(int i=0;i<3;++i)  
   pi->Grad_ep[1][i] += faci * dbeta*dx[i];
   
-  for(int i=0;i<3;++i)  
   pj->Grad_ep[0][i] += facj * dalpha*dx[i];
 
-  for(int i=0;i<3;++i)  
   pj->Grad_ep[1][i] += facj * dbeta*dx[i];
+  }
 #endif  /* MHD_EULER */
 #endif  /* MHD_BASE */
 
@@ -274,9 +273,9 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_density(
   const double dBdr = dB[0]*dx[0] + dB[1]*dx[1] + dB[2]*dx[2];
   pi->divB -= fac * dBdr;
 
-  pi->Bsmooth[0] += mj * wi * pj->Bfld[0];
-  pi->Bsmooth[1] += mj * wi * pj->Bfld[1];
-  pi->Bsmooth[2] += mj * wi * pj->Bfld[2];
+ // pi->Bsmooth[0] += mj * wi * pj->Bfld[0];
+ // pi->Bsmooth[1] += mj * wi * pj->Bfld[1];
+ // pi->Bsmooth[2] += mj * wi * pj->Bfld[2];
 #ifdef MHD_DI
   pi->dBdt[0] += fac * ((pi->BPred[0] * dv[1] - pi->BPred[1] * dv[0]) * dx[1]
   		        +(pi->BPred[0] * dv[2] - pi->BPred[2] * dv[0]) * dx[2]);
@@ -301,12 +300,11 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_density(
   const float LBOX=1.0;
   dbeta  = (( dbeta  > LBOX/2.0 ) ? dbeta-LBOX  : ( ( dbeta  < -LBOX/2.0 ) ? dbeta+LBOX : dbeta));
 #endif
-  for(int i=0;i<3;++i)  
+  for(int i=0;i<3;++i){  
   pi->Grad_ep[0][i] += fac * dalpha * dx[i];
   
-  for(int i=0;i<3;++i)  
   pi->Grad_ep[1][i] += fac * dbeta  * dx[i];
-  
+  }
 #endif  /* MHD_EULER */
 #endif  /* MHD */
 
@@ -565,7 +563,11 @@ __attribute__((always_inline)) INLINE static void runner_iact_force(
 
   float wi, wj, wi_dx, wj_dx;
 #ifdef MHD_BASE
+#ifdef MHD_EULER_TEST
+  const float MU0_1 = 1.0;
+#else
   const float MU0_1 = 1.0/(4.0*M_PI);
+#endif
 #endif
 
 #ifdef SWIFT_DEBUG_CHECKS
@@ -677,27 +679,29 @@ __attribute__((always_inline)) INLINE static void runner_iact_force(
   
   /* Eventually got the MHD accel */ 
 #ifdef MHD_BASE
+//#_FORCE
   const float mag_faci = MU0_1 * f_i * wi_dr * r_inv /(rhoi*rhoi);
   const float mag_facj = MU0_1 * f_j * wj_dr * r_inv /(rhoj*rhoj);
-//  float mm_i[3][3],mm_j[3][3];
+  float mm_i[3][3],mm_j[3][3];
 //  
-//  for(int i=0;i<3;i++)
-//    for(int j=0;j<3;j++)
-//  	{
-//	mm_i[i][j] = pi->Bfld[i]*pi->Bfld[j];
- // 	
-//	mm_j[i][j] = pj->Bfld[i]*pj->Bfld[j];
-//	}
-//  for(int j=0;j<3;j++)
-//  	{mm_i[j][j] -= 0.5*pi->Bfld[j]*pi->Bfld[j];
-//  	 mm_j[j][j] -= 0.5*pj->Bfld[j]*pj->Bfld[j];}
+  for(int i=0;i<3;i++)
+    for(int j=0;j<3;j++)
+  	{
+	mm_i[i][j] = pi->Bfld[i]*pi->Bfld[j];
+	mm_j[i][j] = pj->Bfld[i]*pj->Bfld[j];
+	}
+  for(int j=0;j<3;j++)
+  	{
+	 mm_i[j][j] -= 0.5 * (pi->Bfld[0]*pi->Bfld[0]+pi->Bfld[1]*pi->Bfld[1]+pi->Bfld[2]*pi->Bfld[2]);
+  	 mm_j[j][j] -= 0.5 * (pj->Bfld[0]*pj->Bfld[0]+pj->Bfld[1]*pj->Bfld[1]+pj->Bfld[2]*pj->Bfld[2]);
+	 }
 ///////////////////////////////
-/*  for(int i=0;i<3;i++)
+  for(int i=0;i<3;i++)
     for(int j=0;j<3;j++)
     {  
-       //pi->a_hydro[i] -= mj * (mm_i[i][j]*mag_faci+mm_j[i][j]*mag_facj) * dx[j];
-       //pj->a_hydro[i] += mi * (mm_i[i][j]*mag_faci+mm_j[i][j]*mag_facj) * dx[j];
-          pi->a_hydro[i] -= mj * ((pi->Bfld[i]*pi->Bfld[j])*mag_faci
+       pi->a_hydro[i] += mj * (mm_i[i][j]*mag_faci+mm_j[i][j]*mag_facj) * dx[j];
+       pj->a_hydro[i] -= mi * (mm_i[i][j]*mag_faci+mm_j[i][j]*mag_facj) * dx[j];
+         /* pi->a_hydro[i] -= mj * ((pi->Bfld[i]*pi->Bfld[j])*mag_faci
 	  + ( pj->Bfld[i]*pj->Bfld[j])*mag_facj)*dx[j];
 	 if(i==j)
           pi->a_hydro[i] += mj * 0.5 * ((pi->Bfld[i]*pi->Bfld[j])*mag_faci
@@ -707,59 +711,61 @@ __attribute__((always_inline)) INLINE static void runner_iact_force(
 	  + ( pj->Bfld[i]*pj->Bfld[j])*mag_facj)*dx[j];
 	 if(i==j)
          pj->a_hydro[i] -= mi * 0.5 * ((pi->Bfld[i]*pi->Bfld[j])*mag_faci
-	  + ( pj->Bfld[i]*pj->Bfld[j])*mag_facj)*dx[j];
-     }*/
-  pi->a_hydro[0] -= mj * ((pi->BPred[0]*pi->BPred[0]) * mag_faci + ( pj->BPred[0]*pj->BPred[0])*mag_facj)*dx[0];
-  pi->a_hydro[0] -= mj * ((pi->BPred[0]*pi->BPred[1]) * mag_faci + ( pj->BPred[0]*pj->BPred[1])*mag_facj)*dx[1];
-  pi->a_hydro[0] -= mj * ((pi->BPred[0]*pi->BPred[2]) * mag_faci + ( pj->BPred[0]*pj->BPred[2])*mag_facj)*dx[2];
-  pi->a_hydro[1] -= mj * ((pi->BPred[1]*pi->BPred[0]) * mag_faci + ( pj->BPred[1]*pj->BPred[0])*mag_facj)*dx[0];
-  pi->a_hydro[1] -= mj * ((pi->BPred[1]*pi->BPred[1]) * mag_faci + ( pj->BPred[1]*pj->BPred[1])*mag_facj)*dx[1];
-  pi->a_hydro[1] -= mj * ((pi->BPred[1]*pi->BPred[2]) * mag_faci + ( pj->BPred[1]*pj->BPred[2])*mag_facj)*dx[2];
-  pi->a_hydro[2] -= mj * ((pi->BPred[2]*pi->BPred[0]) * mag_faci + ( pj->BPred[2]*pj->BPred[0])*mag_facj)*dx[0];
-  pi->a_hydro[2] -= mj * ((pi->BPred[2]*pi->BPred[1]) * mag_faci + ( pj->BPred[2]*pj->BPred[1])*mag_facj)*dx[1];
-  pi->a_hydro[2] -= mj * ((pi->BPred[2]*pi->BPred[2]) * mag_faci + ( pj->BPred[2]*pj->BPred[2])*mag_facj)*dx[2];
-  pi->a_hydro[0] += mj * 0.5 * ((pi->BPred[0]*pi->BPred[0])*mag_faci + ( pj->BPred[0]*pj->BPred[0])*mag_facj)*dx[0];
-  pi->a_hydro[1] += mj * 0.5 * ((pi->BPred[1]*pi->BPred[1])*mag_faci + ( pj->BPred[1]*pj->BPred[1])*mag_facj)*dx[1];
-  pi->a_hydro[2] += mj * 0.5 * ((pi->BPred[2]*pi->BPred[2])*mag_faci + ( pj->BPred[2]*pj->BPred[2])*mag_facj)*dx[2];
+	  + ( pj->Bfld[i]*pj->Bfld[j])*mag_facj)*dx[j];*/
+     }
+/*  pi->a_hydro[0] += mj * ((pi->BPred[0]*pi->BPred[0]) * mag_faci + ( pj->BPred[0]*pj->BPred[0])*mag_facj)*dx[0];
+  pi->a_hydro[0] += mj * ((pi->BPred[0]*pi->BPred[1]) * mag_faci + ( pj->BPred[0]*pj->BPred[1])*mag_facj)*dx[1];
+  pi->a_hydro[0] += mj * ((pi->BPred[0]*pi->BPred[2]) * mag_faci + ( pj->BPred[0]*pj->BPred[2])*mag_facj)*dx[2];
+  pi->a_hydro[1] += mj * ((pi->BPred[1]*pi->BPred[0]) * mag_faci + ( pj->BPred[1]*pj->BPred[0])*mag_facj)*dx[0];
+  pi->a_hydro[1] += mj * ((pi->BPred[1]*pi->BPred[1]) * mag_faci + ( pj->BPred[1]*pj->BPred[1])*mag_facj)*dx[1];
+  pi->a_hydro[1] += mj * ((pi->BPred[1]*pi->BPred[2]) * mag_faci + ( pj->BPred[1]*pj->BPred[2])*mag_facj)*dx[2];
+  pi->a_hydro[2] += mj * ((pi->BPred[2]*pi->BPred[0]) * mag_faci + ( pj->BPred[2]*pj->BPred[0])*mag_facj)*dx[0];
+  pi->a_hydro[2] += mj * ((pi->BPred[2]*pi->BPred[1]) * mag_faci + ( pj->BPred[2]*pj->BPred[1])*mag_facj)*dx[1];
+  pi->a_hydro[2] += mj * ((pi->BPred[2]*pi->BPred[2]) * mag_faci + ( pj->BPred[2]*pj->BPred[2])*mag_facj)*dx[2];
+  pi->a_hydro[0] -= mj * 0.5 * ((pi->BPred[0]*pi->BPred[0])*mag_faci + ( pj->BPred[0]*pj->BPred[0])*mag_facj)*dx[0];
+  pi->a_hydro[1] -= mj * 0.5 * ((pi->BPred[1]*pi->BPred[1])*mag_faci + ( pj->BPred[1]*pj->BPred[1])*mag_facj)*dx[1];
+  pi->a_hydro[2] -= mj * 0.5 * ((pi->BPred[2]*pi->BPred[2])*mag_faci + ( pj->BPred[2]*pj->BPred[2])*mag_facj)*dx[2];
   
-  pj->a_hydro[0] += mi * ((pi->BPred[0]*pi->BPred[0]) * mag_faci + ( pj->BPred[0]*pj->BPred[0])*mag_facj)*dx[0];
-  pj->a_hydro[0] += mi * ((pi->BPred[0]*pi->BPred[1]) * mag_faci + ( pj->BPred[0]*pj->BPred[1])*mag_facj)*dx[1];
-  pj->a_hydro[0] += mi * ((pi->BPred[0]*pi->BPred[2]) * mag_faci + ( pj->BPred[0]*pj->BPred[2])*mag_facj)*dx[2];
-  pj->a_hydro[1] += mi * ((pi->BPred[1]*pi->BPred[0]) * mag_faci + ( pj->BPred[1]*pj->BPred[0])*mag_facj)*dx[0];
-  pj->a_hydro[1] += mi * ((pi->BPred[1]*pi->BPred[1]) * mag_faci + ( pj->BPred[1]*pj->BPred[1])*mag_facj)*dx[1];
-  pj->a_hydro[1] += mi * ((pi->BPred[1]*pi->BPred[2]) * mag_faci + ( pj->BPred[1]*pj->BPred[2])*mag_facj)*dx[2];
-  pj->a_hydro[2] += mi * ((pi->BPred[2]*pi->BPred[0]) * mag_faci + ( pj->BPred[2]*pj->BPred[0])*mag_facj)*dx[0];
-  pj->a_hydro[2] += mi * ((pi->BPred[2]*pi->BPred[1]) * mag_faci + ( pj->BPred[2]*pj->BPred[1])*mag_facj)*dx[1];
-  pj->a_hydro[2] += mi * ((pi->BPred[2]*pi->BPred[2]) * mag_faci + ( pj->BPred[2]*pj->BPred[2])*mag_facj)*dx[2];
-  pj->a_hydro[0] -= mi * 0.5 * ((pi->BPred[0]*pi->BPred[0])*mag_faci + ( pj->BPred[0]*pj->BPred[0])*mag_facj)*dx[0];
-  pj->a_hydro[1] -= mi * 0.5 * ((pi->BPred[1]*pi->BPred[1])*mag_faci + ( pj->BPred[1]*pj->BPred[1])*mag_facj)*dx[1];
-  pj->a_hydro[2] -= mi * 0.5 * ((pi->BPred[2]*pi->BPred[2])*mag_faci + ( pj->BPred[2]*pj->BPred[2])*mag_facj)*dx[2];
+  pj->a_hydro[0] -= mi * ((pi->BPred[0]*pi->BPred[0]) * mag_faci + ( pj->BPred[0]*pj->BPred[0])*mag_facj)*dx[0];
+  pj->a_hydro[0] -= mi * ((pi->BPred[0]*pi->BPred[1]) * mag_faci + ( pj->BPred[0]*pj->BPred[1])*mag_facj)*dx[1];
+  pj->a_hydro[0] -= mi * ((pi->BPred[0]*pi->BPred[2]) * mag_faci + ( pj->BPred[0]*pj->BPred[2])*mag_facj)*dx[2];
+  pj->a_hydro[1] -= mi * ((pi->BPred[1]*pi->BPred[0]) * mag_faci + ( pj->BPred[1]*pj->BPred[0])*mag_facj)*dx[0];
+  pj->a_hydro[1] -= mi * ((pi->BPred[1]*pi->BPred[1]) * mag_faci + ( pj->BPred[1]*pj->BPred[1])*mag_facj)*dx[1];
+  pj->a_hydro[1] -= mi * ((pi->BPred[1]*pi->BPred[2]) * mag_faci + ( pj->BPred[1]*pj->BPred[2])*mag_facj)*dx[2];
+  pj->a_hydro[2] -= mi * ((pi->BPred[2]*pi->BPred[0]) * mag_faci + ( pj->BPred[2]*pj->BPred[0])*mag_facj)*dx[0];
+  pj->a_hydro[2] -= mi * ((pi->BPred[2]*pi->BPred[1]) * mag_faci + ( pj->BPred[2]*pj->BPred[1])*mag_facj)*dx[1];
+  pj->a_hydro[2] -= mi * ((pi->BPred[2]*pi->BPred[2]) * mag_faci + ( pj->BPred[2]*pj->BPred[2])*mag_facj)*dx[2];
+  pj->a_hydro[0] += mi * 0.5 * ((pi->BPred[0]*pi->BPred[0])*mag_faci + ( pj->BPred[0]*pj->BPred[0])*mag_facj)*dx[0];
+  pj->a_hydro[1] += mi * 0.5 * ((pi->BPred[1]*pi->BPred[1])*mag_faci + ( pj->BPred[1]*pj->BPred[1])*mag_facj)*dx[1];
+  pj->a_hydro[2] += mi * 0.5 * ((pi->BPred[2]*pi->BPred[2])*mag_faci + ( pj->BPred[2]*pj->BPred[2])*mag_facj)*dx[2];
+*/
 //Take out the divergence term  
-/*  for(int i=0;i<3;++i)
+  for(int i=0;i<3;++i)
     for(int j=0;j<3;j++)
     {
-     pi->a_hydro[i] += mj * pi->Bfld[i] * (pi->Bfld[j]*mag_faci+pj->Bfld[j]*mag_facj)*dx[j];
-     pj->a_hydro[i] -= mi * pj->Bfld[i] * (pi->Bfld[j]*mag_faci+pj->Bfld[j]*mag_facj)*dx[j];
-    }*/
-  pi->a_hydro[0] += mj * pi->BPred[0] * (pi->BPred[0]*mag_faci+pj->BPred[0]*mag_facj)*dx[0];
-  pi->a_hydro[0] += mj * pi->BPred[0] * (pi->BPred[1]*mag_faci+pj->BPred[1]*mag_facj)*dx[1];
-  pi->a_hydro[0] += mj * pi->BPred[0] * (pi->BPred[2]*mag_faci+pj->BPred[2]*mag_facj)*dx[2];
-  pi->a_hydro[1] += mj * pi->BPred[1] * (pi->BPred[0]*mag_faci+pj->BPred[0]*mag_facj)*dx[0];
-  pi->a_hydro[1] += mj * pi->BPred[1] * (pi->BPred[1]*mag_faci+pj->BPred[1]*mag_facj)*dx[1];
-  pi->a_hydro[1] += mj * pi->BPred[1] * (pi->BPred[2]*mag_faci+pj->BPred[2]*mag_facj)*dx[2];
-  pi->a_hydro[2] += mj * pi->BPred[2] * (pi->BPred[0]*mag_faci+pj->BPred[0]*mag_facj)*dx[0];
-  pi->a_hydro[2] += mj * pi->BPred[2] * (pi->BPred[1]*mag_faci+pj->BPred[1]*mag_facj)*dx[1];
-  pi->a_hydro[2] += mj * pi->BPred[2] * (pi->BPred[2]*mag_faci+pj->BPred[2]*mag_facj)*dx[2];
+     pi->a_hydro[i] -= mj * pi->Bfld[i] * (pi->Bfld[j]*mag_faci+pj->Bfld[j]*mag_facj)*dx[j];
+     pj->a_hydro[i] += mi * pj->Bfld[i] * (pi->Bfld[j]*mag_faci+pj->Bfld[j]*mag_facj)*dx[j];
+    }
+/*  pi->a_hydro[0] -= mj * pi->BPred[0] * (pi->BPred[0]*mag_faci+pj->BPred[0]*mag_facj)*dx[0];
+  pi->a_hydro[0] -= mj * pi->BPred[0] * (pi->BPred[1]*mag_faci+pj->BPred[1]*mag_facj)*dx[1];
+  pi->a_hydro[0] -= mj * pi->BPred[0] * (pi->BPred[2]*mag_faci+pj->BPred[2]*mag_facj)*dx[2];
+  pi->a_hydro[1] -= mj * pi->BPred[1] * (pi->BPred[0]*mag_faci+pj->BPred[0]*mag_facj)*dx[0];
+  pi->a_hydro[1] -= mj * pi->BPred[1] * (pi->BPred[1]*mag_faci+pj->BPred[1]*mag_facj)*dx[1];
+  pi->a_hydro[1] -= mj * pi->BPred[1] * (pi->BPred[2]*mag_faci+pj->BPred[2]*mag_facj)*dx[2];
+  pi->a_hydro[2] -= mj * pi->BPred[2] * (pi->BPred[0]*mag_faci+pj->BPred[0]*mag_facj)*dx[0];
+  pi->a_hydro[2] -= mj * pi->BPred[2] * (pi->BPred[1]*mag_faci+pj->BPred[1]*mag_facj)*dx[1];
+  pi->a_hydro[2] -= mj * pi->BPred[2] * (pi->BPred[2]*mag_faci+pj->BPred[2]*mag_facj)*dx[2];
  
-  pj->a_hydro[0] -= mi * pj->BPred[0] * (pi->BPred[0]*mag_faci+pj->BPred[0]*mag_facj)*dx[0];
-  pj->a_hydro[0] -= mi * pj->BPred[0] * (pi->BPred[1]*mag_faci+pj->BPred[1]*mag_facj)*dx[1];
-  pj->a_hydro[0] -= mi * pj->BPred[0] * (pi->BPred[2]*mag_faci+pj->BPred[2]*mag_facj)*dx[2];
-  pj->a_hydro[1] -= mi * pj->BPred[1] * (pi->BPred[0]*mag_faci+pj->BPred[0]*mag_facj)*dx[0];
-  pj->a_hydro[1] -= mi * pj->BPred[1] * (pi->BPred[1]*mag_faci+pj->BPred[1]*mag_facj)*dx[1];
-  pj->a_hydro[1] -= mi * pj->BPred[1] * (pi->BPred[2]*mag_faci+pj->BPred[2]*mag_facj)*dx[2];
-  pj->a_hydro[2] -= mi * pj->BPred[2] * (pi->BPred[0]*mag_faci+pj->BPred[0]*mag_facj)*dx[0];
-  pj->a_hydro[2] -= mi * pj->BPred[2] * (pi->BPred[1]*mag_faci+pj->BPred[1]*mag_facj)*dx[1];
-  pj->a_hydro[2] -= mi * pj->BPred[2] * (pi->BPred[2]*mag_faci+pj->BPred[2]*mag_facj)*dx[2];
+  pj->a_hydro[0] += mi * pj->BPred[0] * (pi->BPred[0]*mag_faci+pj->BPred[0]*mag_facj)*dx[0];
+  pj->a_hydro[0] += mi * pj->BPred[0] * (pi->BPred[1]*mag_faci+pj->BPred[1]*mag_facj)*dx[1];
+  pj->a_hydro[0] += mi * pj->BPred[0] * (pi->BPred[2]*mag_faci+pj->BPred[2]*mag_facj)*dx[2];
+  pj->a_hydro[1] += mi * pj->BPred[1] * (pi->BPred[0]*mag_faci+pj->BPred[0]*mag_facj)*dx[0];
+  pj->a_hydro[1] += mi * pj->BPred[1] * (pi->BPred[1]*mag_faci+pj->BPred[1]*mag_facj)*dx[1];
+  pj->a_hydro[1] += mi * pj->BPred[1] * (pi->BPred[2]*mag_faci+pj->BPred[2]*mag_facj)*dx[2];
+  pj->a_hydro[2] += mi * pj->BPred[2] * (pi->BPred[0]*mag_faci+pj->BPred[0]*mag_facj)*dx[0];
+  pj->a_hydro[2] += mi * pj->BPred[2] * (pi->BPred[1]*mag_faci+pj->BPred[1]*mag_facj)*dx[1];
+  pj->a_hydro[2] += mi * pj->BPred[2] * (pi->BPred[2]*mag_faci+pj->BPred[2]*mag_facj)*dx[2];
+*/
 #endif
 
   /* Get the time derivative for h. */
@@ -805,7 +811,11 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_force(
 
   float wi, wj, wi_dx, wj_dx;
 #ifdef MHD_BASE
+#ifdef MHD_EULER_TEST
+  const float MU0_1 = 1.0;
+#else
   const float MU0_1 = 1.0/(4.0*M_PI);
+#endif
 #endif
 
 #ifdef SWIFT_DEBUG_CHECKS
@@ -911,55 +921,58 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_force(
   
   /* Eventually got the MHD accel */ 
 #ifdef MHD_BASE
+//_FORCE
   const float mag_faci = MU0_1 * f_i * wi_dr * r_inv /(rhoi*rhoi);
   const float mag_facj = MU0_1 * f_j * wj_dr * r_inv /(rhoj*rhoj);
-  //float mm_i[3][3],mm_j[3][3];
+  float mm_i[3][3],mm_j[3][3];
   
- // for(int i=0;i<3;i++)
- //   for(int j=0;j<3;j++)
-//  	{
-//	mm_i[i][j] = pi->Bfld[i]*pi->Bfld[j];
-//	mm_j[i][j] = pj->Bfld[i]*pj->Bfld[j];
-//	 }
-//  for(int j=0;j<3;j++)
-//  	{mm_i[j][j]-=0.5*pi->Bfld[j]*pi->Bfld[j];
-//  	 mm_j[j][j]-=0.5*pj->Bfld[j]*pj->Bfld[j];}
+  for(int i=0;i<3;i++)
+    for(int j=0;j<3;j++)
+  	{
+	mm_i[i][j] = pi->Bfld[i]*pi->Bfld[j];
+	mm_j[i][j] = pj->Bfld[i]*pj->Bfld[j];
+	 }
+  for(int j=0;j<3;j++){
+	 mm_i[j][j] -= 0.5 * (pi->Bfld[0]*pi->Bfld[0]+pi->Bfld[1]*pi->Bfld[1]+pi->Bfld[2]*pi->Bfld[2]);
+  	 mm_j[j][j] -= 0.5 * (pj->Bfld[0]*pj->Bfld[0]+pj->Bfld[1]*pj->Bfld[1]+pj->Bfld[2]*pj->Bfld[2]);}
 //////////////////////////////////
-/*  for(int i=0;i<3;i++)
+  for(int i=0;i<3;i++)
     for(int j=0;j<3;j++){
-//          pi->a_hydro[i] -= mj * (mm_i[i][j]*mag_faci+mm_j[i][j]*mag_facj)*dx[j];
-          pi->a_hydro[i] -= mj * ((pi->Bfld[i]*pi->Bfld[j])*mag_faci
+          pi->a_hydro[i] += mj * (mm_i[i][j]*mag_faci+mm_j[i][j]*mag_facj)*dx[j];
+/*          pi->a_hydro[i] -= mj * ((pi->Bfld[i]*pi->Bfld[j])*mag_faci
 	  + ( pj->Bfld[i]*pj->Bfld[j])*mag_facj)*dx[j];
 	 if(i==j)
           pi->a_hydro[i] += mj * 0.5 * ((pi->Bfld[i]*pi->Bfld[j])*mag_faci
-	  + ( pj->Bfld[i]*pj->Bfld[j])*mag_facj)*dx[j];
+	  + ( pj->Bfld[i]*pj->Bfld[j])*mag_facj)*dx[j];*/
 	 }
+
+/*  pi->a_hydro[0] += mj * ((pi->BPred[0]*pi->BPred[0]) * mag_faci + ( pj->BPred[0]*pj->BPred[0])*mag_facj)*dx[0];
+  pi->a_hydro[0] += mj * ((pi->BPred[0]*pi->BPred[1]) * mag_faci + ( pj->BPred[0]*pj->BPred[1])*mag_facj)*dx[1];
+  pi->a_hydro[0] += mj * ((pi->BPred[0]*pi->BPred[2]) * mag_faci + ( pj->BPred[0]*pj->BPred[2])*mag_facj)*dx[2];
+  pi->a_hydro[1] += mj * ((pi->BPred[1]*pi->BPred[0]) * mag_faci + ( pj->BPred[1]*pj->BPred[0])*mag_facj)*dx[0];
+  pi->a_hydro[1] += mj * ((pi->BPred[1]*pi->BPred[1]) * mag_faci + ( pj->BPred[1]*pj->BPred[1])*mag_facj)*dx[1];
+  pi->a_hydro[1] += mj * ((pi->BPred[1]*pi->BPred[2]) * mag_faci + ( pj->BPred[1]*pj->BPred[2])*mag_facj)*dx[2];
+  pi->a_hydro[2] += mj * ((pi->BPred[2]*pi->BPred[0]) * mag_faci + ( pj->BPred[2]*pj->BPred[0])*mag_facj)*dx[0];
+  pi->a_hydro[2] += mj * ((pi->BPred[2]*pi->BPred[1]) * mag_faci + ( pj->BPred[2]*pj->BPred[1])*mag_facj)*dx[1];
+  pi->a_hydro[2] += mj * ((pi->BPred[2]*pi->BPred[2]) * mag_faci + ( pj->BPred[2]*pj->BPred[2])*mag_facj)*dx[2];
+  pi->a_hydro[0] -= mj * 0.5 * ((pi->BPred[0]*pi->BPred[0])*mag_faci + ( pj->BPred[0]*pj->BPred[0])*mag_facj)*dx[0];
+  pi->a_hydro[1] -= mj * 0.5 * ((pi->BPred[1]*pi->BPred[1])*mag_faci + ( pj->BPred[1]*pj->BPred[1])*mag_facj)*dx[1];
+  pi->a_hydro[2] -= mj * 0.5 * ((pi->BPred[2]*pi->BPred[2])*mag_faci + ( pj->BPred[2]*pj->BPred[2])*mag_facj)*dx[2];
 */
-  pi->a_hydro[0] -= mj * ((pi->BPred[0]*pi->BPred[0]) * mag_faci + ( pj->BPred[0]*pj->BPred[0])*mag_facj)*dx[0];
-  pi->a_hydro[0] -= mj * ((pi->BPred[0]*pi->BPred[1]) * mag_faci + ( pj->BPred[0]*pj->BPred[1])*mag_facj)*dx[1];
-  pi->a_hydro[0] -= mj * ((pi->BPred[0]*pi->BPred[2]) * mag_faci + ( pj->BPred[0]*pj->BPred[2])*mag_facj)*dx[2];
-  pi->a_hydro[1] -= mj * ((pi->BPred[1]*pi->BPred[0]) * mag_faci + ( pj->BPred[1]*pj->BPred[0])*mag_facj)*dx[0];
-  pi->a_hydro[1] -= mj * ((pi->BPred[1]*pi->BPred[1]) * mag_faci + ( pj->BPred[1]*pj->BPred[1])*mag_facj)*dx[1];
-  pi->a_hydro[1] -= mj * ((pi->BPred[1]*pi->BPred[2]) * mag_faci + ( pj->BPred[1]*pj->BPred[2])*mag_facj)*dx[2];
-  pi->a_hydro[2] -= mj * ((pi->BPred[2]*pi->BPred[0]) * mag_faci + ( pj->BPred[2]*pj->BPred[0])*mag_facj)*dx[0];
-  pi->a_hydro[2] -= mj * ((pi->BPred[2]*pi->BPred[1]) * mag_faci + ( pj->BPred[2]*pj->BPred[1])*mag_facj)*dx[1];
-  pi->a_hydro[2] -= mj * ((pi->BPred[2]*pi->BPred[2]) * mag_faci + ( pj->BPred[2]*pj->BPred[2])*mag_facj)*dx[2];
-  pi->a_hydro[0] += mj * 0.5 * ((pi->BPred[0]*pi->BPred[0])*mag_faci + ( pj->BPred[0]*pj->BPred[0])*mag_facj)*dx[0];
-  pi->a_hydro[1] += mj * 0.5 * ((pi->BPred[1]*pi->BPred[1])*mag_faci + ( pj->BPred[1]*pj->BPred[1])*mag_facj)*dx[1];
-  pi->a_hydro[2] += mj * 0.5 * ((pi->BPred[2]*pi->BPred[2])*mag_faci + ( pj->BPred[2]*pj->BPred[2])*mag_facj)*dx[2];
 //Take out the divergence term  
-//  for(int i=0;i<3;++i)
-//    for(int j=0;j<3;++j)
-//	  pi->a_hydro[i] += mj * pi->Bfld[i] * (pi->Bfld[j]*mag_faci+pj->Bfld[j]*mag_facj)*dx[j];
-  pi->a_hydro[0] += mj * pi->BPred[0] * (pi->BPred[0]*mag_faci+pj->BPred[0]*mag_facj)*dx[0];
-  pi->a_hydro[0] += mj * pi->BPred[0] * (pi->BPred[1]*mag_faci+pj->BPred[1]*mag_facj)*dx[1];
-  pi->a_hydro[0] += mj * pi->BPred[0] * (pi->BPred[2]*mag_faci+pj->BPred[2]*mag_facj)*dx[2];
-  pi->a_hydro[1] += mj * pi->BPred[1] * (pi->BPred[0]*mag_faci+pj->BPred[0]*mag_facj)*dx[0];
-  pi->a_hydro[1] += mj * pi->BPred[1] * (pi->BPred[1]*mag_faci+pj->BPred[1]*mag_facj)*dx[1];
-  pi->a_hydro[1] += mj * pi->BPred[1] * (pi->BPred[2]*mag_faci+pj->BPred[2]*mag_facj)*dx[2];
-  pi->a_hydro[2] += mj * pi->BPred[2] * (pi->BPred[0]*mag_faci+pj->BPred[0]*mag_facj)*dx[0];
-  pi->a_hydro[2] += mj * pi->BPred[2] * (pi->BPred[1]*mag_faci+pj->BPred[1]*mag_facj)*dx[1];
-  pi->a_hydro[2] += mj * pi->BPred[2] * (pi->BPred[2]*mag_faci+pj->BPred[2]*mag_facj)*dx[2];
+  for(int i=0;i<3;++i)
+    for(int j=0;j<3;++j)
+	  pi->a_hydro[i] -= mj * pi->Bfld[i] * (pi->Bfld[j]*mag_faci+pj->Bfld[j]*mag_facj)*dx[j];
+/*  pi->a_hydro[0] -= mj * pi->BPred[0] * (pi->BPred[0]*mag_faci+pj->BPred[0]*mag_facj)*dx[0];
+  pi->a_hydro[0] -= mj * pi->BPred[0] * (pi->BPred[1]*mag_faci+pj->BPred[1]*mag_facj)*dx[1];
+  pi->a_hydro[0] -= mj * pi->BPred[0] * (pi->BPred[2]*mag_faci+pj->BPred[2]*mag_facj)*dx[2];
+  pi->a_hydro[1] -= mj * pi->BPred[1] * (pi->BPred[0]*mag_faci+pj->BPred[0]*mag_facj)*dx[0];
+  pi->a_hydro[1] -= mj * pi->BPred[1] * (pi->BPred[1]*mag_faci+pj->BPred[1]*mag_facj)*dx[1];
+  pi->a_hydro[1] -= mj * pi->BPred[1] * (pi->BPred[2]*mag_faci+pj->BPred[2]*mag_facj)*dx[2];
+  pi->a_hydro[2] -= mj * pi->BPred[2] * (pi->BPred[0]*mag_faci+pj->BPred[0]*mag_facj)*dx[0];
+  pi->a_hydro[2] -= mj * pi->BPred[2] * (pi->BPred[1]*mag_faci+pj->BPred[1]*mag_facj)*dx[1];
+  pi->a_hydro[2] -= mj * pi->BPred[2] * (pi->BPred[2]*mag_faci+pj->BPred[2]*mag_facj)*dx[2];
+*/
 #endif
 
   /* Get the time derivative for h. */

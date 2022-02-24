@@ -498,18 +498,18 @@ __attribute__((always_inline)) INLINE static void hydro_init_part(
   p->density.rot_v[2] = 0.f;
 #ifdef MHD_BASE
   p->divB    = 0.f;
-  p->Bsmooth[0] = 0.f;
-  p->Bsmooth[1] = 0.f;
-  p->Bsmooth[2] = 0.f;
+//  p->Bsmooth[0] = 0.f;
+//  p->Bsmooth[1] = 0.f;
+//  p->Bsmooth[2] = 0.f;
 #ifdef MHD_DI
   p->dBdt[0] = 0.f;
   p->dBdt[1] = 0.f;
   p->dBdt[2] = 0.f;
 #endif
 #ifdef MHD_EULER
-  p->Bfld[0] = 0.f;
-  p->Bfld[1] = 0.f;
-  p->Bfld[2] = 0.f;
+//  p->Bfld[0] = 0.f;
+//  p->Bfld[1] = 0.f;
+//  p->Bfld[2] = 0.f;
   for (int i = 0; i < 3; ++i) p->Grad_ep[0][i]=0.f;
   for (int i = 0; i < 3; ++i) p->Grad_ep[1][i]=0.f;
 #endif
@@ -568,10 +568,10 @@ __attribute__((always_inline)) INLINE static void hydro_end_density(
   p->density.div_v *= h_inv_dim_plus_one * a_inv2 * rho_inv;
 #ifdef MHD_BASE
   p->divB *= h_inv_dim_plus_one * a_inv2 * rho_inv;
-  p->Bsmooth[0] *= a_inv2 * rho_inv;
-  p->Bsmooth[1] *= a_inv2 * rho_inv;
-  p->Bsmooth[2] *= a_inv2 * rho_inv;
-  for (int i = 0; i < 3; i++) p->Bfld[i] = p->Bsmooth[i];
+//  p->Bsmooth[0] *= a_inv2 * rho_inv;
+//  p->Bsmooth[1] *= a_inv2 * rho_inv;
+//  p->Bsmooth[2] *= a_inv2 * rho_inv;
+//  for (int i = 0; i < 3; i++) p->Bfld[i] = p->Bsmooth[i];
 #ifdef MHD_DI
   p->dBdt[0] *= h_inv_dim_plus_one * a_inv2 * rho_inv;
   p->dBdt[1] *= h_inv_dim_plus_one * a_inv2 * rho_inv;
@@ -621,9 +621,9 @@ __attribute__((always_inline)) INLINE static void hydro_part_has_no_neighbours(
 // Remember to check if this is fine in every method
   p->divB    = 0.f;
 #ifdef MHD_EULER
-  p->Bfld[0] = 0.f;
-  p->Bfld[1] = 0.f;
-  p->Bfld[2] = 0.f;
+//  p->Bfld[0] = 0.f;
+//  p->Bfld[1] = 0.f;
+//  p->Bfld[2] = 0.f;
   for (int i = 0; i < 3; ++i) p->Grad_ep[0][i]=0.f;
   for (int i = 0; i < 3; ++i) p->Grad_ep[1][i]=0.f;
 #endif
@@ -759,7 +759,7 @@ __attribute__((always_inline)) INLINE static void hydro_reset_predicted_values(
   p->v[0] = xp->v_full[0];
   p->v[1] = xp->v_full[1];
   p->v[2] = xp->v_full[2];
-#ifdef MHD_BASE
+#ifdef MHD_DI
   p->BPred[0] = p->Bfld[0];
   p->BPred[1] = p->Bfld[1];
   p->BPred[2] = p->Bfld[2];
@@ -993,7 +993,7 @@ __attribute__((always_inline)) INLINE static void hydro_convert_quantities(
  */
 __attribute__((always_inline)) INLINE static void hydro_first_init_part(
     struct part *restrict p, struct xpart *restrict xp) {
-
+//CHECK
   p->time_bin = 0;
   xp->v_full[0] = p->v[0];
   xp->v_full[1] = p->v[1];

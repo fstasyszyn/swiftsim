@@ -95,7 +95,7 @@ for i in range(numPart):
         b[i,1] =  1.0 
         b[i,2] =  0.0
         epa[i] = pos[i,2]
-        epb[i] = 0.75*pos[i,1]+pos[i,0]
+        epb[i] = -0.75*pos[i,1]+pos[i,0]
     else:     #right
         u[i] = P_R / (rho_R * (gamma - 1.))
         m[i] = rho_R * vol_R / numPart_R
@@ -104,7 +104,7 @@ for i in range(numPart):
         b[i,1] = -1.0 
         b[i,2] =  0.0 
         epa[i] = pos[i,2]
-        epb[i] = 0.75*pos[i,1]-pos[i,0]
+        epb[i] = -0.75*pos[i,1]-pos[i,0]
         
 # Shift particles
 pos[:,0] -= x_min

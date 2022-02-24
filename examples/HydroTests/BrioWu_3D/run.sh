@@ -13,6 +13,6 @@ then
 fi
 
 # Run SWIFT
-../../swift --hydro --threads=4 BrioWu.yml 2>&1 | tee output.log
+../../swift --hydro --threads=8 BrioWu.yml 2>&1 | tee output.log
 
 #python plotSolution.py 1

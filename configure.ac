@@ -26,11 +26,11 @@ if test -n "$ac_unrecognized_opts"; then
         no)
         ;;
         fatal)
-            { AS_ECHO(["$as_me: error: unrecognized options: $ac_unrecognized_opts"]) >&2
+            { $as_echo "$as_me: error: unrecognized options: $ac_unrecognized_opts" >&2
               { (exit 1); exit 1; }; }
         ;;
         *)
-            AS_ECHO(["$as_me: WARNING: unrecognized options: $ac_unrecognized_opts"]) >&2
+            $as_echo "$as_me: WARNING: unrecognized options: $ac_unrecognized_opts" >&2
         ;;
     esac
 fi
@@ -47,7 +47,7 @@ AC_CONFIG_MACRO_DIR([m4])
 : ${CFLAGS=""}
 
 # Generate header file.
-AC_CONFIG_HEADERS(config.h)
+AM_CONFIG_HEADER(config.h)
 
 # Find and test the compiler.
 AX_CHECK_ENABLE_DEBUG
@@ -227,10 +227,7 @@ AC_ARG_VAR(MPIRUN, Path to the mpirun command if non-standard)
 LT_INIT
 
 # Need C99 and inline support.
-m4_warn([obsolete],
-[AC_PROG_CC_C99 is obsolete; use AC_PROG_CC
-])dnl
-AC_REQUIRE(AC_PROG_CC)
+AC_PROG_CC_C99
 AC_C_INLINE
 
 # If debugging try to show inlined functions.
@@ -382,7 +379,7 @@ AC_ARG_ENABLE([gravity-force-checks],
    [gravity_force_checks="$enableval"],
    [gravity_force_checks="no"]
 )
-if test "$gravity_force_checks" = "yes"; then
+if test "$gravity_force_checks" == "yes"; then
    AC_MSG_ERROR(Need to specify the fraction of particles to check when using --enable-gravity-force-checks!)
 elif test "$gravity_force_checks" != "no"; then
    AC_DEFINE_UNQUOTED([SWIFT_GRAVITY_FORCE_CHECKS], [$enableval] ,[Enable gravity brute-force checks])
@@ -396,7 +393,7 @@ AC_ARG_ENABLE([hydro-density-checks],
    [hydro_density_checks="$enableval"],
    [hydro_density_checks="no"]
 )
-if test "$hydro_density_checks" = "yes"; then
+if test "$hydro_density_checks" == "yes"; then
    AC_MSG_ERROR(Need to specify the fraction of particles to check when using --enable-hydro-density-checks!)
 elif test "$hydro_density_checks" != "no"; then
    AC_DEFINE_UNQUOTED([SWIFT_HYDRO_DENSITY_CHECKS], [$enableval] ,[Enable hydro density brute-force checks])
@@ -410,7 +407,7 @@ AC_ARG_ENABLE([stars-density-checks],
    [stars_density_checks="$enableval"],
    [stars_density_checks="no"]
 )
-if test "$stars_density_checks" = "yes"; then
+if test "$stars_density_checks" == "yes"; then
    AC_MSG_ERROR(Need to specify the fraction of particles to check when using --enable-stars-density-checks!)
 elif test "$stars_density_checks" != "no"; then
    AC_DEFINE_UNQUOTED([SWIFT_STARS_DENSITY_CHECKS], [$enableval] ,[Enable stars density brute-force checks])
@@ -424,7 +421,7 @@ AC_ARG_ENABLE([glass-making],
    [gravity_glass_making="$enableval"],
    [gravity_glass_making="no"]
 )
-if test "$gravity_glass_making" = "yes"; then
+if test "$gravity_glass_making" == "yes"; then
    AC_DEFINE([SWIFT_MAKE_GRAVITY_GLASS], 1, [Make the code run in a way to produce a glass file for gravity/cosmology])
 fi
 
@@ -436,7 +433,7 @@ AC_ARG_ENABLE([no-gravity-below-id],
    [no_gravity_below_id="$enableval"],
    [no_gravity_below_id="no"]
 )
-if test "$no_gravity_below_id" = "yes"; then
+if test "$no_gravity_below_id" == "yes"; then
    AC_MSG_ERROR(Need to specify the ID below which particles get zero forces when using --enable-no-gravity-below-id!)
 elif test "$no_gravity_below_id" != "no"; then
    AC_DEFINE_UNQUOTED([SWIFT_NO_GRAVITY_BELOW_ID], [$enableval] ,[Particles with smaller ID than this will have zero gravity forces])
@@ -701,15 +698,7 @@ AC_ARG_ENABLE([mpi-mesh-gravity],
 # Autoconf stuff.
 AC_PROG_INSTALL
 AC_PROG_MAKE_SET
-m4_warn([obsolete],
-[The preprocessor macro `STDC_HEADERS' is obsolete.
-  Except in unusual embedded environments, you can safely include all
-  ISO C90 headers unconditionally.])dnl
-# Autoupdate added the next two lines to ensure that your configure
-# script's behavior did not change.  They are probably safe to remove.
-AC_CHECK_INCLUDES_DEFAULT
-AC_PROG_EGREP
-
+AC_HEADER_STDC
 
 # Check for the libraries we will need.
 AC_CHECK_LIB(m,sqrt,,AC_MSG_ERROR(something is wrong with the math library!))
@@ -1497,20 +1486,7 @@ AC_CHECK_HEADERS([altivec.h], [], [],
 ])
 
 # Check for timing functions needed by cycle.h.
-m4_warn([obsolete],
-[Update your code to rely only on HAVE_SYS_TIME_H,
-then remove this warning and the obsolete code below it.
-All current systems provide time.h; it need not be checked for.
-Not all systems provide sys/time.h, but those that do, all allow
-you to include it and time.h simultaneously.])dnl
-AC_CHECK_HEADERS_ONCE([sys/time.h])
-# Obsolete code to be removed.
-if test $ac_cv_header_sys_time_h = yes; then
-  AC_DEFINE([TIME_WITH_SYS_TIME],[1],[Define to 1 if you can safely include both <sys/time.h>
-	     and <time.h>.  This macro is obsolete.])
-fi
-# End of obsolete code.
-
+AC_HEADER_TIME
 AC_CHECK_HEADERS([sys/time.h c_asm.h intrinsics.h mach/mach_time.h])
 AC_CHECK_TYPE([hrtime_t],[AC_DEFINE(HAVE_HRTIME_T, 1, [Define to 1 if hrtime_t
 is defined in <sys/time.h>])],,
@@ -2848,10 +2824,3 @@ AC_MSG_RESULT([
 
  ------------------------]
 )
-
-#  Report any unrecognised options loudly.
-if test "$ac_unrecognized_opts" != ""; then
-AC_MSG_RESULT([
-  *** WARNING: unrecognized options: $ac_unrecognized_opts ***
-])
-fi
