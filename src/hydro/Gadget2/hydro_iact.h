@@ -641,7 +641,6 @@ __attribute__((always_inline)) INLINE static void runner_iact_force(
 #ifndef MHD_BASE
   const float v_sig = ci + cj - const_viscosity_beta * mu_ij;
 #else
-  // CHECK MU0
   const float b2_i = (pi->BPred[0]*pi->BPred[0] + pi->BPred[1]*pi->BPred[1] + pi->BPred[2]*pi->BPred[2] );
   const float b2_j = (pj->BPred[0]*pj->BPred[0] + pj->BPred[1]*pj->BPred[1] + pj->BPred[2]*pj->BPred[2] ); 
   float vcsa2_i = ci * ci + min(MU0_1 * b2_i/rhoi,10.0*ci*ci); 

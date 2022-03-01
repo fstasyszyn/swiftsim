@@ -122,6 +122,31 @@ struct part {
   /*! Particle density. */
   float rho;
 
+#ifdef MHD_BASE 
+  /* Magnetic field */
+  float Bfld[3];
+  float BPred[3];
+  float divB;
+  float Bsmooth[3];
+#ifdef MHD_DI 
+  /* Direct Induction */
+  float dBdt[3];
+#endif
+#ifdef MHD_APOT 
+  /* Vector Potential */
+  float Apot[3];
+  float APred[3];
+  float dAdt[3];
+  float divA,GauA;
+#endif
+
+#ifdef MHD_EULER 
+  /* Euler Potentials */
+  float ep[2]; // alpha and beta
+  float Grad_ep[2][3];
+#endif
+#endif
+
   /* Store density/force specific stuff. */
   union {
 

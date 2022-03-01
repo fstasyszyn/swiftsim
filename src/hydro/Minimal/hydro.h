@@ -446,8 +446,15 @@ __attribute__((always_inline)) INLINE static float hydro_compute_timestep(
   /* CFL condition */
   const float dt_cfl = 2.f * kernel_gamma * CFL_condition * cosmo->a * p->h /
                        (cosmo->a_factor_sound_speed * p->force.v_sig);
-
+#ifndef MHD_BASE  
   return dt_cfl;
+#else  
+  //Check if really needed
+  const float MU0_1 = 1.0/(4.0*M_PI);
+  float dt_divB=0.f;
+  dt_divB = p->divB != 0.f ? 2.f * p->h * sqrtf( p->rho /(MU0_1*p->divB *p->divB)) : dt_cfl;
+  return min(dt_cfl,dt_divB);
+#endif
 }
 
 /**
@@ -481,6 +488,13 @@ __attribute__((always_inline)) INLINE static void hydro_init_part(
   p->density.rot_v[0] = 0.f;
   p->density.rot_v[1] = 0.f;
   p->density.rot_v[2] = 0.f;
+#ifdef MHD_BASE
+  p->divB    = 0.f;
+#ifdef MHD_EULER
+  for (int i = 0; i < 3; ++i) p->Grad_ep[0][i]=0.f;
+  for (int i = 0; i < 3; ++i) p->Grad_ep[1][i]=0.f;
+#endif
+#endif
 }
 
 /**
@@ -527,6 +541,16 @@ __attribute__((always_inline)) INLINE static void hydro_end_density(
 
   /* Finish calculation of the (physical) velocity divergence */
   p->density.div_v *= h_inv_dim_plus_one * a_inv2 * rho_inv;
+#ifdef MHD_BASE
+  p->divB *= h_inv_dim_plus_one * a_inv2 * rho_inv;
+#ifdef MHD_EULER // COSMOLOGICAL PARAM
+  for (int i = 0; i < 3; i++) p->Grad_ep[0][i] *= h_inv_dim_plus_one * cosmo->a_inv * rho_inv;
+  for (int i = 0; i < 3; i++) p->Grad_ep[1][i] *= h_inv_dim_plus_one * cosmo->a_inv * rho_inv;
+  for (int i = 0; i < 3; i++) p->Bfld[i] = p->Grad_ep[0][(i+1)%3]*p->Grad_ep[1][(i+2)%3]
+  			                 - p->Grad_ep[0][(i+2)%3]*p->Grad_ep[1][(i+1)%3];
+  for (int i = 0; i < 3; i++) p->BPred[i] = p->Bfld[i];
+#endif
+#endif
 }
 
 /**
@@ -563,6 +587,13 @@ __attribute__((always_inline)) INLINE static void hydro_part_has_no_neighbours(
   p->density.rot_v[0] = 0.f;
   p->density.rot_v[1] = 0.f;
   p->density.rot_v[2] = 0.f;
+#ifdef MHD_BASE
+  p->divB    = 0.f;
+#ifdef MHD_EULER
+  for (int i = 0; i < 3; ++i) p->Grad_ep[0][i]=0.f;
+  for (int i = 0; i < 3; ++i) p->Grad_ep[1][i]=0.f;
+#endif
+#endif
 }
 
 /**
