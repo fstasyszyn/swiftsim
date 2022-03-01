@@ -626,9 +626,13 @@ __attribute__((always_inline)) INLINE static void runner_iact_force(
   const float dvdr_Hubble = dvdr + a2_Hubble * r2;
 
   /* Balsara term */
+#ifndef MHD_BASE
   const float balsara_i = pi->force.balsara;
   const float balsara_j = pj->force.balsara;
-
+#else // NO SHEAR VISCOSITY DELIMITER
+  const float balsara_i = 1.f;
+  const float balsara_j = 1.f;
+#endif
   /* Are the particles moving towards each others ? */
   const float omega_ij = min(dvdr_Hubble, 0.f);
   const float mu_ij = fac_mu * r_inv * omega_ij; /* This is 0 or negative */
@@ -640,10 +644,10 @@ __attribute__((always_inline)) INLINE static void runner_iact_force(
   // CHECK MU0
   const float b2_i = (pi->BPred[0]*pi->BPred[0] + pi->BPred[1]*pi->BPred[1] + pi->BPred[2]*pi->BPred[2] );
   const float b2_j = (pj->BPred[0]*pj->BPred[0] + pj->BPred[1]*pj->BPred[1] + pj->BPred[2]*pj->BPred[2] ); 
-  //float vcsa2_i = ci * ci + min(MU0_1 * b2_i/rhoi,10.0*ci*ci); 
-  //float vcsa2_j = cj * cj + min(MU0_1 * b2_j/rhoj,10.0*cj*cj); 
-  const float vcsa2_i = ci * ci + MU0_1 * b2_i/rhoi; 
-  const float vcsa2_j = cj * cj + MU0_1 * b2_j/rhoj; 
+  float vcsa2_i = ci * ci + min(MU0_1 * b2_i/rhoi,10.0*ci*ci); 
+  float vcsa2_j = cj * cj + min(MU0_1 * b2_j/rhoj,10.0*cj*cj); 
+  //const float vcsa2_i = ci * ci + MU0_1 * b2_i/rhoi; 
+  //const float vcsa2_j = cj * cj + MU0_1 * b2_j/rhoj; 
   float Bpro2_i = (pi->BPred[0]*dx[0]+ pi->BPred[1]*dx[1]+ pi->BPred[2]*dx[2]) * r_inv;
         Bpro2_i *= Bpro2_i;
   float mag_speed_i = sqrtf(0.5 * (vcsa2_i + 
@@ -871,8 +875,13 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_force(
   const float dvdr_Hubble = dvdr + a2_Hubble * r2;
 
   /* Balsara term */
+#ifndef MHD_BASE
   const float balsara_i = pi->force.balsara;
   const float balsara_j = pj->force.balsara;
+#else // NO SHEAR VISCOSITY DELIMITER
+  const float balsara_i = 1.f;
+  const float balsara_j = 1.f;
+#endif
 
   /* Are the particles moving towards each others ? */
   const float omega_ij = min(dvdr_Hubble, 0.f);
@@ -884,10 +893,10 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_force(
 #else
   const float b2_i = (pi->BPred[0]*pi->BPred[0] + pi->BPred[1]*pi->BPred[1] + pi->BPred[2]*pi->BPred[2] );
   const float b2_j = (pj->BPred[0]*pj->BPred[0] + pj->BPred[1]*pj->BPred[1] + pj->BPred[2]*pj->BPred[2] ); 
-  //float vcsa2_i = ci * ci + min(MU0_1 * b2_i/rhoi,10.0*ci*ci); 
-  //float vcsa2_j = cj * cj + min(MU0_1 * b2_j/rhoj,10.0*cj*cj); 
-  const float vcsa2_i = ci * ci + MU0_1 * b2_i/rhoi; 
-  const float vcsa2_j = cj * cj + MU0_1 * b2_j/rhoj; 
+  float vcsa2_i = ci * ci + min(MU0_1 * b2_i/rhoi,10.0*ci*ci); 
+  float vcsa2_j = cj * cj + min(MU0_1 * b2_j/rhoj,10.0*cj*cj); 
+  //const float vcsa2_i = ci * ci + MU0_1 * b2_i/rhoi; 
+  //const float vcsa2_j = cj * cj + MU0_1 * b2_j/rhoj; 
   float Bpro2_i = (pi->BPred[0]*dx[0]+ pi->BPred[1]*dx[1]+ pi->BPred[2]*dx[2]) * r_inv;
         Bpro2_i *= Bpro2_i;
   float mag_speed_i = sqrtf(0.5 * (vcsa2_i + 
