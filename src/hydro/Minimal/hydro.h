@@ -400,7 +400,11 @@ hydro_set_v_sig_based_on_velocity_kick(struct part *p,
 
   /* Update the signal velocity */
   p->force.v_sig =
+#ifndef MHD_BASE
       max(2.f * soundspeed, p->force.v_sig + const_viscosity_beta * dv);
+#else
+      max(2.f * soundspeed, p->force.v_sig + const_viscosity_beta/2.f * dv);
+#endif
 }
 
 /**

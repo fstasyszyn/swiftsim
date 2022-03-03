@@ -64,6 +64,9 @@ vol_R = 0.25
 
 # Generate extra arrays
 v = zeros((numPart, 3))
+b   = zeros((numPart, 3))
+epa = zeros(numPart)
+epb = zeros(numPart)
 ids = linspace(1, numPart, numPart)
 m = zeros(numPart)
 u = zeros(numPart)
@@ -114,6 +117,9 @@ grp.create_dataset("Masses", data=m, dtype="f")
 grp.create_dataset("SmoothingLength", data=h, dtype="f")
 grp.create_dataset("InternalEnergy", data=u, dtype="f")
 grp.create_dataset("ParticleIDs", data=ids, dtype="L")
+grp.create_dataset("Bfield", data = b, dtype = 'f')
+grp.create_dataset("EPalpha", data = epa, dtype = 'f')
+grp.create_dataset("EPbeta" , data = epb, dtype = 'f')
 
 
 file.close()

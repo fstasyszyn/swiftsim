@@ -36,6 +36,11 @@
 #include "hydro_parameters.h"
 #include "minmax.h"
 
+#ifdef MHD_EULER_TEST
+#include "periodic.h"
+#include "space.h"
+#endif
+
 /**
  * @brief Density interaction between two particles.
  *
@@ -140,8 +145,9 @@ __attribute__((always_inline)) INLINE static void runner_iact_density(
 #endif
 #if MHD_EULER_TEST == 2
 // VORTEX
-  const float LBOX=1.0;
-  dbeta  = (( dbeta  > LBOX/2.0 ) ? dbeta-LBOX  : ( ( dbeta  < -LBOX/2.0 ) ? dbeta+LBOX : dbeta));
+//  const float LBOX=1.0;
+//  dbeta  = (( dbeta  > LBOX/2.0 ) ? dbeta-LBOX  : ( ( dbeta  < -LBOX/2.0 ) ? dbeta+LBOX : dbeta));
+  dbeta = nearest(dbeta, engine_extra_dims[2]);
 #endif
   for(int i=0;i<3;++i) 
   { 
@@ -242,8 +248,9 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_density(
 #endif
 #if MHD_EULER_TEST == 2
 // VORTEX
-  const float LBOX=1.0;
-  dbeta  = (( dbeta  > LBOX/2.0 ) ? dbeta-LBOX  : ( ( dbeta  < -LBOX/2.0 ) ? dbeta+LBOX : dbeta));
+  //const float LBOX=1.0;
+  //dbeta  = (( dbeta  > LBOX/2.0 ) ? dbeta-LBOX  : ( ( dbeta  < -LBOX/2.0 ) ? dbeta+LBOX : dbeta));
+  dbeta = nearest(dbeta, engine_extra_dims[2]);
 #endif
   for(int i=0;i<3;++i){  
   pi->Grad_ep[0][i] += faci * dalpha * dx[i];
@@ -363,6 +370,7 @@ __attribute__((always_inline)) INLINE static void runner_iact_force(
   		      sqrtf(max(  (vcsa2_j * vcsa2_j - 4. * cj * cj * Bpro2_j * MU0_1 / rhoj),0.0))));
 
   const float v_sig = (mag_speed_i + mag_speed_j - const_viscosity_beta/2.0 * mu_ij);
+//  const float v_sig = ci + cj - const_viscosity_beta * mu_ij;
   /* Grab balsara switches */
   const float balsara_i = 1.f;
   const float balsara_j = 1.f;
@@ -553,6 +561,7 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_force(
   		      sqrtf(max(  (vcsa2_j * vcsa2_j - 4. * cj * cj * Bpro2_j * MU0_1 / rhoj),0.0))));
 
   const float v_sig = (mag_speed_i + mag_speed_j - const_viscosity_beta/2.0 * mu_ij);
+//  const float v_sig = ci + cj - const_viscosity_beta * mu_ij;
   /* Grab balsara switches */
   const float balsara_i = 1.f;
   const float balsara_j = 1.f;

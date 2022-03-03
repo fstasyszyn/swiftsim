@@ -38,7 +38,9 @@
 
 /* This object's header. */
 #include "space.h"
-
+#ifdef MHD_EULER_TEST
+  float engine_extra_dims[3];
+#endif
 /* Local headers. */
 #include "active.h"
 #include "atomic.h"
@@ -1191,7 +1193,11 @@ void space_init(struct space *s, struct swift_params *params,
   if (dim[0] <= 0. || dim[1] <= 0. || dim[2] <= 0.)
     error("Invalid box size: [%f, %f, %f]", dim[0], dim[1], dim[2]);
 #endif
-
+#ifdef MHD_EULER_TEST
+  engine_extra_dims[0]=dim[0];
+  engine_extra_dims[1]=dim[1];
+  engine_extra_dims[2]=dim[2];
+#endif
   /* Initiate some basic randomness */
   srand(42);
 

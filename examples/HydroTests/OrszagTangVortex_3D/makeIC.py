@@ -34,19 +34,23 @@ fileOutputName = "OrszagTangVortex.hdf5"
 
 #---------------------------------------------------
 
-glass = h5py.File("glassCube_64.hdf5", 'r')
+#glass = h5py.File("glassCube_64.hdf5", 'r')
+#glass = h5py.File("glassCube_32.hdf5", 'r')
+glass = h5py.File("glassCube_16.hdf5", 'r')
+#glass = h5py.File("glassCube_8.hdf5", 'r')
 pos = glass["/PartType0/Coordinates"][:, :]
 h = glass["/PartType0/SmoothingLength"][:]
 
 Nold = len(h)
+times = 12
 ############ NEW
-cx = 1
-cy = 1
+cx = times
+cy = times
 cz = 1
 
 lx = 1.0
 ly = 1.0
-lz = 1.0 #/float(cx)
+lz = 1.0/float(times) #becasue 2D
 
 pnew = np.zeros((int(Nold*cx*cy*cz), 3))
 hnew = np.zeros(int(Nold*cx*cy*cz))

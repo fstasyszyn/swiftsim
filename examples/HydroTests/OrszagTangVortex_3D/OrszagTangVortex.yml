@@ -11,7 +11,7 @@ TimeIntegration:
   time_begin: 0.    # The starting time of the simulation (in internal units).
   time_end:   1.0    # The end time of the simulation (in internal units).
   dt_min:     1e-7  # The minimal time-step size of the simulation (in internal units).
-  dt_max:     1e-2  # The maximal time-step size of the simulation (in internal units).
+  dt_max:     1e-3  # The maximal time-step size of the simulation (in internal units).
 
 # Parameters governing the snapshots
 Snapshots:
@@ -27,8 +27,8 @@ Statistics:
 # Parameters for the hydrodynamics scheme
 SPH:
   resolution_eta:        1.2348   # Target smoothing length in units of the mean inter-particle separation (1.2348 == 48Ngbs with the cubic spline kernel).
-  CFL_condition:         0.75    # Courant-Friedrich-Levy condition for time integration.
-  viscosity_alpha:       0.8
+  CFL_condition:         0.075    # Courant-Friedrich-Levy condition for time integration.
+  viscosity_alpha:       1.8
   
 # Parameters related to the initial conditions
 InitialConditions:
@@ -36,6 +36,6 @@ InitialConditions:
   periodic:   1
 
 Scheduler:
-  max_top_level_cells:   32
+  max_top_level_cells:   64
   tasks_per_cell:        100
   cell_split_size:       200

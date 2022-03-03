@@ -86,7 +86,9 @@ extern int space_extra_bparts;
 extern int space_extra_sinks;
 extern double engine_redistribute_alloc_margin;
 extern double engine_foreign_alloc_margin;
-
+#ifdef MHD_EULER_TEST
+extern float engine_extra_dims[3];
+#endif
 /**
  * @brief The space in which the cells and particles reside.
  */

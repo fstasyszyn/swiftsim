@@ -62,8 +62,8 @@ params = {
     "lines.linewidth": 3.0,
     "text.latex.unicode": True,
 }
-rcParams.update(params)
-rc("font", **{"family": "sans-serif", "sans-serif": ["Times"]})
+#rcParams.update(params)
+#rc("font", **{"family": "sans-serif", "sans-serif": ["Times"]})
 
 
 snap = int(sys.argv[1])
@@ -391,7 +391,7 @@ text(
     fontsize=10,
 )
 plot([-0.49, 0.1], [0.62, 0.62], "k-", lw=1)
-text(-0.49, 0.5, "$\\textsc{Swift}$ %s" % git, fontsize=10)
+#text(-0.49, 0.5, "$\\textsc{Swift}$ %s" % git, fontsize=10)
 text(-0.49, 0.4, scheme, fontsize=10)
 text(-0.49, 0.3, kernel, fontsize=10)
 text(-0.49, 0.2, "$%.2f$ neighbours ($\\eta=%.3f$)" % (neighbours, eta), fontsize=10)
