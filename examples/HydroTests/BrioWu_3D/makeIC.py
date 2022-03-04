@@ -22,12 +22,12 @@ import h5py
 from numpy import *
 
 # Generates a swift IC file for the BrioWu in a periodic box
-times = 8 # Number pf Cubes smashed
+times = 8 # Number pf Cubes smashed in each side
 
 # Parameters
 gamma = 2.          # Gas adiabatic index
-x_min = -times/2.
-x_max =  times/2.
+x_min = -times
+x_max =  times
 rho_L = 1.             # Density left state
 rho_R = 0.125          # Density right state
 v_L = 0.               # Velocity left state
@@ -38,10 +38,12 @@ fileName = "BrioWu.hdf5"
 
 
 #---------------------------------------------------
-boxSize = (x_max - x_min)
+boxSide = (x_max - x_min)
 
-glass_L = h5py.File("glassCube_64.hdf5", "r")
-glass_R = h5py.File("glassCube_32.hdf5", "r")
+#glass_L = h5py.File("glassCube_64.hdf5", "r")
+#glass_R = h5py.File("glassCube_32.hdf5", "r")
+glass_L = h5py.File("glassCube_32.hdf5", "r")
+glass_R = h5py.File("glassCube_16.hdf5", "r")
 
 pos_L = glass_L["/PartType0/Coordinates"][:,:] 
 pos_R = glass_R["/PartType0/Coordinates"][:,:]
@@ -51,27 +53,26 @@ print(size(h_L),size(h_R))
 # Merge things
 #aa = pos_L - array([0.5, 0., 0.])
 pos_LL = append(pos_L, pos_L  + array([1.0, 0., 0.]), axis=0)
-pos_LL = append(pos_LL, pos_L + array([2.0, 0., 0.]), axis=0)
-pos_LL = append(pos_LL, pos_L + array([3.0, 0., 0.]), axis=0)
 pos_RR = append(pos_R, pos_R  + array([1.0, 0., 0.]), axis=0)
-pos_RR = append(pos_RR, pos_R + array([2.0, 0., 0.]), axis=0)
-pos_RR = append(pos_RR, pos_R + array([3.0, 0., 0.]), axis=0)
-pos = append(pos_LL - array([times/2., 0., 0.]), pos_RR, axis=0)
-
 h_LL = append(h_L, h_L)
-h_LL = append(h_LL, h_L)
-h_LL = append(h_LL, h_L)
 h_RR = append(h_R, h_R)
-h_RR = append(h_RR, h_R)
-h_RR = append(h_RR, h_R)
+
+for i in range(2,times):
+    pos_LL = append(pos_LL, pos_L + array([float(i), 0., 0.]), axis=0)
+    pos_RR = append(pos_RR, pos_R + array([float(i), 0., 0.]), axis=0)
+    h_LL = append(h_LL, h_L)
+    h_RR = append(h_RR, h_R)
+
+
+pos = append(pos_LL - array([times, 0., 0.]), pos_RR, axis=0)
 h = append(h_LL, h_RR)
 
 numPart_L = size(h_LL)
 numPart_R = size(h_RR)
 numPart = size(h)
 
-vol_L = 1.0*1.0*boxSize/2.
-vol_R = 1.0*1.0*boxSize/2.
+vol_L = 1.0*1.0*boxSide/2.
+vol_R = 1.0*1.0*boxSide/2.
 
 # Generate extra arrays
 v   = zeros((numPart, 3))
@@ -113,7 +114,7 @@ file = h5py.File(fileName, 'w')
 
 # Header
 grp = file.create_group("/Header")
-grp.attrs["BoxSize"] = [boxSize, 1.0, 1.0]
+grp.attrs["BoxSize"] = [boxSide, 1.0, 1.0]
 grp.attrs["NumPart_Total"] =  [numPart, 0, 0, 0, 0, 0]
 grp.attrs["NumPart_Total_HighWord"] = [0, 0, 0, 0, 0, 0]
 grp.attrs["NumPart_ThisFile"] = [numPart, 0, 0, 0, 0, 0]

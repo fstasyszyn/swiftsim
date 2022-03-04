@@ -139,9 +139,11 @@ __attribute__((always_inline)) INLINE static void runner_iact_density(
 
 #if MHD_EULER_TEST == 1
 // BrioWu
-  const float LBOX=1.0;
-  dalpha = (( dalpha > LBOX/2.0 ) ? dalpha-LBOX : ( ( dalpha < -LBOX/2.0 ) ? dalpha+LBOX: dalpha));
-  dbeta  = (( dbeta > 0.75*LBOX/2.0 ) ? dbeta-0.75*LBOX : ( ( dbeta < -0.75*LBOX/2.0 ) ? dbeta+0.75*LBOX: dbeta));
+//  const float LBOX=1.0;
+//  dalpha = (( dalpha > LBOX/2.0 ) ? dalpha-LBOX : ( ( dalpha < -LBOX/2.0 ) ? dalpha+LBOX: dalpha));
+//  dbeta  = (( dbeta > 0.75*LBOX/2.0 ) ? dbeta-0.75*LBOX : ( ( dbeta < -0.75*LBOX/2.0 ) ? dbeta+0.75*LBOX: dbeta));
+  dalpha = nearest(dalpha, engine_extra_dims[2]);
+  dbeta  = nearest(dbeta, 0.75*engine_extra_dims[1]);
 #endif
 #if MHD_EULER_TEST == 2
 // VORTEX
@@ -242,9 +244,11 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_density(
   
 #if MHD_EULER_TEST == 1
 // BrioWu
-  const float LBOX=1.0;
-  dalpha = (( dalpha > LBOX/2.0 ) ? dalpha-LBOX : ( ( dalpha < -LBOX/2.0 ) ? dalpha+LBOX: dalpha));
-  dbeta  = (( dbeta > 0.75*LBOX/2.0 ) ? dbeta-0.75*LBOX : ( ( dbeta < -0.75*LBOX/2.0 ) ? dbeta+0.75*LBOX: dbeta));
+//  const float LBOX=1.0;
+//  dalpha = (( dalpha > LBOX/2.0 ) ? dalpha-LBOX : ( ( dalpha < -LBOX/2.0 ) ? dalpha+LBOX: dalpha));
+//  dbeta  = (( dbeta > 0.75*LBOX/2.0 ) ? dbeta-0.75*LBOX : ( ( dbeta < -0.75*LBOX/2.0 ) ? dbeta+0.75*LBOX: dbeta));
+  dalpha = nearest(dalpha, engine_extra_dims[2]);
+  dbeta  = nearest(dbeta, 0.75*engine_extra_dims[1]);
 #endif
 #if MHD_EULER_TEST == 2
 // VORTEX
