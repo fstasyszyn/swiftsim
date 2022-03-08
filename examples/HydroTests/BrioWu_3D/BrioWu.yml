@@ -36,4 +36,4 @@ InitialConditions:
   periodic:   1
 
 Scheduler:
-  max_top_level_cells: 64
+  max_top_level_cells: 128
