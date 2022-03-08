@@ -73,8 +73,8 @@ for i in range(0,cx):
 print(len(pnew[:,1])," / ",N)
 pos=pnew
 pnew=0
-pos[:,0]=pos[:,0]*lx/cx-0.5
-pos[:,1]=pos[:,1]*ly/cy-0.5
+pos[:,0]=pos[:,0]*lx/cx#-0.5
+pos[:,1]=pos[:,1]*ly/cy#-0.5
 pos[:,2]=pos[:,2]*lz/cz
 h=hnew/cx
 hnew=0
@@ -99,8 +99,8 @@ b[:, 2] =  0.
 epa[:]  = B0*(np.cos(2.*np.pi*pos[:,1])/(2.*np.pi) + np.cos(4.*np.pi*pos[:,0])/(4.*np.pi))
 epb[:]  = pos[:,2]
 
-pos[:,0]=pos[:,0]+0.5
-pos[:,1]=pos[:,1]+0.5
+pos[:,0]=pos[:,0]#+0.5
+pos[:,1]=pos[:,1]#+0.5
             
 #File
 fileOutput = h5py.File(fileOutputName, 'w')

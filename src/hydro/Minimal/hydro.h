@@ -454,7 +454,7 @@ __attribute__((always_inline)) INLINE static float hydro_compute_timestep(
   return dt_cfl;
 #else  
   //Check if really needed
-  const float MU0_1 = 1.0/(4.0*M_PI);
+  //const float MU0_1 = 1.0/(4.0*M_PI);
   float dt_divB=0.f;
   dt_divB = p->divB != 0.f ? 2.f * p->h * sqrtf( p->rho /(MU0_1*p->divB *p->divB)) : dt_cfl;
   return min(dt_cfl,dt_divB);

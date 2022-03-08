@@ -282,14 +282,14 @@ __attribute__((always_inline)) INLINE static void runner_iact_force(
     struct part *restrict pi, struct part *restrict pj, const float a,
     const float H) {
 
-#ifdef MHD_BASE
+/*#ifdef MHD_BASE
 #ifdef MHD_EULER_TEST
   const float MU0_1 = 1.0;
 #else
   const float MU0_1 = 1.0/(4.0*M_PI);
 #endif
 #endif
-
+*/
 #ifdef SWIFT_DEBUG_CHECKS
   if (pi->time_bin >= time_bin_inhibited)
     error("Inhibited pi in interaction function!");
@@ -473,13 +473,6 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_force(
     struct part *restrict pi, const struct part *restrict pj, const float a,
     const float H) {
 
-#ifdef MHD_BASE
-#ifdef MHD_EULER_TEST
-  const float MU0_1 = 1.0;
-#else
-  const float MU0_1 = 1.0/(4.0*M_PI);
-#endif
-#endif
 
 #ifdef SWIFT_DEBUG_CHECKS
   if (pi->time_bin >= time_bin_inhibited)
