@@ -66,6 +66,10 @@ struct xpart {
   /*! Internal energy at the last full step. */
   float u_full;
 
+#ifdef MHD_BASE 
+  /*! Bfield/Bflux denisty at full step */ 
+  float Bfld[3];
+#endif
   /*! Additional data used to record particle splits */
   struct particle_splitting_data split_data;
 
@@ -122,13 +126,24 @@ struct part {
   /*! Particle density. */
   float rho;
 
+// IF MHD_ORESTIS
+  ///*! Particle magnetic flux density over density. */
+  //float B_over_rho[3];
+  ///*! Time derivative of the magnetic field. */
+  //float B_over_rho_dt[3];
+  ///*! Monopole term in momentum equation. */
+  //float B_mon;
+  /*! Magnetic flux density at the full step. */
+  //float B_over_rho_full[3];
 #ifdef MHD_BASE 
   /* Magnetic field */
-  float Bfld[3];
+  //float Bfld[3];
+  /*! Bfield/Bflux density */ 
   float BPred[3];
+  /*! Divergence of B */
   float divB;
   float Bsmooth[3];
-#ifdef MHD_DI 
+#if defined(MHD_DI) || defined(MHD_ORESTIS) 
   /* Direct Induction */
   float dBdt[3];
 #endif

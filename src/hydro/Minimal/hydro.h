@@ -550,9 +550,9 @@ __attribute__((always_inline)) INLINE static void hydro_end_density(
 #ifdef MHD_EULER // COSMOLOGICAL PARAM
   for (int i = 0; i < 3; i++) p->Grad_ep[0][i] *= h_inv_dim_plus_one * cosmo->a_inv * rho_inv;
   for (int i = 0; i < 3; i++) p->Grad_ep[1][i] *= h_inv_dim_plus_one * cosmo->a_inv * rho_inv;
-  for (int i = 0; i < 3; i++) p->Bfld[i] = p->Grad_ep[0][(i+1)%3]*p->Grad_ep[1][(i+2)%3]
+  for (int i = 0; i < 3; i++) p->BPred[i] = p->Grad_ep[0][(i+1)%3]*p->Grad_ep[1][(i+2)%3]
   			                 - p->Grad_ep[0][(i+2)%3]*p->Grad_ep[1][(i+1)%3];
-  for (int i = 0; i < 3; i++) p->BPred[i] = p->Bfld[i];
+//  for (int i = 0; i < 3; i++) p->BPred[i] = p->Bfld[i];
 #endif
 #endif
 }
@@ -708,6 +708,11 @@ __attribute__((always_inline)) INLINE static void hydro_reset_acceleration(
   p->u_dt = 0.0f;
   p->force.h_dt = 0.0f;
   p->force.v_sig = 2.f * p->force.soundspeed;
+#ifdef MHD_ORESTIS
+  p->dBdt[0] = 0.0f;
+  p->dBdt[1] = 0.0f;
+  p->dBdt[2] = 0.0f;
+#endif
 }
 
 /**
@@ -730,6 +735,13 @@ __attribute__((always_inline)) INLINE static void hydro_reset_predicted_values(
   /* Re-set the entropy */
   p->u = xp->u_full;
 
+#ifdef MHD_ORESTIS
+  /* Re-set the predicted magnetic flux densities */
+  /* Re-set the predicted magnetic field */
+  p->BPred[0] = xp->Bfld[0];
+  p->BPred[1] = xp->Bfld[1];
+  p->BPred[2] = xp->Bfld[2];
+#endif
   /* Re-compute the pressure */
   const float pressure = gas_pressure_from_internal_energy(p->rho, p->u);
 
@@ -769,6 +781,12 @@ __attribute__((always_inline)) INLINE static void hydro_predict_extra(
   /* Predict the internal energy */
   p->u += p->u_dt * dt_therm;
 
+#ifdef MHD_ORESTIS
+  /* Predict the magnetic flux density */
+  p->BPred[0] += p->dBdt[0] * dt_therm;
+  p->BPred[1] += p->dBdt[1] * dt_therm;
+  p->BPred[2] += p->dBdt[2] * dt_therm;
+#endif
   const float h_inv = 1.f / p->h;
 
   /* Predict smoothing length */
@@ -853,9 +871,21 @@ __attribute__((always_inline)) INLINE static void hydro_kick_extra(
   /* Integrate the internal energy forward in time */
   const float delta_u = p->u_dt * dt_therm;
 
+#ifdef MHD_ORESTIS
+  /* Integrate the magnetic flux density forward in time */
+  const float delta_Bx = p->dBdt[0] * dt_therm;
+  const float delta_By = p->dBdt[1] * dt_therm;
+  const float delta_Bz = p->dBdt[2] * dt_therm;
+#endif
   /* Do not decrease the energy by more than a factor of 2*/
   xp->u_full = max(xp->u_full + delta_u, 0.5f * xp->u_full);
 
+#ifdef MHD_ORESTIS  
+  /* Do not decrease the magnetic flux density by more than a factor of 2*/
+  xp->Bfld[0] = xp->Bfld[0] + delta_Bx;
+  xp->Bfld[1] = xp->Bfld[1] + delta_By;
+  xp->Bfld[2] = xp->Bfld[2] + delta_Bz;
+#endif
   /* Check against entropy floor */
   const float floor_A = entropy_floor(p, cosmo, floor_props);
   const float floor_u = gas_internal_energy_from_entropy(p->rho, floor_A);
@@ -913,6 +943,16 @@ __attribute__((always_inline)) INLINE static void hydro_convert_quantities(
 
   p->force.pressure = pressure;
   p->force.soundspeed = soundspeed;
+#ifdef MHD_ORESTIS
+  /* Convert B into B/rho */
+  p->BPred[0] /= p->rho;
+  p->BPred[1] /= p->rho;
+  p->BPred[2] /= p->rho;
+
+  xp->Bfld[0] = p->BPred[0];
+  xp->Bfld[1] = p->BPred[1];
+  xp->Bfld[2] = p->BPred[2];
+#endif
 }
 
 /**
@@ -933,6 +973,11 @@ __attribute__((always_inline)) INLINE static void hydro_first_init_part(
   xp->v_full[1] = p->v[1];
   xp->v_full[2] = p->v[2];
   xp->u_full = p->u;
+#ifdef MHD_ORESTIS
+  xp->Bfld[0] = p->BPred[0];
+  xp->Bfld[1] = p->BPred[1];
+  xp->Bfld[2] = p->BPred[2];
+#endif
 
   hydro_reset_acceleration(p);
   hydro_init_part(p, NULL);
