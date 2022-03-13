@@ -400,11 +400,7 @@ hydro_set_v_sig_based_on_velocity_kick(struct part *p,
 
   /* Update the signal velocity */
   p->force.v_sig =
-#ifndef MHD_BASE
       max(2.f * soundspeed, p->force.v_sig + const_viscosity_beta * dv);
-#else
-      max(2.f * soundspeed, p->force.v_sig + const_viscosity_beta/2.f * dv);
-#endif
 }
 
 /**
@@ -454,7 +450,6 @@ __attribute__((always_inline)) INLINE static float hydro_compute_timestep(
   return dt_cfl;
 #else  
   //Check if really needed
-  //const float MU0_1 = 1.0/(4.0*M_PI);
   float dt_divB=0.f;
   dt_divB = p->divB != 0.f ? 2.f * p->h * sqrtf( p->rho /(MU0_1*p->divB *p->divB)) : dt_cfl;
   return min(dt_cfl,dt_divB);
@@ -708,7 +703,7 @@ __attribute__((always_inline)) INLINE static void hydro_reset_acceleration(
   p->u_dt = 0.0f;
   p->force.h_dt = 0.0f;
   p->force.v_sig = 2.f * p->force.soundspeed;
-#ifdef MHD_ORESTIS
+#if defined(MHD_ORESTIS) || defined(MHD_DI)
   p->dBdt[0] = 0.0f;
   p->dBdt[1] = 0.0f;
   p->dBdt[2] = 0.0f;
@@ -735,7 +730,7 @@ __attribute__((always_inline)) INLINE static void hydro_reset_predicted_values(
   /* Re-set the entropy */
   p->u = xp->u_full;
 
-#ifdef MHD_ORESTIS
+#if defined(MHD_ORESTIS) || defined(MHD_DI)
   /* Re-set the predicted magnetic flux densities */
   /* Re-set the predicted magnetic field */
   p->BPred[0] = xp->Bfld[0];
@@ -781,7 +776,7 @@ __attribute__((always_inline)) INLINE static void hydro_predict_extra(
   /* Predict the internal energy */
   p->u += p->u_dt * dt_therm;
 
-#ifdef MHD_ORESTIS
+#if defined(MHD_ORESTIS) || defined(MHD_DI)
   /* Predict the magnetic flux density */
   p->BPred[0] += p->dBdt[0] * dt_therm;
   p->BPred[1] += p->dBdt[1] * dt_therm;
@@ -871,16 +866,15 @@ __attribute__((always_inline)) INLINE static void hydro_kick_extra(
   /* Integrate the internal energy forward in time */
   const float delta_u = p->u_dt * dt_therm;
 
-#ifdef MHD_ORESTIS
+  /* Do not decrease the energy by more than a factor of 2*/
+  xp->u_full = max(xp->u_full + delta_u, 0.5f * xp->u_full);
+
+#if defined(MHD_ORESTIS) || defined(MHD_DI)
   /* Integrate the magnetic flux density forward in time */
   const float delta_Bx = p->dBdt[0] * dt_therm;
   const float delta_By = p->dBdt[1] * dt_therm;
   const float delta_Bz = p->dBdt[2] * dt_therm;
-#endif
-  /* Do not decrease the energy by more than a factor of 2*/
-  xp->u_full = max(xp->u_full + delta_u, 0.5f * xp->u_full);
-
-#ifdef MHD_ORESTIS  
+  
   /* Do not decrease the magnetic flux density by more than a factor of 2*/
   xp->Bfld[0] = xp->Bfld[0] + delta_Bx;
   xp->Bfld[1] = xp->Bfld[1] + delta_By;
@@ -948,7 +942,8 @@ __attribute__((always_inline)) INLINE static void hydro_convert_quantities(
   p->BPred[0] /= p->rho;
   p->BPred[1] /= p->rho;
   p->BPred[2] /= p->rho;
-
+#endif
+#ifdef MHD_BASE
   xp->Bfld[0] = p->BPred[0];
   xp->Bfld[1] = p->BPred[1];
   xp->Bfld[2] = p->BPred[2];
@@ -973,7 +968,7 @@ __attribute__((always_inline)) INLINE static void hydro_first_init_part(
   xp->v_full[1] = p->v[1];
   xp->v_full[2] = p->v[2];
   xp->u_full = p->u;
-#ifdef MHD_ORESTIS
+#if defined(MHD_ORESTIS) || defined(MHD_DI)
   xp->Bfld[0] = p->BPred[0];
   xp->Bfld[1] = p->BPred[1];
   xp->Bfld[2] = p->BPred[2];

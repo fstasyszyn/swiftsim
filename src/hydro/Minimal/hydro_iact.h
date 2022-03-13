@@ -376,7 +376,7 @@ __attribute__((always_inline)) INLINE static void runner_iact_force(
   float mag_speed_j = sqrtf(0.5 * (vcsa2_j + 
   		      sqrtf(max(  (vcsa2_j * vcsa2_j - 4. * cj * cj * Bpro2_j * MU0_1 / rhoj),0.0))));
 
-  const float v_sig = (mag_speed_i + mag_speed_j - const_viscosity_beta/2.0 * mu_ij);
+  const float v_sig = (mag_speed_i + mag_speed_j - const_viscosity_beta * mu_ij);
 //  const float v_sig = ci + cj - const_viscosity_beta * mu_ij;
   /* Grab balsara switches */
   const float balsara_i = 1.f;
@@ -504,7 +504,7 @@ __attribute__((always_inline)) INLINE static void runner_iact_force(
   /* Get the time derivative for u. */
   const float sph_du_term_i = pressurei * over_rho2_i * dvdr * r_inv * wi_dr;
   const float sph_du_term_j = pressurej * over_rho2_j * dvdr * r_inv * wj_dr;
-#else
+#else  // Basically MHD_BASE && NO MHD
   /* SPH acceleration term */
   const float sph_acc_term =
       (P_over_rho2_i * wi_dr + P_over_rho2_j * wj_dr) * r_inv;
@@ -521,8 +521,8 @@ __attribute__((always_inline)) INLINE static void runner_iact_force(
   pj->a_hydro[1] += mi * acc * dx[1];
   pj->a_hydro[2] += mi * acc * dx[2];
   
+#ifdef MHD_BASE 
   /* Eventually got the MHD accel */ 
-#ifdef MHD_BASE
 //#_FORCE
   const float mag_faci = MU0_1 * f_ij * wi_dr * r_inv /(rhoi*rhoi);
   const float mag_facj = MU0_1 * f_ji * wj_dr * r_inv /(rhoj*rhoj);
@@ -552,6 +552,7 @@ __attribute__((always_inline)) INLINE static void runner_iact_force(
   /* Get the time derivative for u. */
   const float sph_du_term_i = P_over_rho2_i * dvdr * r_inv * wi_dr;
   const float sph_du_term_j = P_over_rho2_j * dvdr * r_inv * wj_dr;
+
 #endif //MHD_ORESTIS
   /* Viscosity term */
   const float visc_du_term = 0.5f * visc_acc_term * dvdr_Hubble;
@@ -596,6 +597,22 @@ __attribute__((always_inline)) INLINE static void runner_iact_force(
   pj->dBdt[1] += mi * dB_dt_pref_j * dB_dt_j[1];
   pj->dBdt[2] += mi * dB_dt_pref_j * dB_dt_j[2];
 #endif //MHD_ORESTIS
+#ifdef MHD_DI
+  const float mag_Indi = wi_dr * r_inv / rhoi;
+  const float mag_Indj = wj_dr * r_inv / rhoj;
+  float dv[3];
+  dv[0] = pi->v[0] - pj->v[0];
+  dv[1] = pi->v[1] - pj->v[1];
+  dv[2] = pi->v[2] - pj->v[2];
+
+  for(int i=0;i<3;i++) 
+  {
+  pi->dBdt[i] += mj * mag_Indi * ((pi->BPred[i] * dv[(i+1)%3] - pi->BPred[(i+1)%3] * dv[i]) * dx[(i+1)%3]
+			        + (pi->BPred[i] * dv[(i+2)%3] - pi->BPred[(i+2)%3] * dv[i]) * dx[(i+2)%3]);
+  pj->dBdt[i] += mi * mag_Indj * ((pj->BPred[i] * dv[(i+1)%3] - pj->BPred[(i+1)%3] * dv[i]) * dx[(i+1)%3]
+			        + (pj->BPred[i] * dv[(i+2)%3] - pj->BPred[(i+2)%3] * dv[i]) * dx[(i+2)%3]);
+  }
+#endif
 }
 
 /**
@@ -711,10 +728,10 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_force(
 #else
   const float b2_i = (pi->BPred[0]*pi->BPred[0] + pi->BPred[1]*pi->BPred[1] + pi->BPred[2]*pi->BPred[2] );
   const float b2_j = (pj->BPred[0]*pj->BPred[0] + pj->BPred[1]*pj->BPred[1] + pj->BPred[2]*pj->BPred[2] ); 
-  float vcsa2_i = ci * ci + min(MU0_1 * b2_i/rhoi,10.0*ci*ci); 
-  float vcsa2_j = cj * cj + min(MU0_1 * b2_j/rhoj,10.0*cj*cj); 
-  //const float vcsa2_i = ci * ci + MU0_1 * b2_i/rhoi; 
-  //const float vcsa2_j = cj * cj + MU0_1 * b2_j/rhoj; 
+  //float vcsa2_i = ci * ci + min(MU0_1 * b2_i/rhoi,10.0*ci*ci); 
+  //float vcsa2_j = cj * cj + min(MU0_1 * b2_j/rhoj,10.0*cj*cj); 
+  const float vcsa2_i = ci * ci + MU0_1 * b2_i/rhoi; 
+  const float vcsa2_j = cj * cj + MU0_1 * b2_j/rhoj; 
   float Bpro2_i = (pi->BPred[0]*dx[0]+ pi->BPred[1]*dx[1]+ pi->BPred[2]*dx[2]) * r_inv;
         Bpro2_i *= Bpro2_i;
   float mag_speed_i = sqrtf(0.5 * (vcsa2_i + 
@@ -724,7 +741,7 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_force(
   float mag_speed_j = sqrtf(0.5 * (vcsa2_j + 
   		      sqrtf(max(  (vcsa2_j * vcsa2_j - 4. * cj * cj * Bpro2_j * MU0_1 / rhoj),0.0))));
 
-  const float v_sig = (mag_speed_i + mag_speed_j - const_viscosity_beta/2.0 * mu_ij);
+  const float v_sig = (mag_speed_i + mag_speed_j - const_viscosity_beta * mu_ij);
 //  const float v_sig = ci + cj - const_viscosity_beta * mu_ij;
   /* Grab balsara switches */
   const float balsara_i = 1.f;
@@ -838,8 +855,8 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_force(
   pi->a_hydro[1] -= mj * acc * dx[1];
   pi->a_hydro[2] -= mj * acc * dx[2];
   
-  /* Eventually got the MHD accel */ 
 #ifdef MHD_BASE
+  /* Eventually got the MHD accel */ 
 //_FORCE
   const float mag_faci = MU0_1 * f_ij * wi_dr * r_inv /(rhoi*rhoi);
   const float mag_facj = MU0_1 * f_ji * wj_dr * r_inv /(rhoj*rhoj);
@@ -894,6 +911,17 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_force(
   pi->dBdt[0] += mj * dB_dt_pref_i * dB_dt_i[0];
   pi->dBdt[1] += mj * dB_dt_pref_i * dB_dt_i[1];
   pi->dBdt[2] += mj * dB_dt_pref_i * dB_dt_i[2];
+#endif
+#ifdef MHD_DI
+  const float mag_Indi = wi_dr * r_inv / rhoi;
+  float dv[3];
+  dv[0] = pi->v[0] - pj->v[0];
+  dv[1] = pi->v[1] - pj->v[1];
+  dv[2] = pi->v[2] - pj->v[2];
+
+  for(int i=0;i<3;i++) 
+  pi->dBdt[i] += mj * mag_Indi * ((pi->BPred[i] * dv[(i+1)%3] - pi->BPred[(i+1)%3] * dv[i]) * dx[(i+1)%3]
+			        + (pi->BPred[i] * dv[(i+2)%3] - pi->BPred[(i+2)%3] * dv[i]) * dx[(i+2)%3]);
 #endif
 }
 

@@ -101,16 +101,20 @@ INLINE static void convert_P(const struct engine* e, const struct part* p,
   ret[0] = hydro_get_comoving_pressure(p);
 }
 
-#ifdef MHD_ORESTIS
 INLINE static void convert_B(const struct engine* e, const struct part* p,
                              const struct xpart* xp, float* ret) {
-
-  ret[0] = p->BPred[0] * p->rho;
-  ret[1] = p->BPred[1] * p->rho;
-  ret[2] = p->BPred[2] * p->rho;
+// I modify it to use the full step, that's right?
+#ifdef MHD_ORESTIS
+  ret[0] = xp->Bfld[0] * p->rho;
+  ret[1] = xp->Bfld[1] * p->rho;
+  ret[2] = xp->Bfld[2] * p->rho;
+#else
+  ret[0] = xp->Bfld[0] ;
+  ret[1] = xp->Bfld[1] ;
+  ret[2] = xp->Bfld[2] ;
+#endif
 }
 
-#endif
 INLINE static void convert_part_pos(const struct engine* e,
                                     const struct part* p,
                                     const struct xpart* xp, double* ret) {
@@ -259,9 +263,12 @@ INLINE static void hydro_write_particles(const struct part* parts,
 #else
   *num_fields += 2;
 #endif
-  list[0] = io_make_output_field(
-      "Bfield", FLOAT, 3, UNIT_CONV_NO_UNITS, -2.f, xparts, Bfld,
-      "co-moving Magnetic Field of the particles");
+  list[0] = io_make_output_field_convert_part(
+      "Bfield", FLOAT, 3, UNIT_CONV_NO_UNITS, -2.f , parts,
+      xparts, convert_B, "Co-moving pressures of the particles");
+//  list[0] = io_make_output_field(
+//      "Bfield", FLOAT, 3, UNIT_CONV_NO_UNITS, -2.f, xparts, Bfld,
+//      "co-moving Magnetic Field of the particles");
   list[1] = io_make_output_field(
       "divB", FLOAT, 1, UNIT_CONV_NO_UNITS, -0.f, parts, divB,
       "co-moving DivB of the particles");
