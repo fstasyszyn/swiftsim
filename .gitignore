@@ -35,6 +35,7 @@ examples/*/*/*.mp4
 examples/*/*/*.txt
 examples/*/*/*.rst
 examples/*/*/*.hdf5
+examples/*/*/*.ipynb
 examples/*/*/*.csv
 examples/*/*/*.dot
 examples/*/*/.*checkpoints

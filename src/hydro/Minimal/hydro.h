@@ -880,6 +880,12 @@ __attribute__((always_inline)) INLINE static void hydro_kick_extra(
   xp->Bfld[1] = xp->Bfld[1] + delta_By;
   xp->Bfld[2] = xp->Bfld[2] + delta_Bz;
 #endif
+#ifdef MHD_EULER
+//THIS VARIABLE IS NOT NEEDED BUT I LEAVE IT JUST INCASE 
+  xp->Bfld[0] = p->BPred[0];
+  xp->Bfld[1] = p->BPred[1];
+  xp->Bfld[2] = p->BPred[2];
+#endif
   /* Check against entropy floor */
   const float floor_A = entropy_floor(p, cosmo, floor_props);
   const float floor_u = gas_internal_energy_from_entropy(p->rho, floor_A);
