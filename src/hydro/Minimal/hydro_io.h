@@ -70,23 +70,26 @@ INLINE static void hydro_read_particles(struct part* parts,
   list[7] = io_make_input_field("Density", FLOAT, 1, OPTIONAL,
                                 UNIT_CONV_DENSITY, parts, rho);
 #ifdef MHD_BASE  
-// MISSING APOT
   list += *num_fields;
-#ifdef MHD_EULER 
-  *num_fields += 3;
-#else
   *num_fields += 1;
-#endif
   
   list[0]  = io_make_input_field("Bfield", FLOAT, 3, OPTIONAL,
                                 UNIT_CONV_NO_UNITS, parts, BPred);
 #ifdef MHD_EULER 
-  list[1]  = io_make_input_field("EPalpha", FLOAT, 1, OPTIONAL,
+  list += *num_fields;
+  *num_fields += 2;
+  list[0]  = io_make_input_field("EPalpha", FLOAT, 1, OPTIONAL,
                                 UNIT_CONV_NO_UNITS, parts, ep[0]);
-  list[2]  = io_make_input_field("EPbeta" , FLOAT, 1, OPTIONAL,
+  list[1]  = io_make_input_field("EPbeta" , FLOAT, 1, OPTIONAL,
                                 UNIT_CONV_NO_UNITS, parts, ep[1]);
 #endif
+#ifdef MHD_VECPOT 
+  list += *num_fields;
+  *num_fields += 1;
+  list[0]  = io_make_input_field("APot", FLOAT, 3, OPTIONAL,
+                                UNIT_CONV_NO_UNITS, parts, APred);
 #endif
+#endif // MHD_BASE
 }
 
 INLINE static void convert_S(const struct engine* e, const struct part* p,
@@ -258,14 +261,11 @@ INLINE static void hydro_write_particles(const struct part* parts,
       "Co-moving gravitational potential at position of the particles");
 #ifdef MHD_BASE 
   list += *num_fields;
-#ifdef MHD_EULER 
-  *num_fields += 4;
-#else
   *num_fields += 2;
-#endif
+  
   list[0] = io_make_output_field_convert_part(
       "Bfield", FLOAT, 3, UNIT_CONV_NO_UNITS, -2.f , parts,
-      xparts, convert_B, "Co-moving pressures of the particles");
+      xparts, convert_B, "Co-moving Magnetic field of the particles");
 //  list[0] = io_make_output_field(
 //      "Bfield", FLOAT, 3, UNIT_CONV_NO_UNITS, -2.f, xparts, Bfld,
 //      "co-moving Magnetic Field of the particles");
@@ -273,12 +273,22 @@ INLINE static void hydro_write_particles(const struct part* parts,
       "divB", FLOAT, 1, UNIT_CONV_NO_UNITS, -0.f, parts, divB,
       "co-moving DivB of the particles");
 #ifdef MHD_EULER 
-  list[2] = io_make_output_field(
+  list += *num_fields;
+  *num_fields += 2;
+  list[0] = io_make_output_field(
       "EPalpha", FLOAT, 1, UNIT_CONV_NO_UNITS, -0.f, parts, ep[0],
       "co-moving Alpha Potential of the particles");
-  list[3] = io_make_output_field(
+  list[1] = io_make_output_field(
       "EPbeta" , FLOAT, 1, UNIT_CONV_NO_UNITS, -0.f, parts, ep[1],
       "co-moving Beta Potential of the particles");
+#endif
+#ifdef MHD_VECPOT
+// do we need the divA?
+  list += *num_fields;
+  *num_fields += 1;
+  list[0] = io_make_output_field(
+      "APot", FLOAT, 3, UNIT_CONV_NO_UNITS, -2.f, xparts, APot,
+      "co-moving Vector Potential of the particles");
 #endif
 #endif // MHD_BASE
 }

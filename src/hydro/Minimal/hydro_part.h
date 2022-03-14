@@ -70,6 +70,10 @@ struct xpart {
   /*! Bfield/Bflux denisty at full step */ 
   float Bfld[3];
 #endif
+#ifdef MHD_VECPOT 
+  /*! magnetic vector potential at full step */ 
+  float APot[3], Gau;
+#endif
   /*! Additional data used to record particle splits */
   struct particle_splitting_data split_data;
 
@@ -147,14 +151,12 @@ struct part {
   /* Direct Induction */
   float dBdt[3];
 #endif
-#ifdef MHD_APOT 
+#ifdef MHD_VECPOT 
   /* Vector Potential */
-  float Apot[3];
   float APred[3];
   float dAdt[3];
-  float divA,GauA;
+  float divA,GauPred,dGau_dt;
 #endif
-
 #ifdef MHD_EULER 
   /* Euler Potentials */
   float ep[2]; // alpha and beta

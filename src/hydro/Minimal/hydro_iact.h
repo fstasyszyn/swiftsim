@@ -64,6 +64,9 @@ __attribute__((always_inline)) INLINE static void runner_iact_density(
 #ifdef MHD_EULER
   double dalpha, dbeta;
 #endif
+#ifdef MHD_VECPOT
+  double dA[3];
+#endif
 #endif
 
 #ifdef SWIFT_DEBUG_CHECKS
@@ -155,6 +158,18 @@ __attribute__((always_inline)) INLINE static void runner_iact_density(
   pj->Grad_ep[1][i] += facj * dbeta*dx[i];
   }
 #endif  /* MHD_EULER */
+#ifdef MHD_VECPOT
+  for(int i=0;i<3;++i)
+  	dA[i]= pi->APred[i] - pj->APred[i];
+  const double dAdr = dA[0]*dx[0] + dA[1]*dx[1] + dA[2]*dx[2];
+  pi->divA -= faci * dAdr;
+  pj->divA -= facj * dAdr;
+  for(int i=0;i<3;++i)
+  { 
+     pi->BPred[i] += faci * (dA[(i+1)%3]*dx[(i+2)%3] - dA[(i+2)%3]*dx[(i+1)%3] ) ;
+     pj->BPred[i] += facj * (dA[(i+1)%3]*dx[(i+2)%3] - dA[(i+2)%3]*dx[(i+1)%3] ) ;
+  }
+#endif
 #endif  /* MHD_BASE */
 }
 
@@ -180,6 +195,9 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_density(
   double dB[3];
 #ifdef MHD_EULER
   double dalpha, dbeta;
+#endif
+#ifdef MHD_VECPOT
+  double dA[3];
 #endif
 #endif
 
@@ -248,6 +266,13 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_density(
   pi->Grad_ep[1][i] += faci * dbeta  * dx[i];
   }
 #endif  /* MHD_EULER */
+#ifdef MHD_VECPOT
+  for(int i=0;i<3;++i)
+  	dA[i]= pi->APred[i] - pj->APred[i];
+  const double dAdr = dA[0]*dx[0] + dA[1]*dx[1] + dA[2]*dx[2];
+  pi->divA -= faci * dAdr;
+  for(int i=0;i<3;++i)
+     pi->BPred[i] += faci * (dA[(i+1)%3]*dx[(i+2)%3] - dA[(i+2)%3]*dx[(i+1)%3] ) ;
 #endif  /* MHD */
 }
 
@@ -613,6 +638,29 @@ __attribute__((always_inline)) INLINE static void runner_iact_force(
 			        + (pj->BPred[i] * dv[(i+2)%3] - pj->BPred[(i+2)%3] * dv[i]) * dx[(i+2)%3]);
   }
 #endif
+#ifdef MHD_VECPOT
+  const float mag_Indi = wi_dr * r_inv / rhoi;
+  const float mag_Indj = wj_dr * r_inv / rhoj;
+  float dA[3],dv[3];
+  for(int i=0;i<3;i++)
+     dA[i] = pi->APred[i] - pj->APred[i];
+  dv[0] = pi->v[0] - pj->v[0];
+  dv[1] = pi->v[1] - pj->v[1];
+  dv[2] = pi->v[2] - pj->v[2];
+  // ADVECTIVE GAUGE
+  //const float SourceAi = dv[0]*pi->APred[0] + dv[1]*pi->APred[1] + dv[2]*pi->APred[2];
+  //const float SourceAj = dv[0]*pj->APred[0] + dv[1]*pj->APred[1] + dv[2]*pj->APred[2];
+  // Normal Gauge
+  const float SourceAi = -(dA[0]*pi->v[0] + dA[1]*pi->v[1] + dA[2]*pi->v[2]);
+  const float SourceAj = -(dA[0]*pj->v[0] + dA[1]*pj->v[1] + dA[2]*pj->v[2]);
+  float SAi = SourceAi + (pi->GauPred - pj->GauPred);
+  float SAj = SourceAi + (pj->GauPred - pi->GauPred);
+  for(int i=0;i<3;i++)
+  {
+     pi->dAdt[i] += mj *mag_Indi* SAi *dx[i];
+     pj->dAdt[i] += mi *mag_Indj* SAj *dx[i];
+  }
+#endif
 }
 
 /**
@@ -922,6 +970,29 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_force(
   for(int i=0;i<3;i++) 
   pi->dBdt[i] += mj * mag_Indi * ((pi->BPred[i] * dv[(i+1)%3] - pi->BPred[(i+1)%3] * dv[i]) * dx[(i+1)%3]
 			        + (pi->BPred[i] * dv[(i+2)%3] - pi->BPred[(i+2)%3] * dv[i]) * dx[(i+2)%3]);
+#endif
+#ifdef MHD_VECPOT
+  const float mag_Indi = wi_dr * r_inv / rhoi;
+  const float mag_Indj = wj_dr * r_inv / rhoj;
+  float dA[3],dv[3];
+  for(int i=0;i<3;i++)
+     dA[i] = pi->APred[i] - pj->APred[i];
+  dv[0] = pi->v[0] - pj->v[0];
+  dv[1] = pi->v[1] - pj->v[1];
+  dv[2] = pi->v[2] - pj->v[2];
+  // ADVECTIVE GAUGE
+  //const float SourceAi = dv[0]*pi->APred[0] + dv[1]*pi->APred[1] + dv[2]*pi->APred[2];
+  //const float SourceAj = dv[0]*pj->APred[0] + dv[1]*pj->APred[1] + dv[2]*pj->APred[2];
+  // Normal Gauge
+  const float SourceAi = -(dA[0]*pi->v[0] + dA[1]*pi->v[1] + dA[2]*pi->v[2]);
+  const float SourceAj = -(dA[0]*pj->v[0] + dA[1]*pj->v[1] + dA[2]*pj->v[2]);
+  float SAi = SourceAi + (pi->GauPred - pj->GauPred);
+  float SAj = SourceAi + (pj->GauPred - pi->GauPred);
+  for(int i=0;i<3;i++)
+  {
+     pi->dAdt[i] += mj *mag_Indi* SAi *dx[i];
+     pj->dAdt[i] += mi *mag_Indj* SAj *dx[i];
+  }
 #endif
 }
 

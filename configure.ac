@@ -1787,7 +1787,7 @@ esac
 # Hydro scheme.
 AC_ARG_WITH([mhd],
    [AS_HELP_STRING([--with-mhd=<scheme>],
-      [Hydro dynamics to use @<:@euler, eulerBRIO, eulerVORT, DInduction, DIOrestis, default: none@:>@]
+      [Hydro dynamics to use @<:@euler, eulerBRIO, eulerVORT, DInduction, DIOrestis, VectPot, default: none@:>@]
    )],
    [with_mhd="$withval"],
    [with_mhd="none"]
@@ -1818,6 +1818,10 @@ case "$with_mhd" in
    DIOrestis)
       AC_DEFINE([MHD_BASE], [1], [SPMHD])
       AC_DEFINE([MHD_ORESTIS], [1], [Orestis SPMHD Direct Induction])
+   ;;
+   VecPot)
+      AC_DEFINE([MHD_BASE], [1], [SPMHD])
+      AC_DEFINE([MHD_VECPOT], [1], [SPMHD Vector Potential])
    ;;
    *)
       AC_MSG_ERROR([Unknown Magneto-hydrodynamics scheme: $with_mhd])
