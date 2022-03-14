@@ -194,13 +194,16 @@ static INLINE void diffusion_print_snapshot(
     hid_t h_grpsph, const struct diffusion_global_data* diffusion) {}
 #endif
 /////////////////////// TEST MHD CASES (comment)
+#ifdef MHD_BASE
+#ifdef MHD_MU0_1
+#define MU0 1.0
 #define MU0_1 1.0
-//#ifdef MHD_BASE
-//#ifdef MHD_EULER_TEST
-//#define MU0_1 1.0
-//#else
-//#define MU0_1 1.0/(4.0*M_PI)
-//#endif
-//#endif
+#elif defined(MHD_MU0_4PI)
+#define MU0 4.0f*M_PI
+#define MU0_1 1.0/(4.0*M_PI)
+#else
+#error "COMPILED WITH MHD but MU0 not defined" 
+#endif
+#endif
 
 #endif /* SWIFT_MINIMAL_HYDRO_PARAMETERS_H */

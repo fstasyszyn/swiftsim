@@ -1763,6 +1763,27 @@ if test "$enable_gravitational_potential" = "no"; then
    AC_DEFINE([SWIFT_GRAVITY_NO_POTENTIAL],1,[Disable calculation of the gravitational potential])
 fi
 
+#  Vacuum permeability
+AC_ARG_WITH([mu0],
+   [AS_HELP_STRING([--with-mu0=<mu0>],
+      [mu0 @<:@1, 4pi, default: 4pi@:>@]
+   )],
+   [with_mu0="$withval"],
+   [with_mu0="4pi"]
+)
+case "$with_mu0" in
+   1)
+      AC_DEFINE([MHD_MU0_1], [1.], [Mu_0 is 1])
+   ;;
+   4pi)
+      AC_DEFINE([MHD_MU0_4PI], [4.0*3.14], [Mu_0 is 4 PI])
+   ;;
+   *)
+      AC_MSG_ERROR([Unknown Mu0: $with_mu0])
+   ;;
+esac
+
+
 # Hydro scheme.
 AC_ARG_WITH([mhd],
    [AS_HELP_STRING([--with-mhd=<scheme>],
@@ -2789,6 +2810,7 @@ AC_MSG_RESULT([
    Riemann solver     : $with_riemann
    
    MHD scheme         : $with_mhd
+   MHD Mu0            : $with_mu0
 
    Gravity scheme      : $with_gravity
    Multipole order     : $with_multipole_order

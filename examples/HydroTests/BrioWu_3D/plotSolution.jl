@@ -75,7 +75,7 @@ function do_table(data,Nmax)
     xmin=minimum(x)
     xmax=maximum(x)
     zone=(round(xmax)-round(xmin))/2.
-    print(zone)
+    println("Zones ",zone)
     x = x .- zone # move to 0
     x = 2.0 .* x ./ zone #normalize -1 to 1 just one side of the tube
     #x = x ./ zone #normalize -1 to 1 just one side of the tube
@@ -129,8 +129,6 @@ function do_table(data,Nmax)
             :Vx=>VVx, :Vy=>VVy , :Vz=> VVz,
             :Pres=>Pre))
 end
-
-
 
 function exact_BW(time)
      tfac = time/0.1
@@ -258,7 +256,7 @@ function do_6plot(gsnap)
     oplot(ex[:xpts],ex[:pr],"-r")
 ###### plot 6
     subplot(2,3,6)
-    plot(a[:x],log10.(abs.(a[:divB][:,1])),xlabel="X",ylabel="Err|divB|", ylim=(-5,0))
+    plot(a[:x],log10.(abs.(a[:divB][:,1])),xlabel="X",ylabel="Err|divB|", ylim=(-6,0))
     #GRUtils.hold(true)
     #errorbar(a[:x],abs.(a[:divB][:,1]),a[:divB][:,2])
 end
