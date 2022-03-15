@@ -72,7 +72,8 @@ struct xpart {
 #endif
 #ifdef MHD_VECPOT 
   /*! magnetic vector potential at full step */ 
-  float APot[3], Gau;
+  float APot[3];
+  float Gau;
 #endif
   /*! Additional data used to record particle splits */
   struct particle_splitting_data split_data;

@@ -273,6 +273,7 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_density(
   pi->divA -= faci * dAdr;
   for(int i=0;i<3;++i)
      pi->BPred[i] += faci * (dA[(i+1)%3]*dx[(i+2)%3] - dA[(i+2)%3]*dx[(i+1)%3] ) ;
+#endif 
 #endif  /* MHD */
 }
 
@@ -324,7 +325,6 @@ __attribute__((always_inline)) INLINE static void runner_iact_force(
   Bj[0] = pj->BPred[0] * rhoj;
   Bj[1] = pj->BPred[1] * rhoj;
   Bj[2] = pj->BPred[2] * rhoj;
-
 #endif
   /* Get the kernel for hi. */
   const float hi_inv = 1.0f / hi;
@@ -388,10 +388,10 @@ __attribute__((always_inline)) INLINE static void runner_iact_force(
 #else
   const float b2_i = (pi->BPred[0]*pi->BPred[0] + pi->BPred[1]*pi->BPred[1] + pi->BPred[2]*pi->BPred[2] );
   const float b2_j = (pj->BPred[0]*pj->BPred[0] + pj->BPred[1]*pj->BPred[1] + pj->BPred[2]*pj->BPred[2] ); 
-  //float vcsa2_i = ci * ci + min(MU0_1 * b2_i/rhoi,10.0*ci*ci); 
-  //float vcsa2_j = cj * cj + min(MU0_1 * b2_j/rhoj,10.0*cj*cj); 
-  const float vcsa2_i = ci * ci + MU0_1 * b2_i/rhoi; 
-  const float vcsa2_j = cj * cj + MU0_1 * b2_j/rhoj; 
+  float vcsa2_i = ci * ci + min(MU0_1 * b2_i/rhoi,10.0*ci*ci); 
+  float vcsa2_j = cj * cj + min(MU0_1 * b2_j/rhoj,10.0*cj*cj); 
+  //const float vcsa2_i = ci * ci + MU0_1 * b2_i/rhoi; 
+  //const float vcsa2_j = cj * cj + MU0_1 * b2_j/rhoj; 
   float Bpro2_i = (pi->BPred[0]*dx[0]+ pi->BPred[1]*dx[1]+ pi->BPred[2]*dx[2]) * r_inv;
         Bpro2_i *= Bpro2_i;
   float mag_speed_i = sqrtf(0.5 * (vcsa2_i + 
@@ -641,20 +641,21 @@ __attribute__((always_inline)) INLINE static void runner_iact_force(
 #ifdef MHD_VECPOT
   const float mag_Indi = wi_dr * r_inv / rhoi;
   const float mag_Indj = wj_dr * r_inv / rhoj;
-  float dA[3],dv[3];
-  for(int i=0;i<3;i++)
-     dA[i] = pi->APred[i] - pj->APred[i];
+  // ADVECTIVE GAUGE
+  float dv[3];
   dv[0] = pi->v[0] - pj->v[0];
   dv[1] = pi->v[1] - pj->v[1];
   dv[2] = pi->v[2] - pj->v[2];
-  // ADVECTIVE GAUGE
-  //const float SourceAi = dv[0]*pi->APred[0] + dv[1]*pi->APred[1] + dv[2]*pi->APred[2];
-  //const float SourceAj = dv[0]*pj->APred[0] + dv[1]*pj->APred[1] + dv[2]*pj->APred[2];
+  const float SourceAi = dv[0]*pi->APred[0] + dv[1]*pi->APred[1] + dv[2]*pi->APred[2];
+  const float SourceAj = dv[0]*pj->APred[0] + dv[1]*pj->APred[1] + dv[2]*pj->APred[2];
   // Normal Gauge
-  const float SourceAi = -(dA[0]*pi->v[0] + dA[1]*pi->v[1] + dA[2]*pi->v[2]);
-  const float SourceAj = -(dA[0]*pj->v[0] + dA[1]*pj->v[1] + dA[2]*pj->v[2]);
+  //float dA[3];
+  //for(int i=0;i<3;i++)
+  //   dA[i] = pi->APred[i] - pj->APred[i];
+  //const float SourceAi = -(dA[0]*pi->v[0] + dA[1]*pi->v[1] + dA[2]*pi->v[2]);
+  //const float SourceAj = -(dA[0]*pj->v[0] + dA[1]*pj->v[1] + dA[2]*pj->v[2]);
   float SAi = SourceAi + (pi->GauPred - pj->GauPred);
-  float SAj = SourceAi + (pj->GauPred - pi->GauPred);
+  float SAj = SourceAj + (pj->GauPred - pi->GauPred);
   for(int i=0;i<3;i++)
   {
      pi->dAdt[i] += mj *mag_Indi* SAi *dx[i];
@@ -776,10 +777,10 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_force(
 #else
   const float b2_i = (pi->BPred[0]*pi->BPred[0] + pi->BPred[1]*pi->BPred[1] + pi->BPred[2]*pi->BPred[2] );
   const float b2_j = (pj->BPred[0]*pj->BPred[0] + pj->BPred[1]*pj->BPred[1] + pj->BPred[2]*pj->BPred[2] ); 
-  //float vcsa2_i = ci * ci + min(MU0_1 * b2_i/rhoi,10.0*ci*ci); 
-  //float vcsa2_j = cj * cj + min(MU0_1 * b2_j/rhoj,10.0*cj*cj); 
-  const float vcsa2_i = ci * ci + MU0_1 * b2_i/rhoi; 
-  const float vcsa2_j = cj * cj + MU0_1 * b2_j/rhoj; 
+  float vcsa2_i = ci * ci + min(MU0_1 * b2_i/rhoi,10.0*ci*ci); 
+  float vcsa2_j = cj * cj + min(MU0_1 * b2_j/rhoj,10.0*cj*cj); 
+  //const float vcsa2_i = ci * ci + MU0_1 * b2_i/rhoi; 
+  //const float vcsa2_j = cj * cj + MU0_1 * b2_j/rhoj; 
   float Bpro2_i = (pi->BPred[0]*dx[0]+ pi->BPred[1]*dx[1]+ pi->BPred[2]*dx[2]) * r_inv;
         Bpro2_i *= Bpro2_i;
   float mag_speed_i = sqrtf(0.5 * (vcsa2_i + 
@@ -973,26 +974,20 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_force(
 #endif
 #ifdef MHD_VECPOT
   const float mag_Indi = wi_dr * r_inv / rhoi;
-  const float mag_Indj = wj_dr * r_inv / rhoj;
-  float dA[3],dv[3];
-  for(int i=0;i<3;i++)
-     dA[i] = pi->APred[i] - pj->APred[i];
+  // ADVECTIVE GAUGE
+  float dv[3];
   dv[0] = pi->v[0] - pj->v[0];
   dv[1] = pi->v[1] - pj->v[1];
   dv[2] = pi->v[2] - pj->v[2];
-  // ADVECTIVE GAUGE
-  //const float SourceAi = dv[0]*pi->APred[0] + dv[1]*pi->APred[1] + dv[2]*pi->APred[2];
-  //const float SourceAj = dv[0]*pj->APred[0] + dv[1]*pj->APred[1] + dv[2]*pj->APred[2];
+  const float SourceAi = dv[0]*pi->APred[0] + dv[1]*pi->APred[1] + dv[2]*pi->APred[2];
   // Normal Gauge
-  const float SourceAi = -(dA[0]*pi->v[0] + dA[1]*pi->v[1] + dA[2]*pi->v[2]);
-  const float SourceAj = -(dA[0]*pj->v[0] + dA[1]*pj->v[1] + dA[2]*pj->v[2]);
+  //float dA[3];
+  //for(int i=0;i<3;i++)
+  //   dA[i] = pi->APred[i] - pj->APred[i];
+  //const float SourceAi = -(dA[0]*pi->v[0] + dA[1]*pi->v[1] + dA[2]*pi->v[2]);
   float SAi = SourceAi + (pi->GauPred - pj->GauPred);
-  float SAj = SourceAi + (pj->GauPred - pi->GauPred);
   for(int i=0;i<3;i++)
-  {
      pi->dAdt[i] += mj *mag_Indi* SAi *dx[i];
-     pj->dAdt[i] += mi *mag_Indj* SAj *dx[i];
-  }
 #endif
 }
 

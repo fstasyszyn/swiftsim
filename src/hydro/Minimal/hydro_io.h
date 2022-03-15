@@ -73,20 +73,17 @@ INLINE static void hydro_read_particles(struct part* parts,
   list += *num_fields;
   *num_fields += 1;
   
-  list[0]  = io_make_input_field("Bfield", FLOAT, 3, OPTIONAL,
+  list[0]  = io_make_input_field("Bfield", FLOAT, 3, COMPULSORY,
                                 UNIT_CONV_NO_UNITS, parts, BPred);
 #ifdef MHD_EULER 
-  list += *num_fields;
   *num_fields += 2;
-  list[0]  = io_make_input_field("EPalpha", FLOAT, 1, OPTIONAL,
+  list[1]  = io_make_input_field("EPalpha", FLOAT, 1, COMPULSORY,
                                 UNIT_CONV_NO_UNITS, parts, ep[0]);
-  list[1]  = io_make_input_field("EPbeta" , FLOAT, 1, OPTIONAL,
+  list[2]  = io_make_input_field("EPbeta" , FLOAT, 1, COMPULSORY,
                                 UNIT_CONV_NO_UNITS, parts, ep[1]);
-#endif
-#ifdef MHD_VECPOT 
-  list += *num_fields;
+#elif defined(MHD_VECPOT)
   *num_fields += 1;
-  list[0]  = io_make_input_field("APot", FLOAT, 3, OPTIONAL,
+  list[1]  = io_make_input_field("VecPot", FLOAT, 3, COMPULSORY,
                                 UNIT_CONV_NO_UNITS, parts, APred);
 #endif
 #endif // MHD_BASE
@@ -273,21 +270,18 @@ INLINE static void hydro_write_particles(const struct part* parts,
       "divB", FLOAT, 1, UNIT_CONV_NO_UNITS, -0.f, parts, divB,
       "co-moving DivB of the particles");
 #ifdef MHD_EULER 
-  list += *num_fields;
   *num_fields += 2;
-  list[0] = io_make_output_field(
+  list[2] = io_make_output_field(
       "EPalpha", FLOAT, 1, UNIT_CONV_NO_UNITS, -0.f, parts, ep[0],
       "co-moving Alpha Potential of the particles");
-  list[1] = io_make_output_field(
+  list[3] = io_make_output_field(
       "EPbeta" , FLOAT, 1, UNIT_CONV_NO_UNITS, -0.f, parts, ep[1],
       "co-moving Beta Potential of the particles");
-#endif
-#ifdef MHD_VECPOT
+#elif defined(MHD_VECPOT)
 // do we need the divA?
-  list += *num_fields;
   *num_fields += 1;
-  list[0] = io_make_output_field(
-      "APot", FLOAT, 3, UNIT_CONV_NO_UNITS, -2.f, xparts, APot,
+  list[2] = io_make_output_field(
+      "VecPot", FLOAT, 3, UNIT_CONV_NO_UNITS, -2.f, parts, APred,
       "co-moving Vector Potential of the particles");
 #endif
 #endif // MHD_BASE

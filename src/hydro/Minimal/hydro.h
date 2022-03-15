@@ -495,8 +495,11 @@ __attribute__((always_inline)) INLINE static void hydro_init_part(
   for (int i = 0; i < 3; ++i) p->Grad_ep[0][i]=0.f;
   for (int i = 0; i < 3; ++i) p->Grad_ep[1][i]=0.f;
 #endif
-#ifdef VECPOT
-  p->divA    = 0.f;
+#ifdef MHD_VECPOT
+  p->divA     = 0.f;
+  p->BPred[0] = 0.f;
+  p->BPred[1] = 0.f;
+  p->BPred[2] = 0.f;
 #endif
 #endif
 }
@@ -557,10 +560,10 @@ __attribute__((always_inline)) INLINE static void hydro_end_density(
 #ifdef MHD_VECPOT
   p->divA *= h_inv_dim_plus_one * a_inv2 * rho_inv;
   for (int i = 0; i < 3; i++) 
-     p->BPred[i] *= h_inv_dim_plus_one * cosmo->a_inv * rho_inv;
+     p->BPred[i] *= h_inv_dim_plus_one * a_inv2 * rho_inv;
   p->dGau_dt = -( p->divA * 0.25f * p->force.v_sig * p->force.v_sig
   		+ 2.0f * p->force.v_sig * p->GauPred / h 
-		+ 0.5f * p->GauPred * p->denisty.div_v); 
+		+ 0.5f * p->GauPred * p->density.div_v); 
 #endif
 #endif
 }
@@ -762,6 +765,7 @@ __attribute__((always_inline)) INLINE static void hydro_reset_predicted_values(
   p->APred[0] = xp->APot[0];
   p->APred[1] = xp->APot[1];
   p->APred[2] = xp->APot[2];
+  p->GauPred  = xp->Gau;
 #endif
 /* Re-compute the pressure */
   const float pressure = gas_pressure_from_internal_energy(p->rho, p->u);
@@ -924,7 +928,7 @@ __attribute__((always_inline)) INLINE static void hydro_kick_extra(
   xp->APot[0] = xp->APot[0] + p->dAdt[0] * dt_therm;
   xp->APot[1] = xp->APot[1] + p->dAdt[1] * dt_therm;
   xp->APot[2] = xp->APot[2] + p->dAdt[2] * dt_therm;
-  xp->Gau[2]  = xp->Gau     + p->dGau_dt * dt_therm;
+  xp->Gau     = xp->Gau     + p->dGau_dt * dt_therm;
 //THIS VARIABLE IS NOT NEEDED BUT I LEAVE IT JUST INCASE 
   xp->Bfld[0] = p->BPred[0];
   xp->Bfld[1] = p->BPred[1];
@@ -1034,6 +1038,10 @@ __attribute__((always_inline)) INLINE static void hydro_first_init_part(
   xp->APot[0] = p->APred[0];
   xp->APot[1] = p->APred[1];
   xp->APot[2] = p->APred[2];
+  xp->Bfld[0] = p->BPred[0];
+  xp->Bfld[1] = p->BPred[1];
+  xp->Bfld[2] = p->BPred[2];
+  xp->Gau     = p->GauPred;
 #endif
 
   hydro_reset_acceleration(p);

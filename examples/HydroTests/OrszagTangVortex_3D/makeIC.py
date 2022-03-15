@@ -81,8 +81,9 @@ hnew=0
 vol = 1.
 vol = lx*ly*lz
 # Generate extra arrays
-v = np.zeros((N, 3))
-b = np.zeros((N, 3))
+v   = np.zeros((N, 3))
+b   = np.zeros((N, 3))
+vp  = np.zeros((N, 3))
 epa = np.zeros(N)
 epb = np.zeros(N)
 ids = np.linspace(1, N, N)
@@ -98,6 +99,10 @@ b[:, 1] =   B0 * np.sin(4. * np.pi * pos[:, 0])
 b[:, 2] =  0. 
 epa[:]  = B0*(np.cos(2.*np.pi*pos[:,1])/(2.*np.pi) + np.cos(4.*np.pi*pos[:,0])/(4.*np.pi))
 epb[:]  = pos[:,2]
+
+vp[:, 0] = 0.0
+vp[:, 1] = 0.0
+vp[:, 2] = B0*(np.cos(2.*np.pi*pos[:,1])/(2.*np.pi) + np.cos(4.*np.pi*pos[:,0])/(4.*np.pi))
 
 pos[:,0]=pos[:,0]#+0.5
 pos[:,1]=pos[:,1]#+0.5
@@ -134,6 +139,7 @@ grp.create_dataset("SmoothingLength", data = h, dtype = 'f')
 grp.create_dataset("InternalEnergy", data = u, dtype = 'f')
 grp.create_dataset("ParticleIDs", data = ids, dtype = 'L')
 grp.create_dataset("Bfield", data = b, dtype = 'f')
+grp.create_dataset("VecPot", data = vp, dtype = 'f')
 grp.create_dataset("EPalpha", data = epa, dtype = 'f')
 grp.create_dataset("EPbeta" , data = epb, dtype = 'f')
 

@@ -37,5 +37,5 @@ InitialConditions:
 
 Scheduler:
   max_top_level_cells:   128
-  tasks_per_cell:        100
-  cell_split_size:       200
+  tasks_per_cell:        128
+  cell_split_size:       256
