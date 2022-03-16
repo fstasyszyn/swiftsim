@@ -565,6 +565,11 @@ __attribute__((always_inline)) INLINE static void hydro_end_density(
   		+ 2.0f * p->force.v_sig * p->GauPred / h 
 		+ 0.5f * p->GauPred * p->density.div_v); 
 #endif
+#ifdef MHD_DI
+  p->dphi_dt = -( p->divB * 0.25f * p->force.v_sig * p->force.v_sig * 0.075 * 0.075
+  		+ 2.0f * p->force.v_sig * p->phi / h * 0.075
+		+ 0.5f * p->phi * p->density.div_v); 
+#endif
 #endif
 }
 
@@ -608,7 +613,9 @@ __attribute__((always_inline)) INLINE static void hydro_part_has_no_neighbours(
   for (int i = 0; i < 3; ++i) p->Grad_ep[0][i]=0.f;
   for (int i = 0; i < 3; ++i) p->Grad_ep[1][i]=0.f;
 #endif
+#ifdef MHD_VECPOT
   p->divA    = 0.f;
+#endif
 #endif
 }
 
@@ -811,6 +818,7 @@ __attribute__((always_inline)) INLINE static void hydro_predict_extra(
   p->BPred[0] += p->dBdt[0] * dt_therm;
   p->BPred[1] += p->dBdt[1] * dt_therm;
   p->BPred[2] += p->dBdt[2] * dt_therm;
+  p->phi      += p->dphi_dt * dt_therm;
 #endif
 #ifdef MHD_VECPOT
   /* Predict the magnetic flux density */
@@ -917,6 +925,7 @@ __attribute__((always_inline)) INLINE static void hydro_kick_extra(
   xp->Bfld[0] = xp->Bfld[0] + delta_Bx;
   xp->Bfld[1] = xp->Bfld[1] + delta_By;
   xp->Bfld[2] = xp->Bfld[2] + delta_Bz;
+  p->phi      = p->phi      + p->dphi_dt * dt_therm;
 #endif
 #ifdef MHD_EULER
 //THIS VARIABLE IS NOT NEEDED BUT I LEAVE IT JUST INCASE 

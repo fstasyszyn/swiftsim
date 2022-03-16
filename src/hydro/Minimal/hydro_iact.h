@@ -636,6 +636,8 @@ __attribute__((always_inline)) INLINE static void runner_iact_force(
 			        + (pi->BPred[i] * dv[(i+2)%3] - pi->BPred[(i+2)%3] * dv[i]) * dx[(i+2)%3]);
   pj->dBdt[i] += mi * mag_Indj * ((pj->BPred[i] * dv[(i+1)%3] - pj->BPred[(i+1)%3] * dv[i]) * dx[(i+1)%3]
 			        + (pj->BPred[i] * dv[(i+2)%3] - pj->BPred[(i+2)%3] * dv[i]) * dx[(i+2)%3]);
+  pi->dBdt[i] += mj * mag_Indi * (pi->phi - pj->phi) * dx[i];
+  pj->dBdt[i] += mi * mag_Indj * (pi->phi - pj->phi) * dx[i];
   }
 #endif
 #ifdef MHD_VECPOT
@@ -655,7 +657,7 @@ __attribute__((always_inline)) INLINE static void runner_iact_force(
   //const float SourceAi = -(dA[0]*pi->v[0] + dA[1]*pi->v[1] + dA[2]*pi->v[2]);
   //const float SourceAj = -(dA[0]*pj->v[0] + dA[1]*pj->v[1] + dA[2]*pj->v[2]);
   float SAi = SourceAi + (pi->GauPred - pj->GauPred);
-  float SAj = SourceAj + (pj->GauPred - pi->GauPred);
+  float SAj = SourceAj + (pi->GauPred - pj->GauPred);
   for(int i=0;i<3;i++)
   {
      pi->dAdt[i] += mj *mag_Indi* SAi *dx[i];
@@ -971,6 +973,8 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_force(
   for(int i=0;i<3;i++) 
   pi->dBdt[i] += mj * mag_Indi * ((pi->BPred[i] * dv[(i+1)%3] - pi->BPred[(i+1)%3] * dv[i]) * dx[(i+1)%3]
 			        + (pi->BPred[i] * dv[(i+2)%3] - pi->BPred[(i+2)%3] * dv[i]) * dx[(i+2)%3]);
+  for(int i=0;i<3;i++) 
+  pi->dBdt[i] += mj * mag_Indi * (pi->phi - pj->phi) * dx[i];
 #endif
 #ifdef MHD_VECPOT
   const float mag_Indi = wi_dr * r_inv / rhoi;

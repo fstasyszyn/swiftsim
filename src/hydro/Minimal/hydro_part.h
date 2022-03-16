@@ -151,6 +151,7 @@ struct part {
 #if defined(MHD_DI) || defined(MHD_ORESTIS) 
   /* Direct Induction */
   float dBdt[3];
+  float phi, dphi_dt;
 #endif
 #ifdef MHD_VECPOT 
   /* Vector Potential */
