@@ -1787,7 +1787,7 @@ esac
 # Hydro scheme.
 AC_ARG_WITH([mhd],
    [AS_HELP_STRING([--with-mhd=<scheme>],
-      [Hydro dynamics to use @<:@euler, eulerBRIO, eulerVORT, DInduction, DIOrestis, VectPot, default: none@:>@]
+      [Hydro dynamics to use @<:@euler, eulerBRIO, eulerVORT, DInduction, DIOrestis, VecPot, default: none@:>@]
    )],
    [with_mhd="$withval"],
    [with_mhd="none"]
