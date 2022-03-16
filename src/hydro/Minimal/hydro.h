@@ -451,9 +451,12 @@ __attribute__((always_inline)) INLINE static float hydro_compute_timestep(
 #else  
   //Check if really needed
   float dt_divB=dt_cfl;
-#ifndef MHD_VECPOT // CHECK IF NEEDED
   dt_divB = p->divB != 0.f ? 2.f * p->h * sqrtf( p->rho /(MU0_1*p->divB *p->divB)) : dt_cfl;
-#endif
+//#ifdef MHD_VECPOT // CHECK IF NEEDED
+//  dt_divB = p->divA != 0.f ? 2.f * p->h * sqrtf( p->rho /(MU0_1*p->divA *p->divA)) : dt_cfl;
+//  float dt_eta = 2.0 * CFL_condition * p->h * p->h / 0.0002;
+//  dt_divB = min(dt_eta,dt_divB);
+//#endif
   return min(dt_cfl,dt_divB);
 #endif
 }
@@ -561,7 +564,7 @@ __attribute__((always_inline)) INLINE static void hydro_end_density(
   p->divA *= h_inv_dim_plus_one * a_inv2 * rho_inv;
   for (int i = 0; i < 3; i++) 
      p->BPred[i] *= h_inv_dim_plus_one * a_inv2 * rho_inv;
-  p->dGau_dt = -( p->divA * 0.25f * p->force.v_sig * p->force.v_sig
+  p->dGau_dt = -( p->divA * 0.25f * p->force.v_sig * p->force.v_sig * 0.075 * 0.075
   		+ 2.0f * p->force.v_sig * p->GauPred / h 
 		+ 0.5f * p->GauPred * p->density.div_v); 
 #endif
@@ -608,7 +611,9 @@ __attribute__((always_inline)) INLINE static void hydro_part_has_no_neighbours(
   for (int i = 0; i < 3; ++i) p->Grad_ep[0][i]=0.f;
   for (int i = 0; i < 3; ++i) p->Grad_ep[1][i]=0.f;
 #endif
+#ifdef MHD_VECPOT
   p->divA    = 0.f;
+#endif
 #endif
 }
 

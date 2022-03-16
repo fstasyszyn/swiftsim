@@ -642,24 +642,33 @@ __attribute__((always_inline)) INLINE static void runner_iact_force(
   const float mag_Indi = wi_dr * r_inv / rhoi;
   const float mag_Indj = wj_dr * r_inv / rhoj;
   // ADVECTIVE GAUGE
-  float dv[3];
-  dv[0] = pi->v[0] - pj->v[0];
-  dv[1] = pi->v[1] - pj->v[1];
-  dv[2] = pi->v[2] - pj->v[2];
-  const float SourceAi = dv[0]*pi->APred[0] + dv[1]*pi->APred[1] + dv[2]*pi->APred[2];
-  const float SourceAj = dv[0]*pj->APred[0] + dv[1]*pj->APred[1] + dv[2]*pj->APred[2];
+  //float dv[3];
+  //dv[0] = pi->v[0] - pj->v[0];
+  //dv[1] = pi->v[1] - pj->v[1];
+  //dv[2] = pi->v[2] - pj->v[2];
+  //const float SourceAi = dv[0]*pi->APred[0] + dv[1]*pi->APred[1] + dv[2]*pi->APred[2];
+  //const float SourceAj = dv[0]*pj->APred[0] + dv[1]*pj->APred[1] + dv[2]*pj->APred[2];
   // Normal Gauge
-  //float dA[3];
-  //for(int i=0;i<3;i++)
-  //   dA[i] = pi->APred[i] - pj->APred[i];
-  //const float SourceAi = -(dA[0]*pi->v[0] + dA[1]*pi->v[1] + dA[2]*pi->v[2]);
-  //const float SourceAj = -(dA[0]*pj->v[0] + dA[1]*pj->v[1] + dA[2]*pj->v[2]);
+  float dA[3];
+  for(int i=0;i<3;i++)
+     dA[i] = pi->APred[i] - pj->APred[i];
+  const float SourceAi = -(dA[0]*pi->v[0] + dA[1]*pi->v[1] + dA[2]*pi->v[2]);
+  const float SourceAj = -(dA[0]*pj->v[0] + dA[1]*pj->v[1] + dA[2]*pj->v[2]);
   float SAi = SourceAi + (pi->GauPred - pj->GauPred);
   float SAj = SourceAj + (pj->GauPred - pi->GauPred);
   for(int i=0;i<3;i++)
   {
      pi->dAdt[i] += mj *mag_Indi* SAi *dx[i];
      pj->dAdt[i] += mi *mag_Indj* SAj *dx[i];
+  }
+  //Dissipation
+  const float deta = 0.0; //0.0002;
+  const float mag_Disi = wi_dr * r_inv * rhoi / (rho_ij * rho_ij);
+  const float mag_Disj = wj_dr * r_inv * rhoj / (rho_ij * rho_ij);
+  for(int i=0;i<3;i++)
+  {
+     pi->dAdt[i] += mj * deta * mag_Disi* dA[i];
+     pj->dAdt[i] += mi * deta * mag_Disj* dA[i];
   }
 #endif
 }
@@ -975,19 +984,25 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_force(
 #ifdef MHD_VECPOT
   const float mag_Indi = wi_dr * r_inv / rhoi;
   // ADVECTIVE GAUGE
-  float dv[3];
-  dv[0] = pi->v[0] - pj->v[0];
-  dv[1] = pi->v[1] - pj->v[1];
-  dv[2] = pi->v[2] - pj->v[2];
-  const float SourceAi = dv[0]*pi->APred[0] + dv[1]*pi->APred[1] + dv[2]*pi->APred[2];
+  //float dv[3];
+  //dv[0] = pi->v[0] - pj->v[0];
+  //dv[1] = pi->v[1] - pj->v[1];
+  //dv[2] = pi->v[2] - pj->v[2];
+  //const float SourceAi = dv[0]*pi->APred[0] + dv[1]*pi->APred[1] + dv[2]*pi->APred[2];
   // Normal Gauge
-  //float dA[3];
-  //for(int i=0;i<3;i++)
-  //   dA[i] = pi->APred[i] - pj->APred[i];
-  //const float SourceAi = -(dA[0]*pi->v[0] + dA[1]*pi->v[1] + dA[2]*pi->v[2]);
+  float dA[3];
+  for(int i=0;i<3;i++)
+     dA[i] = pi->APred[i] - pj->APred[i];
+  const float SourceAi = -(dA[0]*pi->v[0] + dA[1]*pi->v[1] + dA[2]*pi->v[2]);
   float SAi = SourceAi + (pi->GauPred - pj->GauPred);
   for(int i=0;i<3;i++)
      pi->dAdt[i] += mj *mag_Indi* SAi *dx[i];
+  //Dissipation
+  const float deta = 0.0f;//0.0002;
+  const float mag_Disi = wi_dr * r_inv * rhoi / (rho_ij * rho_ij);
+  for(int i=0;i<3;i++)
+     pi->dAdt[i] += mj * deta * mag_Disi* dA[i];
+
 #endif
 }
 
