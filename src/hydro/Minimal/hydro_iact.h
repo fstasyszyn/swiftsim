@@ -59,15 +59,6 @@ __attribute__((always_inline)) INLINE static void runner_iact_density(
     const float H) {
 
   float wi, wj, wi_dx, wj_dx;
-#ifdef MHD_BASE
-  double dB[3];
-#ifdef MHD_EULER
-  double dalpha, dbeta;
-#endif
-#ifdef MHD_VECPOT
-  double dA[3];
-#endif
-#endif
 
 #ifdef SWIFT_DEBUG_CHECKS
   if (pi->time_bin >= time_bin_inhibited)
@@ -131,12 +122,14 @@ __attribute__((always_inline)) INLINE static void runner_iact_density(
   pj->density.rot_v[1] += facj * curlvr[1];
   pj->density.rot_v[2] += facj * curlvr[2];
 #ifdef MHD_BASE
+  double dB[3];
   for(int i=0;i<3;++i)
   	dB[i]= pi->BPred[i] - pj->BPred[i];
   const double dBdr = dB[0]*dx[0] + dB[1]*dx[1] + dB[2]*dx[2];
   pi->divB -= faci * dBdr;
   pj->divB -= facj * dBdr;
 #ifdef MHD_EULER
+  double dalpha, dbeta;
   dalpha = pi->ep[0] - pj->ep[0];
   dbeta  = pi->ep[1] - pj->ep[1];
 
@@ -159,6 +152,7 @@ __attribute__((always_inline)) INLINE static void runner_iact_density(
   }
 #endif  /* MHD_EULER */
 #ifdef MHD_VECPOT
+  double dA[3];
   for(int i=0;i<3;++i)
   	dA[i]= pi->APred[i] - pj->APred[i];
   const double dAdr = dA[0]*dx[0] + dA[1]*dx[1] + dA[2]*dx[2];
@@ -191,15 +185,6 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_density(
     const float H) {
 
   float wi, wi_dx;
-#ifdef MHD_BASE
-  double dB[3];
-#ifdef MHD_EULER
-  double dalpha, dbeta;
-#endif
-#ifdef MHD_VECPOT
-  double dA[3];
-#endif
-#endif
 
 #ifdef SWIFT_DEBUG_CHECKS
   if (pi->time_bin >= time_bin_inhibited)
@@ -245,11 +230,13 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_density(
   pi->density.rot_v[1] += faci * curlvr[1];
   pi->density.rot_v[2] += faci * curlvr[2];
 #ifdef MHD_BASE
+  double dB[3];
   for(int i=0;i<3;++i)
   	dB[i]= pi->BPred[i] - pj->BPred[i];
   const double dBdr = dB[0]*dx[0] + dB[1]*dx[1] + dB[2]*dx[2];
   pi->divB -= faci * dBdr;
 #ifdef MHD_EULER
+  double dalpha, dbeta;
   dalpha = pi->ep[0] - pj->ep[0];
   dbeta  = pi->ep[1] - pj->ep[1];
   
@@ -267,6 +254,7 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_density(
   }
 #endif  /* MHD_EULER */
 #ifdef MHD_VECPOT
+  double dA[3];
   for(int i=0;i<3;++i)
   	dA[i]= pi->APred[i] - pj->APred[i];
   const double dAdr = dA[0]*dx[0] + dA[1]*dx[1] + dA[2]*dx[2];
@@ -410,8 +398,13 @@ __attribute__((always_inline)) INLINE static void runner_iact_force(
 
   /* Construct the full viscosity term */
   const float rho_ij = 0.5f * (rhoi + rhoj);
+#ifdef MHD_ORESTIS
+  const float v_sig_hydro = ci + cj - const_viscosity_beta * mu_ij;
+  const float visc =
+      -0.25f * v_sig_hydro * (balsara_i + balsara_j) * mu_ij / rho_ij;
+#else
   const float visc = -0.25f * v_sig * (balsara_i + balsara_j) * mu_ij / rho_ij;
-
+#endif
   /* Convolve with the kernel */
   const float visc_acc_term =
       0.5f * visc * (wi_dr * f_ij + wj_dr * f_ji) * r_inv;
@@ -810,7 +803,13 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_force(
 
   /* Construct the full viscosity term */
   const float rho_ij = 0.5f * (rhoi + rhoj);
+#ifdef MHD_ORESTIS
+  const float v_sig_hydro = ci + cj - const_viscosity_beta * mu_ij;
+  const float visc =
+      -0.25f * v_sig_hydro * (balsara_i + balsara_j) * mu_ij / rho_ij;
+#else
   const float visc = -0.25f * v_sig * (balsara_i + balsara_j) * mu_ij / rho_ij;
+#endif
 
   /* Convolve with the kernel */
   const float visc_acc_term =

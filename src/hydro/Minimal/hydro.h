@@ -1013,12 +1013,16 @@ __attribute__((always_inline)) INLINE static void hydro_convert_quantities(
   xp->Bfld[0] = p->BPred[0];
   xp->Bfld[1] = p->BPred[1];
   xp->Bfld[2] = p->BPred[2];
+#ifdef MHD_DI
+  p->phi = 0.f;
+#endif
 #endif
 #ifdef MHD_VECPOT
   /* set the potentials */
   xp->APot[0] = p->APred[0];
   xp->APot[1] = p->APred[1];
   xp->APot[2] = p->APred[2];
+  xp->Gau     = p->GauPred = 0.f;
 #endif
 }
 
