@@ -563,8 +563,8 @@ __attribute__((always_inline)) INLINE static void runner_iact_force(
     {  
        pi->a_hydro[i] += mj * (mm_i[i][j]*mag_faci+mm_j[i][j]*mag_facj) * dx[j];
        pj->a_hydro[i] -= mi * (mm_i[i][j]*mag_faci+mm_j[i][j]*mag_facj) * dx[j];
-       pi->a_hydro[i] -= mj * pi->BPred[i] * (pi->BPred[j]*mag_faci+pj->BPred[j]*mag_facj)*dx[j];
-       pj->a_hydro[i] += mi * pj->BPred[i] * (pi->BPred[j]*mag_faci+pj->BPred[j]*mag_facj)*dx[j];
+       pi->a_hydro[i] -= pi->Q0 * mj * pi->BPred[i] * (pi->BPred[j]*mag_faci+pj->BPred[j]*mag_facj)*dx[j];
+       pj->a_hydro[i] += pj->Q0 * mi * pj->BPred[i] * (pi->BPred[j]*mag_faci+pj->BPred[j]*mag_facj)*dx[j];
      }
 #endif
   /* Get the time derivative for u. */
@@ -629,8 +629,8 @@ __attribute__((always_inline)) INLINE static void runner_iact_force(
 			        + (pi->BPred[i] * dv[(i+2)%3] - pi->BPred[(i+2)%3] * dv[i]) * dx[(i+2)%3]);
   pj->dBdt[i] += mi * mag_Indj * ((pj->BPred[i] * dv[(i+1)%3] - pj->BPred[(i+1)%3] * dv[i]) * dx[(i+1)%3]
 			        + (pj->BPred[i] * dv[(i+2)%3] - pj->BPred[(i+2)%3] * dv[i]) * dx[(i+2)%3]);
-  pi->dBdt[i] += mj * mag_Indi * (pi->phi - pj->phi) * dx[i];
-  pj->dBdt[i] += mi * mag_Indj * (pi->phi - pj->phi) * dx[i];
+  pi->dBdt[i] += pi->Q1 * mj * mag_Indi * (pi->phi - pj->phi) * dx[i];
+  pj->dBdt[i] += pj->Q1 * mi * mag_Indj * (pi->phi - pj->phi) * dx[i];
   }
 #endif
 #ifdef MHD_VECPOT
@@ -657,7 +657,7 @@ __attribute__((always_inline)) INLINE static void runner_iact_force(
      pj->dAdt[i] += mi *mag_Indj* SAj *dx[i];
   }
   //Dissipation
-  const float deta = 0.0; //0.0002;
+  const float deta = 0.002;
   const float mag_Disi = wi_dr * r_inv * rhoi / (rho_ij * rho_ij);
   const float mag_Disj = wj_dr * r_inv * rhoj / (rho_ij * rho_ij);
   for(int i=0;i<3;i++)
@@ -934,7 +934,7 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_force(
   for(int i=0;i<3;i++)
     for(int j=0;j<3;j++){
           pi->a_hydro[i] += mj * (mm_i[i][j]*mag_faci+mm_j[i][j]*mag_facj)*dx[j];
-	  pi->a_hydro[i] -= mj * pi->BPred[i] * (pi->BPred[j]*mag_faci+pj->BPred[j]*mag_facj)*dx[j];
+	  pi->a_hydro[i] -= pi->Q0 * mj * pi->BPred[i] * (pi->BPred[j]*mag_faci+pj->BPred[j]*mag_facj)*dx[j];
 	 }
 #endif
 
@@ -982,7 +982,7 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_force(
   pi->dBdt[i] += mj * mag_Indi * ((pi->BPred[i] * dv[(i+1)%3] - pi->BPred[(i+1)%3] * dv[i]) * dx[(i+1)%3]
 			        + (pi->BPred[i] * dv[(i+2)%3] - pi->BPred[(i+2)%3] * dv[i]) * dx[(i+2)%3]);
   for(int i=0;i<3;i++) 
-  pi->dBdt[i] += mj * mag_Indi * (pi->phi - pj->phi) * dx[i];
+  pi->dBdt[i] += pi->Q1 * mj * mag_Indi * (pi->phi - pj->phi) * dx[i];
 #endif
 #ifdef MHD_VECPOT
   const float mag_Indi = wi_dr * r_inv / rhoi;
@@ -1001,7 +1001,7 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_force(
   for(int i=0;i<3;i++)
      pi->dAdt[i] += mj *mag_Indi* SAi *dx[i];
   //Dissipation
-  const float deta = 0.0f;//0.0002;
+  const float deta = 0.002;
   const float mag_Disi = wi_dr * r_inv * rhoi / (rho_ij * rho_ij);
   for(int i=0;i<3;i++)
      pi->dAdt[i] += mj * deta * mag_Disi* dA[i];

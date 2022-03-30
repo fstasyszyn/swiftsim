@@ -46,6 +46,34 @@
 #include "minmax.h"
 
 /**
+ * @brief Returns the evolution of the Dender Scalar Phi evolution
+ * time the particle was kicked.
+ *
+ * @param p The particle of interest
+ */
+#ifdef MHD_DI
+__attribute__((always_inline)) INLINE static float
+hydro_get_dphi_dt(const struct part *restrict p) {
+  return   (- p->divB * p->force.v_sig * p->force.v_sig // * 0.075 * 0.075
+  		- 2.0f * p->force.v_sig * p->phi / p->h  // * 1.075 (0.5 *2.0) gadget
+		- 0.5f * p->phi * p->density.div_v); 
+}
+#endif
+/**
+ * @brief Returns the evolution of the Vector Potential Gauge evolution
+ * time the particle was kicked.
+ *
+ * @param p The particle of interest
+ */
+#ifdef MHD_VECPOT
+__attribute__((always_inline)) INLINE static float
+hydro_get_dGau_dt(const struct part *restrict p) {
+  return ( - p->divA * 0.25f * p->force.v_sig * p->force.v_sig // * 0.075 * 0.075
+  		- 2.0f * p->force.v_sig * p->GauPred / p->h // * 0.075 
+		- 0.5f * p->GauPred * p->density.div_v); 
+}
+#endif
+/**
  * @brief Returns the comoving internal energy of a particle at the last
  * time the particle was kicked.
  *
@@ -452,11 +480,11 @@ __attribute__((always_inline)) INLINE static float hydro_compute_timestep(
   //Check if really needed
   float dt_divB=dt_cfl;
   dt_divB = p->divB != 0.f ? 2.f * p->h * sqrtf( p->rho /(MU0_1*p->divB *p->divB)) : dt_cfl;
-//#ifdef MHD_VECPOT // CHECK IF NEEDED
+#ifdef MHD_VECPOT // CHECK IF NEEDED
 //  dt_divB = p->divA != 0.f ? 2.f * p->h * sqrtf( p->rho /(MU0_1*p->divA *p->divA)) : dt_cfl;
-//  float dt_eta = 2.0 * CFL_condition * p->h * p->h / 0.0002;
-//  dt_divB = min(dt_eta,dt_divB);
-//#endif
+  float dt_eta = 2.0 * CFL_condition * p->h * p->h / 0.002;
+  dt_divB = min(dt_eta,dt_divB);
+#endif
   return min(dt_cfl,dt_divB);
 #endif
 }
@@ -503,6 +531,10 @@ __attribute__((always_inline)) INLINE static void hydro_init_part(
   p->BPred[0] = 0.f;
   p->BPred[1] = 0.f;
   p->BPred[2] = 0.f;
+  p->GauPred  = 0.f;
+#endif
+#ifdef MHD_DI
+  p->phi = 0.f;
 #endif
 #endif
 }
@@ -558,20 +590,23 @@ __attribute__((always_inline)) INLINE static void hydro_end_density(
   for (int i = 0; i < 3; i++) p->Grad_ep[1][i] *= h_inv_dim_plus_one * cosmo->a_inv * rho_inv;
   for (int i = 0; i < 3; i++) p->BPred[i] = p->Grad_ep[0][(i+1)%3]*p->Grad_ep[1][(i+2)%3]
   			                 - p->Grad_ep[0][(i+2)%3]*p->Grad_ep[1][(i+1)%3];
-//  for (int i = 0; i < 3; i++) p->BPred[i] = p->Bfld[i];
 #endif
 #ifdef MHD_VECPOT
   p->divA *= h_inv_dim_plus_one * a_inv2 * rho_inv;
   for (int i = 0; i < 3; i++) 
      p->BPred[i] *= h_inv_dim_plus_one * a_inv2 * rho_inv;
-  p->dGau_dt = -( p->divA * 0.25f * p->force.v_sig * p->force.v_sig * 0.075 * 0.075
-  		+ 2.0f * p->force.v_sig * p->GauPred / h 
-		+ 0.5f * p->GauPred * p->density.div_v); 
 #endif
 #ifdef MHD_DI
-  p->dphi_dt = -( p->divB * 0.25f * p->force.v_sig * p->force.v_sig * 0.075 * 0.075
-  		+ 2.0f * p->force.v_sig * p->phi / h * 0.075
-		+ 0.5f * p->phi * p->density.div_v); 
+  float const DBDT_Corr = (p->phi/p->h);
+  float const DBDT_True = sqrt( p->dBdt[0] * p->dBdt[0]   + p->dBdt[1] *p->dBdt[1]    + p->dBdt[2] * p->dBdt[2] );
+  p->Q1 = DBDT_Corr/ DBDT_True > 0.5f ? 0.5f/DBDT_Corr : 1.0f;
+#endif
+#ifdef MHD_BASE
+  float const ACC_Corr  = sqrt( p->BPred[0] * p->BPred[0] + p->BPred[1] * p->BPred[1] + p->BPred[2] * p->BPred[2]) 
+  			  * fabs(p->divB) * MU0_1 / p->rho;
+  float const ACC_True  = sqrt( p->a_hydro[0]*p->a_hydro[0]+ p->a_hydro[1]*p->a_hydro[1]+ p->a_hydro[2]*p->a_hydro[2]);
+  //p->Q[0] = 0.5f * p->divB * p->force.v_sig > ACC ? ACC / (p->divB * p->force.v_sig) : 1.0f;
+  p->Q0 = ACC_Corr / ACC_True  > 10.f ? 10.f/ACC_Corr  : 1.0f;
 #endif
 #endif
 }
@@ -739,7 +774,6 @@ __attribute__((always_inline)) INLINE static void hydro_reset_acceleration(
   p->dAdt[0] = 0.0f;
   p->dAdt[1] = 0.0f;
   p->dAdt[2] = 0.0f;
-  p->dGau_dt = 0.0f;
 #endif
 }
 
@@ -769,6 +803,9 @@ __attribute__((always_inline)) INLINE static void hydro_reset_predicted_values(
   p->BPred[0] = xp->Bfld[0];
   p->BPred[1] = xp->Bfld[1];
   p->BPred[2] = xp->Bfld[2];
+#endif
+#ifdef MHD_DI
+  p->phi = xp->phi;
 #endif
 #ifdef MHD_VECPOT
   /* Re-set the predicted Vec pot */
@@ -821,14 +858,17 @@ __attribute__((always_inline)) INLINE static void hydro_predict_extra(
   p->BPred[0] += p->dBdt[0] * dt_therm;
   p->BPred[1] += p->dBdt[1] * dt_therm;
   p->BPred[2] += p->dBdt[2] * dt_therm;
-  p->phi      += p->dphi_dt * dt_therm;
+#endif
+#ifdef MHD_DI
+  const float dtdphi = hydro_get_dphi_dt(p);
+  p->phi     += dtdphi * dt_therm;
 #endif
 #ifdef MHD_VECPOT
   /* Predict the magnetic flux density */
   p->APred[0] += p->dAdt[0] * dt_therm;
   p->APred[1] += p->dAdt[1] * dt_therm;
   p->APred[2] += p->dAdt[2] * dt_therm;
-  p->GauPred  += p->dGau_dt * dt_therm;
+  p->GauPred  += hydro_get_dGau_dt(p) * dt_therm;
 #endif
 
   const float h_inv = 1.f / p->h;
@@ -928,7 +968,11 @@ __attribute__((always_inline)) INLINE static void hydro_kick_extra(
   xp->Bfld[0] = xp->Bfld[0] + delta_Bx;
   xp->Bfld[1] = xp->Bfld[1] + delta_By;
   xp->Bfld[2] = xp->Bfld[2] + delta_Bz;
-  p->phi      = p->phi      + p->dphi_dt * dt_therm;
+#endif
+#ifdef MHD_DI
+  const float dtdphi = hydro_get_dphi_dt(p);
+  xp->phi     = xp->phi     + dtdphi * dt_therm;
+
 #endif
 #ifdef MHD_EULER
 //THIS VARIABLE IS NOT NEEDED BUT I LEAVE IT JUST INCASE 
@@ -940,7 +984,7 @@ __attribute__((always_inline)) INLINE static void hydro_kick_extra(
   xp->APot[0] = xp->APot[0] + p->dAdt[0] * dt_therm;
   xp->APot[1] = xp->APot[1] + p->dAdt[1] * dt_therm;
   xp->APot[2] = xp->APot[2] + p->dAdt[2] * dt_therm;
-  xp->Gau     = xp->Gau     + p->dGau_dt * dt_therm;
+  xp->Gau     = xp->Gau     + hydro_get_dGau_dt(p) * dt_therm;
 //THIS VARIABLE IS NOT NEEDED BUT I LEAVE IT JUST INCASE 
   xp->Bfld[0] = p->BPred[0];
   xp->Bfld[1] = p->BPred[1];
@@ -1013,16 +1057,16 @@ __attribute__((always_inline)) INLINE static void hydro_convert_quantities(
   xp->Bfld[0] = p->BPred[0];
   xp->Bfld[1] = p->BPred[1];
   xp->Bfld[2] = p->BPred[2];
-#ifdef MHD_DI
-  p->phi = 0.f;
 #endif
+#ifdef MHD_DI
+  xp->phi = p->phi;
 #endif
 #ifdef MHD_VECPOT
   /* set the potentials */
   xp->APot[0] = p->APred[0];
   xp->APot[1] = p->APred[1];
   xp->APot[2] = p->APred[2];
-  xp->Gau     = p->GauPred = 0.f;
+  xp->Gau     = p->GauPred ;
 #endif
 }
 
@@ -1049,6 +1093,9 @@ __attribute__((always_inline)) INLINE static void hydro_first_init_part(
   xp->Bfld[1] = p->BPred[1];
   xp->Bfld[2] = p->BPred[2];
 #endif
+#ifdef MHD_DI
+  xp->phi = p->phi;
+#endif
 #ifdef MHD_VECPOT
   /* set the initial potentials */
   xp->APot[0] = p->APred[0];
@@ -1057,7 +1104,7 @@ __attribute__((always_inline)) INLINE static void hydro_first_init_part(
   xp->Bfld[0] = p->BPred[0];
   xp->Bfld[1] = p->BPred[1];
   xp->Bfld[2] = p->BPred[2];
-  xp->Gau     = p->GauPred;
+  xp->Gau     = p->GauPred ;
 #endif
 
   hydro_reset_acceleration(p);

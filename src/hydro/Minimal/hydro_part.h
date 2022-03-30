@@ -70,6 +70,9 @@ struct xpart {
   /*! Bfield/Bflux denisty at full step */ 
   float Bfld[3];
 #endif
+#ifdef MHD_DI
+  float phi;
+#endif
 #ifdef MHD_VECPOT 
   /*! magnetic vector potential at full step */ 
   float APot[3];
@@ -148,16 +151,18 @@ struct part {
   /*! Divergence of B */
   float divB;
   float Bsmooth[3];
+  float Q0;
 #if defined(MHD_DI) || defined(MHD_ORESTIS) 
   /* Direct Induction */
   float dBdt[3];
-  float phi, dphi_dt;
+  float Q1;
+  float phi;
 #endif
 #ifdef MHD_VECPOT 
   /* Vector Potential */
   float APred[3];
   float dAdt[3];
-  float divA,GauPred,dGau_dt;
+  float divA,GauPred;
 #endif
 #ifdef MHD_EULER 
   /* Euler Potentials */
