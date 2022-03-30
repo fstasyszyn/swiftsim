@@ -278,19 +278,23 @@ end
 ################################################################################
 ############################DO THINGS###########################################
 ################################################################################
-run=read_snap(ARGS[1])
-Nmax =256
-EdivB=run[:hsml].*run[:divB] ./ sqrt.(run[:b2])
-EdivB = log10.(abs.(EdivB))
-gr()
-AA   =do_heat(run,(run[:rho]),Nmax)
-h1=heatmap(1:Nmax,1:Nmax,AA,color=cgrad([:blue,:green,:yellow,:red]),clim=(0.1,0.5),colorbar=:left)
-AA   =do_heat(run,(run[:Pres]),Nmax)
-h2=heatmap(1:Nmax,1:Nmax,AA,color=cgrad([:blue,:yellow,:purple]),clim=(0.01,0.7))
-AA   =do_heat(run,(run[:b2])./2,Nmax)
-h3=heatmap(1:Nmax,1:Nmax,AA,color=cgrad([:blue, :red, :purple]),clim=(0.01,0.25))
-AA   =do_heat(run,(EdivB),Nmax)
-h4=heatmap(1:Nmax,1:Nmax,AA,color=cgrad([:blue,:white]),clim=(-4.0,-1.0))
+if isfile(ARGS[1])
+   run=read_snap(ARGS[1])
+   Nmax =256
+   EdivB=run[:hsml].*run[:divB] ./ sqrt.(run[:b2])
+   EdivB = log10.(abs.(EdivB))
+   gr()
+   AA   =do_heat(run,(run[:rho]),Nmax)
+   h1=heatmap(1:Nmax,1:Nmax,AA,color=cgrad([:blue,:green,:yellow,:red]),clim=(0.1,0.5),colorbar=:left)
+   AA   =do_heat(run,(run[:Pres]),Nmax)
+   h2=heatmap(1:Nmax,1:Nmax,AA,color=cgrad([:blue,:yellow,:purple]),clim=(0.01,0.7))
+   AA   =do_heat(run,(run[:b2])./2,Nmax)
+   h3=heatmap(1:Nmax,1:Nmax,AA,color=cgrad([:blue, :red, :purple]),clim=(0.01,0.25))
+   AA   =do_heat(run,(EdivB),Nmax)
+   h4=heatmap(1:Nmax,1:Nmax,AA,color=cgrad([:blue,:white]),clim=(-4.0,-1.0))
 
-plot(h1,h2,h3,h4,layout=4,size=(1024,1024),aspect_ratio=:equal,title=["\$Density\$" "\$Pressure\$" "\$B^2/2\$" "\$log10(err_{divB})\$"],colorbar=[:left :top :left :right])
-savefig("SolutionOT.png")
+   plot(h1,h2,h3,h4,layout=4,size=(1024,1024),aspect_ratio=:equal,title=["\$Density\$" "\$Pressure\$" "\$B^2/2\$" "\$log10(err_{divB})\$"],colorbar=[:left :top :left :right])
+   savefig("SolutionOT.png")
+else
+   printl("File ",ARGS[1]," *** NOT FOUND ***")
+end

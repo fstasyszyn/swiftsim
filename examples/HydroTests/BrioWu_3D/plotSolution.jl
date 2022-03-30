@@ -264,7 +264,10 @@ end
 ################################################################################
 ############################DO THINGS###########################################
 ################################################################################
-
-gsnap=read_snap(ARGS[1])
-do_6plot(gsnap)
-savefig("Solution.jpeg")
+if isfile(ARGS[1])
+   gsnap=read_snap(ARGS[1])
+   do_6plot(gsnap)
+   savefig("Solution.jpeg")
+else
+   println("File ",ARGS[1]," ***  NOT FOUND   *** ")
+end
