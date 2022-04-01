@@ -109,9 +109,9 @@ INLINE static void convert_B(const struct engine* e, const struct part* p,
   ret[1] = xp->Bfld[1] * p->rho;
   ret[2] = xp->Bfld[2] * p->rho;
 #else
-  ret[0] = xp->Bfld[0] ;
-  ret[1] = xp->Bfld[1] ;
-  ret[2] = xp->Bfld[2] ;
+  ret[0] = p->Bfld[0] ;
+  ret[1] = p->Bfld[1] ;
+  ret[2] = p->Bfld[2] ;
 #endif
 }
 

@@ -68,15 +68,15 @@ struct xpart {
 
 #ifdef MHD_BASE 
   /*! Bfield/Bflux denisty at full step */ 
-  float Bfld[3];
+  //float Bfld[3];
 #endif
 #ifdef MHD_DI
   float phi;
 #endif
 #ifdef MHD_VECPOT 
   /*! magnetic vector potential at full step */ 
-  float APot[3];
-  float Gau;
+  //float APot[3];
+  //float Gau;
 #endif
   /*! Additional data used to record particle splits */
   struct particle_splitting_data split_data;
@@ -144,8 +144,8 @@ struct part {
   /*! Magnetic flux density at the full step. */
   //float B_over_rho_full[3];
 #ifdef MHD_BASE 
-  /* Magnetic field */
-  //float Bfld[3];
+  /* Magnetic field full step*/
+  float Bfld[3];
   /*! Bfield/Bflux density */ 
   float BPred[3];
   /*! Divergence of B */
@@ -163,6 +163,8 @@ struct part {
   float APred[3];
   float dAdt[3];
   float divA,GauPred;
+  float APot[3];
+  float Gau;
 #endif
 #ifdef MHD_EULER 
   /* Euler Potentials */

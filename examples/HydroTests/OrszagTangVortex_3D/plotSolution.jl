@@ -296,5 +296,5 @@ if isfile(ARGS[1])
    plot(h1,h2,h3,h4,layout=4,size=(1024,1024),aspect_ratio=:equal,title=["\$Density\$" "\$Pressure\$" "\$B^2/2\$" "\$log10(err_{divB})\$"],colorbar=[:left :top :left :right])
    savefig("SolutionOT.png")
 else
-   printl("File ",ARGS[1]," *** NOT FOUND ***")
+   println("File ",ARGS[1]," *** NOT FOUND ***")
 end

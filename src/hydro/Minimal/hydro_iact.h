@@ -154,7 +154,8 @@ __attribute__((always_inline)) INLINE static void runner_iact_density(
 #ifdef MHD_VECPOT
   double dA[3];
   for(int i=0;i<3;++i)
-  	dA[i]= pi->APred[i] - pj->APred[i];
+  	//dA[i]= pi->APred[i] - pj->APred[i];
+  	dA[i]= pi->APot[i] - pj->APot[i];
   const double dAdr = dA[0]*dx[0] + dA[1]*dx[1] + dA[2]*dx[2];
   pi->divA -= faci * dAdr;
   pj->divA -= facj * dAdr;
@@ -256,7 +257,8 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_density(
 #ifdef MHD_VECPOT
   double dA[3];
   for(int i=0;i<3;++i)
-  	dA[i]= pi->APred[i] - pj->APred[i];
+  	dA[i]= pi->APot[i] - pj->APot[i];
+  	//dA[i]= pi->APred[i] - pj->APred[i];
   const double dAdr = dA[0]*dx[0] + dA[1]*dx[1] + dA[2]*dx[2];
   pi->divA -= faci * dAdr;
   for(int i=0;i<3;++i)
@@ -657,14 +659,14 @@ __attribute__((always_inline)) INLINE static void runner_iact_force(
      pj->dAdt[i] += mi *mag_Indj* SAj *dx[i];
   }
   //Dissipation
-  const float deta = 0.002;
+/*  const float deta = 0.0;
   const float mag_Disi = wi_dr * r_inv * rhoi / (rho_ij * rho_ij);
   const float mag_Disj = wj_dr * r_inv * rhoj / (rho_ij * rho_ij);
   for(int i=0;i<3;i++)
   {
      pi->dAdt[i] += mj * deta * mag_Disi* dA[i];
      pj->dAdt[i] += mi * deta * mag_Disj* dA[i];
-  }
+  }*/
 #endif
 }
 
@@ -973,6 +975,7 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_force(
 #endif
 #ifdef MHD_DI
   const float mag_Indi = wi_dr * r_inv / rhoi;
+  //const float mag_faci = MU0_1 * f_ij * wi_dr * r_inv /(rhoi*rhoi);
   float dv[3];
   dv[0] = pi->v[0] - pj->v[0];
   dv[1] = pi->v[1] - pj->v[1];
@@ -1001,11 +1004,11 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_force(
   for(int i=0;i<3;i++)
      pi->dAdt[i] += mj *mag_Indi* SAi *dx[i];
   //Dissipation
-  const float deta = 0.002;
+/*  const float deta = 0.002;
   const float mag_Disi = wi_dr * r_inv * rhoi / (rho_ij * rho_ij);
   for(int i=0;i<3;i++)
      pi->dAdt[i] += mj * deta * mag_Disi* dA[i];
-
+*/
 #endif
 }
 

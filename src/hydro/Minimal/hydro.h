@@ -54,8 +54,8 @@
 #ifdef MHD_DI
 __attribute__((always_inline)) INLINE static float
 hydro_get_dphi_dt(const struct part *restrict p) {
-  return   (- p->divB * p->force.v_sig * p->force.v_sig // * 0.075 * 0.075
-  		- 2.0f * p->force.v_sig * p->phi / p->h  // * 1.075 (0.5 *2.0) gadget
+  return   (- p->divB * p->force.v_sig * p->force.v_sig 
+  		- 2.0f * p->force.v_sig * p->phi / p->h  //(0.5 *2.0) gadget
 		- 0.5f * p->phi * p->density.div_v); 
 }
 #endif
@@ -68,9 +68,9 @@ hydro_get_dphi_dt(const struct part *restrict p) {
 #ifdef MHD_VECPOT
 __attribute__((always_inline)) INLINE static float
 hydro_get_dGau_dt(const struct part *restrict p) {
-  return ( - p->divA * 0.25f * p->force.v_sig * p->force.v_sig // * 0.075 * 0.075
-  		- 2.0f * p->force.v_sig * p->GauPred / p->h // * 0.075 
-		- 0.5f * p->GauPred * p->density.div_v); 
+  return ( - p->divA * p->force.v_sig * p->force.v_sig 
+  		- 2.0f * p->force.v_sig * p->Gau / p->h 
+		- 0.5f * p->Gau * p->density.div_v); 
 }
 #endif
 /**
@@ -478,12 +478,12 @@ __attribute__((always_inline)) INLINE static float hydro_compute_timestep(
   return dt_cfl;
 #else  
   //Check if really needed
-  float dt_divB=dt_cfl;
-  dt_divB = p->divB != 0.f ? 2.f * p->h * sqrtf( p->rho /(MU0_1*p->divB *p->divB)) : dt_cfl;
+  float dt_divB = p->divB != 0.f ? 2.f * CFL_condition * p->h * sqrtf( p->rho /(MU0_1*p->divB *p->divB)) : dt_cfl;
 #ifdef MHD_VECPOT // CHECK IF NEEDED
 //  dt_divB = p->divA != 0.f ? 2.f * p->h * sqrtf( p->rho /(MU0_1*p->divA *p->divA)) : dt_cfl;
-  float dt_eta = 2.0 * CFL_condition * p->h * p->h / 0.002;
-  dt_divB = min(dt_eta,dt_divB);
+//  const float deta= 0.002;
+//  const float dt_eta = 2.0 * CFL_condition * p->h * p->h / deta;
+//  dt_divB = min(dt_eta,dt_divB);
 #endif
   return min(dt_cfl,dt_divB);
 #endif
@@ -800,19 +800,19 @@ __attribute__((always_inline)) INLINE static void hydro_reset_predicted_values(
 #if defined(MHD_ORESTIS) || defined(MHD_DI)
   /* Re-set the predicted magnetic flux densities */
   /* Re-set the predicted magnetic field */
-  p->BPred[0] = xp->Bfld[0];
-  p->BPred[1] = xp->Bfld[1];
-  p->BPred[2] = xp->Bfld[2];
+  p->BPred[0] = p->Bfld[0];
+  p->BPred[1] = p->Bfld[1];
+  p->BPred[2] = p->Bfld[2];
 #endif
 #ifdef MHD_DI
   p->phi = xp->phi;
 #endif
 #ifdef MHD_VECPOT
   /* Re-set the predicted Vec pot */
-  p->APred[0] = xp->APot[0];
-  p->APred[1] = xp->APot[1];
-  p->APred[2] = xp->APot[2];
-  p->GauPred  = xp->Gau;
+  p->APred[0] = p->APot[0];
+  p->APred[1] = p->APot[1];
+  p->APred[2] = p->APot[2];
+  p->GauPred  = p->Gau;
 #endif
 /* Re-compute the pressure */
   const float pressure = gas_pressure_from_internal_energy(p->rho, p->u);
@@ -965,9 +965,9 @@ __attribute__((always_inline)) INLINE static void hydro_kick_extra(
   const float delta_Bz = p->dBdt[2] * dt_therm;
   
   /* Do not decrease the magnetic flux density by more than a factor of 2*/
-  xp->Bfld[0] = xp->Bfld[0] + delta_Bx;
-  xp->Bfld[1] = xp->Bfld[1] + delta_By;
-  xp->Bfld[2] = xp->Bfld[2] + delta_Bz;
+  p->Bfld[0] = p->Bfld[0] + delta_Bx;
+  p->Bfld[1] = p->Bfld[1] + delta_By;
+  p->Bfld[2] = p->Bfld[2] + delta_Bz;
 #endif
 #ifdef MHD_DI
   const float dtdphi = hydro_get_dphi_dt(p);
@@ -976,19 +976,19 @@ __attribute__((always_inline)) INLINE static void hydro_kick_extra(
 #endif
 #ifdef MHD_EULER
 //THIS VARIABLE IS NOT NEEDED BUT I LEAVE IT JUST INCASE 
-  xp->Bfld[0] = p->BPred[0];
-  xp->Bfld[1] = p->BPred[1];
-  xp->Bfld[2] = p->BPred[2];
+  p->Bfld[0] = p->BPred[0];
+  p->Bfld[1] = p->BPred[1];
+  p->Bfld[2] = p->BPred[2];
 #endif
 #ifdef MHD_VECPOT
-  xp->APot[0] = xp->APot[0] + p->dAdt[0] * dt_therm;
-  xp->APot[1] = xp->APot[1] + p->dAdt[1] * dt_therm;
-  xp->APot[2] = xp->APot[2] + p->dAdt[2] * dt_therm;
-  xp->Gau     = xp->Gau     + hydro_get_dGau_dt(p) * dt_therm;
+  p->APot[0] = p->APot[0] + p->dAdt[0] * dt_therm;
+  p->APot[1] = p->APot[1] + p->dAdt[1] * dt_therm;
+  p->APot[2] = p->APot[2] + p->dAdt[2] * dt_therm;
+  p->Gau     = p->Gau     + hydro_get_dGau_dt(p) * dt_therm;
 //THIS VARIABLE IS NOT NEEDED BUT I LEAVE IT JUST INCASE 
-  xp->Bfld[0] = p->BPred[0];
-  xp->Bfld[1] = p->BPred[1];
-  xp->Bfld[2] = p->BPred[2];
+  p->Bfld[0] = p->BPred[0];
+  p->Bfld[1] = p->BPred[1];
+  p->Bfld[2] = p->BPred[2];
 #endif
   /* Check against entropy floor */
   const float floor_A = entropy_floor(p, cosmo, floor_props);
@@ -1054,19 +1054,19 @@ __attribute__((always_inline)) INLINE static void hydro_convert_quantities(
   p->BPred[2] /= p->rho;
 #endif
 #ifdef MHD_BASE
-  xp->Bfld[0] = p->BPred[0];
-  xp->Bfld[1] = p->BPred[1];
-  xp->Bfld[2] = p->BPred[2];
+  p->Bfld[0] = p->BPred[0];
+  p->Bfld[1] = p->BPred[1];
+  p->Bfld[2] = p->BPred[2];
 #endif
 #ifdef MHD_DI
   xp->phi = p->phi;
 #endif
 #ifdef MHD_VECPOT
   /* set the potentials */
-  xp->APot[0] = p->APred[0];
-  xp->APot[1] = p->APred[1];
-  xp->APot[2] = p->APred[2];
-  xp->Gau     = p->GauPred ;
+  p->APot[0] = p->APred[0];
+  p->APot[1] = p->APred[1];
+  p->APot[2] = p->APred[2];
+  p->Gau     = p->GauPred ;
 #endif
 }
 
@@ -1089,22 +1089,22 @@ __attribute__((always_inline)) INLINE static void hydro_first_init_part(
   xp->v_full[2] = p->v[2];
   xp->u_full = p->u;
 #if defined(MHD_ORESTIS) || defined(MHD_DI)
-  xp->Bfld[0] = p->BPred[0];
-  xp->Bfld[1] = p->BPred[1];
-  xp->Bfld[2] = p->BPred[2];
+  p->Bfld[0] = p->BPred[0];
+  p->Bfld[1] = p->BPred[1];
+  p->Bfld[2] = p->BPred[2];
 #endif
 #ifdef MHD_DI
   xp->phi = p->phi;
 #endif
 #ifdef MHD_VECPOT
   /* set the initial potentials */
-  xp->APot[0] = p->APred[0];
-  xp->APot[1] = p->APred[1];
-  xp->APot[2] = p->APred[2];
-  xp->Bfld[0] = p->BPred[0];
-  xp->Bfld[1] = p->BPred[1];
-  xp->Bfld[2] = p->BPred[2];
-  xp->Gau     = p->GauPred ;
+  p->APot[0] = p->APred[0];
+  p->APot[1] = p->APred[1];
+  p->APot[2] = p->APred[2];
+  p->Bfld[0] = p->BPred[0];
+  p->Bfld[1] = p->BPred[1];
+  p->Bfld[2] = p->BPred[2];
+  p->Gau     = p->GauPred ;
 #endif
 
   hydro_reset_acceleration(p);
