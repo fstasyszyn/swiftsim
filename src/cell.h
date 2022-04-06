@@ -50,6 +50,7 @@
 /* Avoid cyclic inclusions */
 struct engine;
 struct scheduler;
+struct replication_list;
 
 /* Max tag size set to 2^29 to take into account some MPI implementations
  * that use 2^31 as the upper bound on MPI tags and the fact that
@@ -539,11 +540,15 @@ int cell_unskip_sinks_tasks(struct cell *c, struct scheduler *s);
 int cell_unskip_rt_tasks(struct cell *c, struct scheduler *s);
 int cell_unskip_black_holes_tasks(struct cell *c, struct scheduler *s);
 int cell_unskip_gravity_tasks(struct cell *c, struct scheduler *s);
-void cell_drift_part(struct cell *c, const struct engine *e, int force);
-void cell_drift_gpart(struct cell *c, const struct engine *e, int force);
-void cell_drift_spart(struct cell *c, const struct engine *e, int force);
+void cell_drift_part(struct cell *c, const struct engine *e, int force,
+                     struct replication_list *replication_list_in);
+void cell_drift_gpart(struct cell *c, const struct engine *e, int force,
+                      struct replication_list *replication_list);
+void cell_drift_spart(struct cell *c, const struct engine *e, int force,
+                      struct replication_list *replication_list);
 void cell_drift_sink(struct cell *c, const struct engine *e, int force);
-void cell_drift_bpart(struct cell *c, const struct engine *e, int force);
+void cell_drift_bpart(struct cell *c, const struct engine *e, int force,
+                      struct replication_list *replication_list);
 void cell_drift_multipole(struct cell *c, const struct engine *e);
 void cell_drift_all_multipoles(struct cell *c, const struct engine *e);
 void cell_check_timesteps(const struct cell *c, const integertime_t ti_current,
@@ -574,8 +579,6 @@ void cell_activate_subcell_black_holes_tasks(struct cell *ci, struct cell *cj,
                                              const int with_timestep_sync);
 void cell_activate_subcell_external_grav_tasks(struct cell *ci,
                                                struct scheduler *s);
-void cell_activate_subcell_rt_tasks(struct cell *ci, struct cell *cj,
-                                    struct scheduler *s);
 void cell_activate_super_spart_drifts(struct cell *c, struct scheduler *s);
 void cell_activate_super_sink_drifts(struct cell *c, struct scheduler *s);
 void cell_activate_drift_part(struct cell *c, struct scheduler *s);
@@ -629,6 +632,18 @@ void cell_reorder_extra_sinks(struct cell *c, const ptrdiff_t sinks_offset);
 int cell_can_use_pair_mm(const struct cell *ci, const struct cell *cj,
                          const struct engine *e, const struct space *s,
                          const int use_rebuild_data, const int is_tree_walk);
+
+/**
+ * @brief Does a #cell contain no particle at all.
+ *
+ * @param c The #cell.
+ */
+__attribute__((always_inline)) INLINE static int cell_is_empty(
+    const struct cell *c) {
+
+  return (c->hydro.count == 0 && c->grav.count == 0 && c->stars.count == 0 &&
+          c->black_holes.count == 0 && c->sinks.count == 0);
+}
 
 /**
  * @brief Compute the square of the minimal distance between any two points in

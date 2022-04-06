@@ -68,7 +68,7 @@ AC_DEFINE([_GLIBCXX_INCLUDE_NEXT_C_HEADERS],1,[Hack for min() and max() using g+
 # Enable POSIX and platform extension preprocessor macros.
 AC_USE_SYSTEM_EXTENSIONS
 
-# Check for compiler version and vendor.
+# Check for C compiler version and vendor.
 AX_COMPILER_VENDOR
 AX_COMPILER_VERSION
 
@@ -1413,6 +1413,38 @@ if test "$enable_velociraptor_orphans" = "yes"; then
    AC_DEFINE([HAVE_VELOCIRAPTOR_ORPHANS], 1, [Orphan particles should be written out])
 fi
 
+# Check if lightcone output is on.
+AC_ARG_ENABLE([lightcone],
+   [AS_HELP_STRING([--enable-lightcone],
+     [Activate lightcone outputs.],
+   )],
+   [enable_lightcone="$enableval"],
+   [enable_lightcone="no"]
+)
+if test "$enable_lightcone" = "yes"; then
+   # Check for healpix for lightcone maps. May require cfitsio
+   # This sets CHEALPIX_LIBS and CHEALPIX_CFLAGS and #defines HAVE_CHEALPIX.
+   # It also adds a --with-cfitsio flag in case cfitsio is installed in a
+   # different location from healpix.
+   GV_FIND_LIBRARY([cfitsio], [CFITSIO], [cfitsio], [cfitsio], [ffclos])
+   TMP_LIBS=${LIBS}
+   LIBS="${CFITSIO_LIBS} ${LIBS}"
+   GV_FIND_LIBRARY([chealpix], [CHEALPIX], [chealpix], [chealpix], [ang2vec])
+   LIBS=${TMP_LIBS}
+   have_chealpix=${USE_CHEALPIX}
+   CHEALPIX_LIBS="${CHEALPIX_LIBS} ${CFITSIO_LIBS}"
+   AC_DEFINE([WITH_LIGHTCONE], 1, [Enable lightcone outputs])
+   if test "$have_chealpix" != "yes"; then
+      AC_MSG_ERROR([Lightcone output requires the HEALPix C API. Please configure with --with-chealpix.])
+   fi
+   # Also need to make sure we have GSL if we're making lightcones
+   if test "$have_gsl" != "yes"; then
+      AC_MSG_ERROR([Lightcone output requires GSL. Please configure with --with-gsl.])
+   fi   
+else
+   have_chealpix="no"
+fi
+
 # Check for floating-point execeptions
 AC_CHECK_FUNC(feenableexcept, AC_DEFINE([HAVE_FE_ENABLE_EXCEPT],[1],
     [Defined if the floating-point exception can be enabled using non-standard GNU functions.]))
@@ -1630,6 +1662,7 @@ with_subgrid_stars=none
 with_subgrid_star_formation=none
 with_subgrid_feedback=none
 with_subgrid_sink=none
+with_subgrid_extra_io=none
 
 case "$with_subgrid" in
    yes)
@@ -1646,6 +1679,7 @@ case "$with_subgrid" in
 	with_subgrid_feedback=GEAR
 	with_subgrid_black_holes=none
 	with_subgrid_sink=none
+	with_subgrid_extra_io=none
 	enable_fof=no
    ;;
    QLA)
@@ -1658,6 +1692,7 @@ case "$with_subgrid" in
 	with_subgrid_feedback=none
 	with_subgrid_black_holes=none
 	with_subgrid_sink=none
+	with_subgrid_extra_io=none
 	enable_fof=no
    ;;
    QLA-EAGLE)
@@ -1682,6 +1717,7 @@ case "$with_subgrid" in
 	with_subgrid_feedback=EAGLE
 	with_subgrid_black_holes=EAGLE
 	with_subgrid_sink=none
+	with_subgrid_extra_io=none
 	enable_fof=yes
    ;;
    EAGLE-XL)
@@ -1694,6 +1730,7 @@ case "$with_subgrid" in
 	with_subgrid_feedback=EAGLE
 	with_subgrid_black_holes=EAGLE
 	with_subgrid_sink=none
+	with_subgrid_extra_io=none
 	enable_fof=yes
    ;;
    *)
@@ -2251,6 +2288,35 @@ case "$with_tracers" in
    ;;
 esac
 
+#  Extra fields added to snapshots at i/o time
+AC_ARG_WITH([extra_io],
+   [AS_HELP_STRING([--with-extra-io=<function>],
+      [chemistry function @<:@none, EAGLE default: none@:>@]
+   )],
+   [with_extra_io="$withval"],
+   [with_extra_io="none"]
+)
+
+if test "$with_subgrid" != "none"; then
+   if test "$with_extra_io" != "none"; then
+      AC_MSG_ERROR([Cannot provide with-subgrid and with-extra_io together])
+   else
+      with_extra_io="$with_subgrid_extra_io"
+   fi
+fi
+
+case "$with_extra_io" in
+   none)
+      AC_DEFINE([EXTRA_IO_NONE], [1], [No extra_io function])
+   ;;
+   EAGLE)
+      AC_DEFINE([EXTRA_IO_EAGLE], [1], [Extra i/o fields taken from the EAGLE model])
+   ;;
+   *)
+      AC_MSG_ERROR([Unknown extra-io choice: $with_extra_io])
+   ;;
+esac
+
 # Stellar model.
 AC_ARG_WITH([stars],
    [AS_HELP_STRING([--with-stars=<model>],
@@ -2573,9 +2639,8 @@ AC_DEFINE_UNQUOTED([SELF_GRAVITY_MULTIPOLE_ORDER], [$with_multipole_order], [Mul
 #  Radiative transfer scheme
 AC_ARG_WITH([rt],
    [AS_HELP_STRING([--with-rt=<scheme>],
-      [Radiative transfer scheme to use @<:@none, GEAR_*, debug default: none@:>@. 
-      This is still work in progress, currently no scheme works. 
-      For GEAR, you need to provide the number of photon groups (e.g. GEAR_4)]
+      [Radiative transfer scheme to use @<:@none, GEAR_*, SPHM1RT_*, debug default: none@:>@. 
+      For GEAR and SPHM1RT, the number of photon groups (e.g. GEAR_4) needs to be provided.]
    )],
    [with_rt="$withval"],
    [with_rt="none"]
@@ -2665,26 +2730,6 @@ case "$with_rt" in
 esac
 
 
-AC_ARG_ENABLE([rt-hydro-controlled-injection],
-    [AS_HELP_STRING([--enable-rt-hydro-controlled-injection],
-        [enable the radiative transfer injection scheme where \
-        active hydro particles gather radiation from neighbouring \
-        stars. Experimental feature, use with caution. \
-        @<:@no/yes@:>@ Default: no]
-    )],
-    [with_hydro_controlled_injection="${enableval}"],
-    [with_hydro_controlled_injection="no"]
-)
-
-rt_extra_msg="" # extra message for ./configure printout
-if test "$with_hydro_controlled_injection" = "yes"; then
-    rt_extra_msg=", hydro controlled injection"
-    AC_DEFINE([RT_HYDRO_CONTROLLED_INJECTION], 1, 
-        [Enable hydro controlled radiative transfer injection scheme])
-fi
-
-
-
 # Check for git, needed for revision stamps.
 AC_PATH_PROG([GIT_CMD], [git])
 AC_SUBST([GIT_CMD])
@@ -2693,6 +2738,9 @@ AC_SUBST([GIT_CMD])
 DX_DOXYGEN_FEATURE(OFF)
 DX_INIT_DOXYGEN(SWIFT, doc/Doxyfile, doc/)
 AM_CONDITIONAL([HAVE_DOXYGEN], [test "$ac_cv_path_ac_pt_DX_DOXYGEN" != ""])
+
+# Check if using EAGLE extra I/O
+AM_CONDITIONAL([HAVEEAGLEEXTRAIO], [test "${with_extra_io}" = "EAGLE"])
 
 # Check if using QLA cooling
 AM_CONDITIONAL([HAVEQLACOOLING], [test "$with_cooling" = "QLA"])
@@ -2798,6 +2846,7 @@ AC_MSG_RESULT([
     - MPI               : $have_mpi_fftw
     - ARM               : $have_arm_fftw
    GSL enabled          : $have_gsl
+   HEALPix C enabled    : $have_chealpix
    libNUMA enabled      : $have_numa
    GRACKLE enabled      : $have_grackle
    Special allocators   : $have_special_allocator
@@ -2805,6 +2854,7 @@ AC_MSG_RESULT([
    Pthread barriers     : $have_pthread_barrier
    VELOCIraptor enabled : $have_velociraptor
    FoF activated:       : $enable_fof
+   Lightcones enabled   : $enable_lightcone
 
    Hydro scheme       : $with_hydro
    Dimensionality     : $with_dimension
@@ -2834,7 +2884,8 @@ AC_MSG_RESULT([
    Sink particle model  : $with_sink
    Black holes model    : $with_black_holes
    Radiative transfer   : $with_rt$rt_extra_msg
-
+   Extra i/o            : $with_extra_io
+   
    Atomic operations in tasks  : $enable_atomics_within_tasks
    Individual timers           : $enable_timers
    Task debugging              : $enable_task_debugging
