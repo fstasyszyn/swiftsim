@@ -478,7 +478,7 @@ __attribute__((always_inline)) INLINE static float hydro_compute_timestep(
   return dt_cfl;
 #else  
   //Check if really needed
-  float dt_divB = p->divB != 0.f ? 2.f * CFL_condition * p->h * sqrtf( p->rho /(MU0_1*p->divB *p->divB)) : dt_cfl;
+  float dt_divB = p->divB != 0.f ? 0.4f * CFL_condition * sqrtf( p->rho /(MU0_1*p->divB *p->divB)) : dt_cfl;
 #ifdef MHD_VECPOT // CHECK IF NEEDED
 //  dt_divB = p->divA != 0.f ? 2.f * p->h * sqrtf( p->rho /(MU0_1*p->divA *p->divA)) : dt_cfl;
 //  const float deta= 0.002;
@@ -596,17 +596,12 @@ __attribute__((always_inline)) INLINE static void hydro_end_density(
   for (int i = 0; i < 3; i++) 
      p->BPred[i] *= h_inv_dim_plus_one * a_inv2 * rho_inv;
 #endif
-#ifdef MHD_DI
-  float const DBDT_Corr = (p->phi/p->h);
-  float const DBDT_True = sqrt( p->dBdt[0] * p->dBdt[0]   + p->dBdt[1] *p->dBdt[1]    + p->dBdt[2] * p->dBdt[2] );
-  p->Q1 = DBDT_Corr/ DBDT_True > 0.5f ? 0.5f/DBDT_Corr : 1.0f;
-#endif
 #ifdef MHD_BASE
-  float const ACC_Corr  = sqrt( p->BPred[0] * p->BPred[0] + p->BPred[1] * p->BPred[1] + p->BPred[2] * p->BPred[2]) 
-  			  * fabs(p->divB) * MU0_1 / p->rho;
-  float const ACC_True  = sqrt( p->a_hydro[0]*p->a_hydro[0]+ p->a_hydro[1]*p->a_hydro[1]+ p->a_hydro[2]*p->a_hydro[2]);
+ // float const ACC_Corr  = sqrt( p->BPred[0] * p->BPred[0] + p->BPred[1] * p->BPred[1] + p->BPred[2] * p->BPred[2]) 
+ // 			  * fabs(p->divB) * MU0_1 / p->rho;
+ // float const ACC_True  = sqrt( p->a_hydro[0]*p->a_hydro[0]+ p->a_hydro[1]*p->a_hydro[1]+ p->a_hydro[2]*p->a_hydro[2]);
   //p->Q[0] = 0.5f * p->divB * p->force.v_sig > ACC ? ACC / (p->divB * p->force.v_sig) : 1.0f;
-  p->Q0 = ACC_Corr / ACC_True  > 10.f ? 10.f/ACC_Corr  : 1.0f;
+ // p->Q0 = ACC_Corr / ACC_True  > 10.f ? 10.f/ACC_Corr  : 1.0f;
 #endif
 #endif
 }
@@ -743,6 +738,18 @@ __attribute__((always_inline)) INLINE static void hydro_prepare_force(
   p->force.pressure = pressure;
   p->force.soundspeed = soundspeed;
   p->force.balsara = balsara;
+#ifdef MHD_DI
+  float const DBDT_Corr = (p->phi/p->h);
+  const float b2 = (p->BPred[0]*p->BPred[0] + p->BPred[1]*p->BPred[1] + p->BPred[2]*p->BPred[2] );
+  float const DBDT_True = b2*sqrt(1.f/p->rho*MU0_1/2.f)/p->h;
+  //->p->dBdt[0] * p->dBdt[0]   + p->dBdt[1] *p->dBdt[1]    + p->dBdt[2] * p->dBdt[2] );
+  p->Q1 = DBDT_Corr/ DBDT_True > 0.5f ? 0.5f/DBDT_Corr : 1.0f;
+#endif
+#ifdef MHD_BASE
+  const float b2 = (p->BPred[0]*p->BPred[0] + p->BPred[1]*p->BPred[1] + p->BPred[2]*p->BPred[2] );
+  p->Q0 = pressure/(b2/2.0f*MU0_1) ; // Beta
+  p->Q0 = p->Q0 < 10.0f ? 1.0f :  1.f ;
+#endif
 }
 
 /**
