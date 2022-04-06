@@ -531,10 +531,6 @@ __attribute__((always_inline)) INLINE static void hydro_init_part(
   p->BPred[0] = 0.f;
   p->BPred[1] = 0.f;
   p->BPred[2] = 0.f;
-  p->GauPred  = 0.f;
-#endif
-#ifdef MHD_DI
-  p->phi = 0.f;
 #endif
 #endif
 }

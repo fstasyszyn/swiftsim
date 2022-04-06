@@ -50,8 +50,11 @@
 /*! Cosmology default beta=3.0.
  * Alpha can be set in the parameter file.
  * Beta is defined as in e.g. Price (2010) Eqn (103) */
+#ifndef MHD_BASE
 #define const_viscosity_beta 3.0f
-
+#else 
+#define const_viscosity_beta 1.5f
+#endif
 /*! The viscosity that the particles are reset to after being hit by a
  * feedback event. This should be set to the same value as the
  * hydro_props_default_viscosity_alpha in fixed schemes, and likely
@@ -298,6 +301,18 @@ static INLINE void diffusion_print_snapshot(
   io_write_attribute_f(h_grpsph, "Diffusion alpha (min)", diffusion->alpha_min);
   io_write_attribute_f(h_grpsph, "Diffusion beta", diffusion->beta);
 }
+#endif
+/////////////////////// TEST MHD CASES (comment)
+#ifdef MHD_BASE
+#ifdef MHD_MU0_1
+#define MU0 1.0
+#define MU0_1 1.0
+#elif defined(MHD_MU0_4PI)
+#define MU0 4.0f*M_PI
+#define MU0_1 1.0/(4.0*M_PI)
+#else
+#error "COMPILED WITH MHD but MU0 not defined" 
+#endif
 #endif
 
 #endif /* SWIFT_SPHENIX_HYDRO_PARAMETERS_H */

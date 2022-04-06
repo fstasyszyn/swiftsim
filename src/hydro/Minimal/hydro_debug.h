@@ -48,6 +48,10 @@ __attribute__((always_inline)) INLINE static void hydro_debug_particle(
       p->force.soundspeed, p->force.v_sig, p->h, p->force.h_dt,
       p->density.wcount, p->rho, p->density.rho_dh, p->time_bin,
       p->limiter_data.wakeup);
+#ifdef MHD_BASE
+  printf("Bfld=[%.3e,%.3e,%.3e], DivB=[%.3e]",
+      p->Bfld[0], p->Bfld[1], p->Bfld[2], p->divB);
+#endif
 }
 
 #endif /* SWIFT_MINIMAL_HYDRO_DEBUG_H */

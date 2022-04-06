@@ -41,6 +41,10 @@ __attribute__((always_inline)) INLINE static void hydro_debug_particle(
       p->u, p->u_dt, p->viscosity.v_sig, hydro_get_comoving_pressure(p), p->h,
       p->force.h_dt, (int)p->density.wcount, p->mass, p->density.rho_dh, p->rho,
       p->viscosity.alpha, p->time_bin);
+#ifdef MHD_BASE
+  printf("Bfld=[%.3e,%.3e,%.3e], DivB=[%.3e]",
+      p->Bfld[0], p->Bfld[1], p->Bfld[2], p->divB);
+#endif
 }
 
 #endif /* SWIFT_SPHENIX_HYDRO_DEBUG_H */

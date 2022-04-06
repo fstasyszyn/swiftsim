@@ -63,23 +63,23 @@ INLINE static void hydro_read_particles(struct part* parts,
   list[7] = io_make_input_field("Density", FLOAT, 1, OPTIONAL,
                                 UNIT_CONV_DENSITY, parts, rho);
 #ifdef MHD_BASE  
-// MISSING APOT
   list += *num_fields;
-#ifdef MHD_EULER 
-  *num_fields += 3;
-#else
   *num_fields += 1;
-#endif
   
-  list[0]  = io_make_input_field("Bfield", FLOAT, 3, OPTIONAL,
-                                UNIT_CONV_NO_UNITS, parts, bfld.B_pred);
+  list[0]  = io_make_input_field("Bfield", FLOAT, 3, COMPULSORY,
+                                UNIT_CONV_NO_UNITS, parts, BPred);
 #ifdef MHD_EULER 
-  list[1]  = io_make_input_field("EPalpha", FLOAT, 1, OPTIONAL,
-                                UNIT_CONV_NO_UNITS, parts, bfld.ep[0]);
-  list[2]  = io_make_input_field("EPbeta" , FLOAT, 1, OPTIONAL,
-                                UNIT_CONV_NO_UNITS, parts, bfld.ep[1]);
+  *num_fields += 2;
+  list[1]  = io_make_input_field("EPalpha", FLOAT, 1, COMPULSORY,
+                                UNIT_CONV_NO_UNITS, parts, ep[0]);
+  list[2]  = io_make_input_field("EPbeta" , FLOAT, 1, COMPULSORY,
+                                UNIT_CONV_NO_UNITS, parts, ep[1]);
+#elif defined(MHD_VECPOT)
+  *num_fields += 1;
+  list[1]  = io_make_input_field("VecPot", FLOAT, 3, COMPULSORY,
+                                UNIT_CONV_NO_UNITS, parts, APred);
 #endif
-#endif
+#endif // MHD_BASE
 }
 
 INLINE static void convert_S(const struct engine* e, const struct part* p,
@@ -92,6 +92,20 @@ INLINE static void convert_P(const struct engine* e, const struct part* p,
                              const struct xpart* xp, float* ret) {
 
   ret[0] = hydro_get_comoving_pressure(p);
+}
+
+INLINE static void convert_B(const struct engine* e, const struct part* p,
+                             const struct xpart* xp, float* ret) {
+// I modify it to use the full step, that's right?
+#ifdef MHD_ORESTIS
+  ret[0] = xp->Bfld[0] * p->rho;
+  ret[1] = xp->Bfld[1] * p->rho;
+  ret[2] = xp->Bfld[2] * p->rho;
+#else
+  ret[0] = p->Bfld[0] ;
+  ret[1] = p->Bfld[1] ;
+  ret[2] = p->Bfld[2] ;
+#endif
 }
 
 INLINE static void convert_part_pos(const struct engine* e,
@@ -192,6 +206,7 @@ INLINE static void convert_diffusion(const struct engine* e,
  * @brief Specifies which particle fields to write to a dataset
  *
  * @param parts The particle array.
+ * @param xparts The extended particle array.
  * @param list The list of i/o properties to write.
  * @param num_fields The number of i/o fields to write.
  */
@@ -280,27 +295,33 @@ INLINE static void hydro_write_particles(const struct part* parts,
 
 #ifdef MHD_BASE 
   list += *num_fields;
-#ifdef MHD_EULER 
-  *num_fields += 4;
-#else
   *num_fields += 2;
-#endif
-  list[0] = io_make_output_field(
-      "Bfield", FLOAT, 3, UNIT_CONV_NO_UNITS, -2.f, parts, bfld.B_pred,
-      "co-moving Magnetic Field of the particles");
+  
+  list[0] = io_make_output_field_convert_part(
+      "Bfield", FLOAT, 3, UNIT_CONV_NO_UNITS, -2.f , parts,
+      xparts, convert_B, "Co-moving Magnetic field of the particles");
+//  list[0] = io_make_output_field(
+//      "Bfield", FLOAT, 3, UNIT_CONV_NO_UNITS, -2.f, xparts, Bfld,
+//      "co-moving Magnetic Field of the particles");
   list[1] = io_make_output_field(
-      "divB", FLOAT, 1, UNIT_CONV_NO_UNITS, -0.f, parts, bfld.divB,
+      "divB", FLOAT, 1, UNIT_CONV_NO_UNITS, -0.f, parts, divB,
       "co-moving DivB of the particles");
 #ifdef MHD_EULER 
+  *num_fields += 2;
   list[2] = io_make_output_field(
-      "EPalpha", FLOAT, 1, UNIT_CONV_NO_UNITS, -0.f, parts, bfld.ep[0],
+      "EPalpha", FLOAT, 1, UNIT_CONV_NO_UNITS, -0.f, parts, ep[0],
       "co-moving Alpha Potential of the particles");
   list[3] = io_make_output_field(
-      "EPbeta" , FLOAT, 1, UNIT_CONV_NO_UNITS, -0.f, parts, bfld.ep[1],
+      "EPbeta" , FLOAT, 1, UNIT_CONV_NO_UNITS, -0.f, parts, ep[1],
       "co-moving Beta Potential of the particles");
+#elif defined(MHD_VECPOT)
+// do we need the divA?
+  *num_fields += 1;
+  list[2] = io_make_output_field(
+      "VecPot", FLOAT, 3, UNIT_CONV_NO_UNITS, -2.f, parts, APred,
+      "co-moving Vector Potential of the particles");
 #endif
-#endif //GADGET_MHD
-
+#endif // MHD_BASE
 }
 
 /**

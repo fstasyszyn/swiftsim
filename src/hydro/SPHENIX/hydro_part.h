@@ -62,6 +62,13 @@ struct xpart {
   /*! Internal energy at the last full step. */
   float u_full;
 
+#ifdef MHD_BASE 
+  /*! Bfield/Bflux denisty at full step */ 
+  //float Bfld[3];
+#endif
+#ifdef MHD_DI
+  float phi;
+#endif
   /*! Additional data used to record particle splits */
   struct particle_splitting_data split_data;
 
@@ -156,29 +163,33 @@ struct part {
 
 #ifdef MHD_BASE 
   /* Magnetic field */
-  struct {
-    float B_full[3];  // B at full step
-    float B_pred[3];  // predicted B for the Kick
-    float divB;       // not always needed but fine
-    float Bsm[3];     //smoothed B field (not always needed)
-#ifdef MHD_DI 
+  float Bfld[3];
+  /*! Bfield/Bflux density */ 
+  float BPred[3];
+  /*! Divergence of B */
+  float divB;
+  float Bsmooth[3];
+  float Q0;
+#if defined(MHD_DI) || defined(MHD_ORESTIS) 
   /* Direct Induction */
-    float dBdt[3];
+  float dBdt[3];
+  float Q1;
+  float phi;
 #endif
-#ifdef MHD_APOT 
+#ifdef MHD_VECPOT 
   /* Vector Potential */
-    float A_full[3];
-    float A_pred[3];
-    float dAdt[3];
-    float divA,GauA;
+  float APred[3];
+  float dAdt[3];
+  float divA,GauPred;
+  float APot[3];
+  float Gau;
 #endif
 
 #ifdef MHD_EULER 
   /* Euler Potentials */
-    float ep[2]; // alpha and beta
-    float Grad_ep[2][3];
+  float ep[2]; // alpha and beta
+  float Grad_ep[2][3];
 #endif
-  } bfld;
 #endif
 
   /* Store density/force specific stuff. */

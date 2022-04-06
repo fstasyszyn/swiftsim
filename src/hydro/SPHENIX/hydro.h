@@ -43,6 +43,34 @@
 #include <float.h>
 
 /**
+ * @brief Returns the evolution of the Dender Scalar Phi evolution
+ * time the particle was kicked.
+ *
+ * @param p The particle of interest
+ */
+#ifdef MHD_DI
+__attribute__((always_inline)) INLINE static float
+hydro_get_dphi_dt(const struct part *restrict p) {
+  return   (- p->divB * p->viscosity.v_sig * p->viscosity.v_sig 
+  		- 2.0f * p->viscosity.v_sig * p->phi / p->h  //(0.5 *2.0) gadget
+		- 0.5f * p->phi * p->viscosity.div_v); 
+}
+#endif
+/**
+ * @brief Returns the evolution of the Vector Potential Gauge evolution
+ * time the particle was kicked.
+ *
+ * @param p The particle of interest
+ */
+#ifdef MHD_VECPOT
+__attribute__((always_inline)) INLINE static float
+hydro_get_dGau_dt(const struct part *restrict p) {
+  return ( - p->divA * p->viscosity.v_sig * p->viscosity.v_sig 
+  		- 2.0f * p->viscosity.v_sig * p->Gau / p->h 
+		- 0.5f * p->Gau * p->viscosity.div_v); 
+}
+#endif
+/**
  * @brief Returns the comoving internal energy of a particle at the last
  * time the particle was kicked.
  *
@@ -470,8 +498,18 @@ __attribute__((always_inline)) INLINE static float hydro_compute_timestep(
   /* CFL condition */
   const float dt_cfl = 2.f * kernel_gamma * CFL_condition * cosmo->a * p->h /
                        (cosmo->a_factor_sound_speed * p->viscosity.v_sig);
-
+#ifndef MHD_BASE  
   return dt_cfl;
+#else  
+  float dt_divB = p->divB != 0.f ? 0.4f * CFL_condition * sqrtf( p->rho /(MU0_1*p->divB *p->divB)) : dt_cfl;
+#ifdef MHD_VECPOT // CHECK IF NEEDED
+//  dt_divB = p->divA != 0.f ? 2.f * p->h * sqrtf( p->rho /(MU0_1*p->divA *p->divA)) : dt_cfl;
+//  const float deta= 0.002;
+//  const float dt_eta = 2.0 * CFL_condition * p->h * p->h / deta;
+//  dt_divB = min(dt_eta,dt_divB);
+#endif
+  return min(dt_cfl,dt_divB);
+#endif
 }
 
 /**
@@ -517,31 +555,16 @@ __attribute__((always_inline)) INLINE static void hydro_init_part(
   p->viscosity.div_v = 0.f;
   p->diffusion.laplace_u = 0.f;
 #ifdef MHD_BASE
-  p->bfld.divB    = 0.f;
-  p->bfld.Bsm[0] = 0.f;
-  p->bfld.Bsm[1] = 0.f;
-  p->bfld.Bsm[2] = 0.f;
-  p->bfld.B_pred[0] = p->bfld.B_full[0];
-  p->bfld.B_pred[1] = p->bfld.B_full[1];
-  p->bfld.B_pred[2] = p->bfld.B_full[2];
-#ifdef MHD_DI
-  p->bfld.dBdt[0] = 0.f;
-  p->bfld.dBdt[1] = 0.f;
-  p->bfld.dBdt[2] = 0.f;
-#endif
+  p->divB    = 0.f;
 #ifdef MHD_EULER
-  p->bfld.B_full[0] = 0.f;
-  p->bfld.B_full[1] = 0.f;
-  p->bfld.B_full[2] = 0.f;
-  for (int i = 0; i < 3; ++i) p->bfld.Grad_ep[0][i]=0.f;
-	  for (int i = 0; i < 3; ++i) p->bfld.Grad_ep[1][i]=0.f;
+  for (int i = 0; i < 3; ++i) p->Grad_ep[0][i]=0.f;
+  for (int i = 0; i < 3; ++i) p->Grad_ep[1][i]=0.f;
 #endif
-#ifdef MHD_VPOT
-  p->bfld.dAdt[0] = 0.f;
-  p->bfld.dAdt[1] = 0.f;
-  p->bfld.dAdt[1] = 0.f;
-  p->bfld.divA = 0.f; 
-  p->bfld.GauA = 0.f; 
+#ifdef MHD_VECPOT
+  p->divA     = 0.f;
+  p->BPred[0] = 0.f;
+  p->BPred[1] = 0.f;
+  p->BPred[2] = 0.f;
 #endif
 #endif // MHD_BASE
 #ifdef SWIFT_HYDRO_DENSITY_CHECKS
@@ -609,22 +632,17 @@ __attribute__((always_inline)) INLINE static void hydro_end_density(
   p->viscosity.div_v += cosmo->H * hydro_dimension;
 
 #ifdef MHD_BASE
-  p->bfld.divB *= h_inv_dim_plus_one * a_inv2 * rho_inv;
-  p->bfld.Bsm[0] *= a_inv2 * rho_inv;
-  p->bfld.Bsm[1] *= a_inv2 * rho_inv;
-  p->bfld.Bsm[2] *= a_inv2 * rho_inv;
-  for (int i = 0; i < 3; i++) p->bfld.B_full[i] = p->bfld.Bsm[i];
-#ifdef MHD_DI
-  p->bfld.dBdt[0] *= h_inv_dim_plus_one * a_inv2 * rho_inv;
-  p->bfld.dBdt[1] *= h_inv_dim_plus_one * a_inv2 * rho_inv;
-  p->bfld.dBdt[2] *= h_inv_dim_plus_one * a_inv2 * rho_inv;
-#endif
+  p->divB *= h_inv_dim_plus_one * a_inv2 * rho_inv;
 #ifdef MHD_EULER // COSMOLOGICAL PARAM
-  for (int i = 0; i < 3; i++) p->bfld.Grad_ep[0][i] *= h_inv_dim_plus_one * cosmo->a_inv * rho_inv;
-  for (int i = 0; i < 3; i++) p->bfld.Grad_ep[1][i] *= h_inv_dim_plus_one * cosmo->a_inv * rho_inv;
-  for (int i = 0; i < 3; i++) p->bfld.B_full[i] = p->bfld.Grad_ep[0][(i+1)%3]*p->bfld.Grad_ep[1][(i+2)%3]
-						- p->bfld.Grad_ep[0][(i+2)%3]*p->bfld.Grad_ep[1][(i+1)%3];
-
+  for (int i = 0; i < 3; i++) p->Grad_ep[0][i] *= h_inv_dim_plus_one * cosmo->a_inv * rho_inv;
+  for (int i = 0; i < 3; i++) p->Grad_ep[1][i] *= h_inv_dim_plus_one * cosmo->a_inv * rho_inv;
+  for (int i = 0; i < 3; i++) p->BPred[i] = p->Grad_ep[0][(i+1)%3]*p->Grad_ep[1][(i+2)%3]
+  			                 - p->Grad_ep[0][(i+2)%3]*p->Grad_ep[1][(i+1)%3];
+#endif
+#ifdef MHD_VECPOT
+  p->divA *= h_inv_dim_plus_one * a_inv2 * rho_inv;
+  for (int i = 0; i < 3; i++) 
+     p->BPred[i] *= h_inv_dim_plus_one * a_inv2 * rho_inv;
 #endif
 #endif // MHD_BASE
 #ifdef SWIFT_HYDRO_DENSITY_CHECKS
@@ -786,14 +804,13 @@ __attribute__((always_inline)) INLINE static void hydro_part_has_no_neighbours(
   p->viscosity.div_v = 0.f;
   p->diffusion.laplace_u = 0.f;
 #ifdef MHD_BASE
-// Remember to check if this is fine in every method
-  p->bfld.divB    = 0.f;
+  p->divB    = 0.f;
 #ifdef MHD_EULER
-  p->bfld.B_full[0] = 0.f;
-  p->bfld.B_full[1] = 0.f;
-  p->bfld.B_full[2] = 0.f;
-  for (int i = 0; i < 3; ++i) p->bfld.Grad_ep[0][i]=0.f;
-  for (int i = 0; i < 3; ++i) p->bfld.Grad_ep[1][i]=0.f;
+  for (int i = 0; i < 3; ++i) p->Grad_ep[0][i]=0.f;
+  for (int i = 0; i < 3; ++i) p->Grad_ep[1][i]=0.f;
+#endif
+#ifdef MHD_VECPOT
+  p->divA    = 0.f;
 #endif
 #endif
 }
@@ -919,6 +936,18 @@ __attribute__((always_inline)) INLINE static void hydro_prepare_force(
   new_diffusion_alpha = min(new_diffusion_alpha, viscous_diffusion_limit);
 
   p->diffusion.alpha = new_diffusion_alpha;
+#ifdef MHD_DI
+  float const DBDT_Corr = (p->phi/p->h);
+  const float b2 = (p->BPred[0]*p->BPred[0] + p->BPred[1]*p->BPred[1] + p->BPred[2]*p->BPred[2] );
+  float const DBDT_True = b2*sqrt(1.f/p->rho*MU0_1/2.f)/p->h;
+  //->p->dBdt[0] * p->dBdt[0]   + p->dBdt[1] *p->dBdt[1]    + p->dBdt[2] * p->dBdt[2] );
+  p->Q1 = DBDT_Corr/ DBDT_True > 0.5f ? 0.5f/DBDT_Corr : 1.0f;
+#endif
+#ifdef MHD_BASE
+  const float b2 = (p->BPred[0]*p->BPred[0] + p->BPred[1]*p->BPred[1] + p->BPred[2]*p->BPred[2] );
+  p->Q0 = pressure/(b2/2.0f*MU0_1) ; // Beta
+  p->Q0 = p->Q0 < 10.0f ? 1.0f :  1.f ;
+#endif
 }
 
 /**
@@ -940,6 +969,16 @@ __attribute__((always_inline)) INLINE static void hydro_reset_acceleration(
   /* Reset the time derivatives. */
   p->u_dt = 0.0f;
   p->force.h_dt = 0.0f;
+#if defined(MHD_ORESTIS) || defined(MHD_DI)
+  p->dBdt[0] = 0.0f;
+  p->dBdt[1] = 0.0f;
+  p->dBdt[2] = 0.0f;
+#endif
+#ifdef MHD_VECPOT
+  p->dAdt[0] = 0.0f;
+  p->dAdt[1] = 0.0f;
+  p->dAdt[2] = 0.0f;
+#endif
 }
 
 /**
@@ -958,17 +997,28 @@ __attribute__((always_inline)) INLINE static void hydro_reset_predicted_values(
   p->v[0] = xp->v_full[0];
   p->v[1] = xp->v_full[1];
   p->v[2] = xp->v_full[2];
-#ifdef MHD_BASE
-  p->bfld.B_pred[0] = p->bfld.B_full[0];
-  p->bfld.B_pred[1] = p->bfld.B_full[1];
-  p->bfld.B_pred[2] = p->bfld.B_full[2];
-#endif
-
 
   /* Re-set the entropy */
   p->u = xp->u_full;
 
   /* Compute the sound speed */
+#if defined(MHD_ORESTIS) || defined(MHD_DI)
+  /* Re-set the predicted magnetic flux densities */
+  /* Re-set the predicted magnetic field */
+  p->BPred[0] = p->Bfld[0];
+  p->BPred[1] = p->Bfld[1];
+  p->BPred[2] = p->Bfld[2];
+#endif
+#ifdef MHD_DI
+  p->phi = xp->phi;
+#endif
+#ifdef MHD_VECPOT
+  /* Re-set the predicted Vec pot */
+  p->APred[0] = p->APot[0];
+  p->APred[1] = p->APot[1];
+  p->APred[2] = p->APot[2];
+  p->GauPred  = p->Gau;
+#endif
   const float pressure = gas_pressure_from_internal_energy(p->rho, p->u);
   const float pressure_including_floor =
       pressure_floor_get_comoving_pressure(p, pressure, cosmo);
@@ -1005,14 +1055,26 @@ __attribute__((always_inline)) INLINE static void hydro_predict_extra(
     const struct hydro_props *hydro_props,
     const struct entropy_floor_properties *floor_props) {
 
-#ifdef MHD_DI
-  p->bfld.B_pred[0] += p->bfld.dBdt[0] * dt_therm;
-  p->bfld.B_pred[1] += p->bfld.dBdt[1] * dt_therm;
-  p->bfld.B_pred[2] += p->bfld.dBdt[2] * dt_therm;
-#endif
-
 /* Predict the internal energy */
   p->u += p->u_dt * dt_therm;
+
+#if defined(MHD_ORESTIS) || defined(MHD_DI)
+  /* Predict the magnetic flux density */
+  p->BPred[0] += p->dBdt[0] * dt_therm;
+  p->BPred[1] += p->dBdt[1] * dt_therm;
+  p->BPred[2] += p->dBdt[2] * dt_therm;
+#endif
+#ifdef MHD_DI
+  const float dtdphi = hydro_get_dphi_dt(p);
+  p->phi     += dtdphi * dt_therm;
+#endif
+#ifdef MHD_VECPOT
+  /* Predict the magnetic flux density */
+  p->APred[0] += p->dAdt[0] * dt_therm;
+  p->APred[1] += p->dAdt[1] * dt_therm;
+  p->APred[2] += p->dAdt[2] * dt_therm;
+  p->GauPred  += hydro_get_dGau_dt(p) * dt_therm;
+#endif
 
   const float h_inv = 1.f / p->h;
 
@@ -1100,18 +1162,44 @@ __attribute__((always_inline)) INLINE static void hydro_kick_extra(
     const struct cosmology *cosmo, const struct hydro_props *hydro_props,
     const struct entropy_floor_properties *floor_props) {
 
-#ifdef MHD_DI
-  p->bfld.B_full[0] += p->bfld.dBdt[0] * dt_hydro;
-  p->bfld.B_full[1] += p->bfld.dBdt[1] * dt_hydro;
-  p->bfld.B_full[2] += p->bfld.dBdt[2] * dt_hydro;
-#endif
-
   /* Integrate the internal energy forward in time */
   const float delta_u = p->u_dt * dt_therm;
 
   /* Do not decrease the energy by more than a factor of 2*/
   xp->u_full = max(xp->u_full + delta_u, 0.5f * xp->u_full);
 
+#if defined(MHD_ORESTIS) || defined(MHD_DI)
+  /* Integrate the magnetic flux density forward in time */
+  const float delta_Bx = p->dBdt[0] * dt_therm;
+  const float delta_By = p->dBdt[1] * dt_therm;
+  const float delta_Bz = p->dBdt[2] * dt_therm;
+  
+  /* Do not decrease the magnetic flux density by more than a factor of 2*/
+  p->Bfld[0] = p->Bfld[0] + delta_Bx;
+  p->Bfld[1] = p->Bfld[1] + delta_By;
+  p->Bfld[2] = p->Bfld[2] + delta_Bz;
+#endif
+#ifdef MHD_DI
+  const float dtdphi = hydro_get_dphi_dt(p);
+  xp->phi     = xp->phi     + dtdphi * dt_therm;
+
+#endif
+#ifdef MHD_EULER
+//THIS VARIABLE IS NOT NEEDED BUT I LEAVE IT JUST INCASE 
+  p->Bfld[0] = p->BPred[0];
+  p->Bfld[1] = p->BPred[1];
+  p->Bfld[2] = p->BPred[2];
+#endif
+#ifdef MHD_VECPOT
+  p->APot[0] = p->APot[0] + p->dAdt[0] * dt_therm;
+  p->APot[1] = p->APot[1] + p->dAdt[1] * dt_therm;
+  p->APot[2] = p->APot[2] + p->dAdt[2] * dt_therm;
+  p->Gau     = p->Gau     + hydro_get_dGau_dt(p) * dt_therm;
+//THIS VARIABLE IS NOT NEEDED BUT I LEAVE IT JUST INCASE 
+  p->Bfld[0] = p->BPred[0];
+  p->Bfld[1] = p->BPred[1];
+  p->Bfld[2] = p->BPred[2];
+#endif
   /* Check against entropy floor */
   const float floor_A = entropy_floor(p, cosmo, floor_props);
   const float floor_u = gas_internal_energy_from_entropy(p->rho, floor_A);
@@ -1180,6 +1268,27 @@ __attribute__((always_inline)) INLINE static void hydro_convert_quantities(
 
   p->force.pressure = pressure_including_floor;
   p->force.soundspeed = soundspeed;
+#ifdef MHD_ORESTIS
+  /* Convert B into B/rho */
+  p->BPred[0] /= p->rho;
+  p->BPred[1] /= p->rho;
+  p->BPred[2] /= p->rho;
+#endif
+#ifdef MHD_BASE
+  p->Bfld[0] = p->BPred[0];
+  p->Bfld[1] = p->BPred[1];
+  p->Bfld[2] = p->BPred[2];
+#endif
+#ifdef MHD_DI
+  xp->phi = p->phi;
+#endif
+#ifdef MHD_VECPOT
+  /* set the potentials */
+  p->APot[0] = p->APred[0];
+  p->APot[1] = p->APred[1];
+  p->APot[2] = p->APred[2];
+  p->Gau     = p->GauPred ;
+#endif
 }
 
 /**
@@ -1201,6 +1310,24 @@ __attribute__((always_inline)) INLINE static void hydro_first_init_part(
   xp->v_full[1] = p->v[1];
   xp->v_full[2] = p->v[2];
   xp->u_full = p->u;
+#if defined(MHD_ORESTIS) || defined(MHD_DI)
+  p->Bfld[0] = p->BPred[0];
+  p->Bfld[1] = p->BPred[1];
+  p->Bfld[2] = p->BPred[2];
+#endif
+#ifdef MHD_DI
+  xp->phi = p->phi;
+#endif
+#ifdef MHD_VECPOT
+  /* set the initial potentials */
+  p->APot[0] = p->APred[0];
+  p->APot[1] = p->APred[1];
+  p->APot[2] = p->APred[2];
+  p->Bfld[0] = p->BPred[0];
+  p->Bfld[1] = p->BPred[1];
+  p->Bfld[2] = p->BPred[2];
+  p->Gau     = p->GauPred ;
+#endif
 
   hydro_reset_acceleration(p);
   hydro_init_part(p, NULL);
