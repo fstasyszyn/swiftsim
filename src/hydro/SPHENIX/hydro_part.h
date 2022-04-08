@@ -168,7 +168,6 @@ struct part {
   float BPred[3];
   /*! Divergence of B */
   float divB;
-  float Bsmooth[3];
   float Q0;
 #if defined(MHD_DI) || defined(MHD_ORESTIS) 
   /* Direct Induction */

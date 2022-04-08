@@ -501,7 +501,7 @@ __attribute__((always_inline)) INLINE static float hydro_compute_timestep(
 #ifndef MHD_BASE  
   return dt_cfl;
 #else  
-  float dt_divB = p->divB != 0.f ? 0.4f * CFL_condition * sqrtf( p->rho /(MU0_1*p->divB *p->divB)) : dt_cfl;
+  float dt_divB = p->divB != 0.f ?  CFL_condition * sqrtf( p->rho /(MU0_1*p->divB *p->divB)) : dt_cfl;
 #ifdef MHD_VECPOT // CHECK IF NEEDED
 //  dt_divB = p->divA != 0.f ? 2.f * p->h * sqrtf( p->rho /(MU0_1*p->divA *p->divA)) : dt_cfl;
 //  const float deta= 0.002;
@@ -726,6 +726,15 @@ __attribute__((always_inline)) INLINE static void hydro_prepare_gradient(
   p->force.pressure = pressure_including_floor;
   p->force.soundspeed = soundspeed;
   p->force.balsara = balsara;
+#ifdef MHD_VECPOT
+  p->Bfld[0] = 0.f;
+  p->Bfld[1] = 0.f;
+  p->Bfld[2] = 0.f;
+  p->dAdt[0] = 0.f;
+  p->dAdt[1] = 0.f;
+  p->dAdt[2] = 0.f;
+  p->Q0      = 0.f;
+#endif
 }
 
 /**
@@ -761,6 +770,17 @@ __attribute__((always_inline)) INLINE static void hydro_end_gradient(
   const float h_inv_dim_plus_one = h_inv_dim * h_inv; /* 1/h^(d+1) */
 	  /* Include the extra factors in the del^2 u */
 	  p->diffusion.laplace_u *= 2.f * h_inv_dim_plus_one;
+#ifdef MHD_VECPOT
+// Self Contribution
+  for (int i = 0; i < 3; i++) 
+     p->Bfld[i] += kernel_root * p->BPred[i];
+  p->Q0+=kernel_root;
+  for (int i = 0; i < 3; i++) 
+     p->Bfld[i] /= p->Q0;
+     //p->Bfld[i] *= h_inv_dim / p->rho;
+  for (int i = 0; i < 3; i++) 
+     p->BPred[i] = p->Bfld[i];
+#endif
 #ifdef SWIFT_HYDRO_DENSITY_CHECKS
   p->n_gradient += kernel_root;
 #endif
@@ -1005,9 +1025,11 @@ __attribute__((always_inline)) INLINE static void hydro_reset_predicted_values(
 #if defined(MHD_ORESTIS) || defined(MHD_DI)
   /* Re-set the predicted magnetic flux densities */
   /* Re-set the predicted magnetic field */
+#if !defined(MHD_VECPOT)
   p->BPred[0] = p->Bfld[0];
   p->BPred[1] = p->Bfld[1];
   p->BPred[2] = p->Bfld[2];
+#endif
 #endif
 #ifdef MHD_DI
   p->phi = xp->phi;
@@ -1195,7 +1217,6 @@ __attribute__((always_inline)) INLINE static void hydro_kick_extra(
   p->APot[1] = p->APot[1] + p->dAdt[1] * dt_therm;
   p->APot[2] = p->APot[2] + p->dAdt[2] * dt_therm;
   p->Gau     = p->Gau     + hydro_get_dGau_dt(p) * dt_therm;
-//THIS VARIABLE IS NOT NEEDED BUT I LEAVE IT JUST INCASE 
   p->Bfld[0] = p->BPred[0];
   p->Bfld[1] = p->BPred[1];
   p->Bfld[2] = p->BPred[2];
