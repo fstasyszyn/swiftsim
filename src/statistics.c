@@ -98,6 +98,11 @@ void stats_add(struct statistics *a, const struct statistics *b) {
   a->gas_H2_mass += b->gas_H2_mass;
   a->gas_HI_mass += b->gas_HI_mass;
   a->gas_He_mass += b->gas_He_mass;
+#ifdef MHD_VECPOT
+  a->E_mag += b->E_mag;
+  a->DivB += b->DivB;
+  a->H_mag += b->H_mag;
+#endif
 }
 
 /**
@@ -206,6 +211,19 @@ void stats_collect_part_mapper(void *map_data, int nr_parts, void *extra_data) {
     stats.gas_He_mass += He_mass;
 
 #endif
+#endif
+#ifdef MHD_VECPOT
+    stats.E_mag += (p->Bfld[0]*p->Bfld[0]+
+    		    p->Bfld[1]*p->Bfld[1]+
+		    p->Bfld[2]*p->Bfld[2])/2.f;
+    stats.DivB  += p->h*fabs(p->divB)/
+    		    sqrt(p->Bfld[0]*p->Bfld[0]+
+    		         p->Bfld[1]*p->Bfld[1]+
+		         p->Bfld[2]*p->Bfld[2]+1e-20);
+    stats.H_mag += (p->Bfld[0]*p->APot[0]+
+    		    p->Bfld[1]*p->APot[1]+
+		    p->Bfld[2]*p->APot[2]);
+
 #endif
 
     /* Collect centre of mass */
@@ -821,22 +839,35 @@ void stats_write_file_header(FILE *file, const struct unit_system *restrict us,
           "simulation. \n");
   fprintf(file, "#      Unit = %e gram\n", us->UnitMass_in_cgs);
   fprintf(file, "#      Unit = %e Msun\n", 1. / phys_const->const_solar_mass);
+#ifdef MHD_VECPOT
+  fprintf(
+      file,
+      "# (34) (35) (36) Magnetic quatities, check UNITS\n");
+#endif
 
   fprintf(file, "#\n");
   fprintf(
       file,
       "#%14s %14s %14s %14s %14s %14s %14s %14s %14s %14s %14s %14s %14s %14s "
       "%14s %14s %14s %14s %14s %14s %14s %14s %14s %14s %14s %14s %14s %14s "
-      "%14s %14s %14s %14s %14s %14s\n",
+      "%14s %14s %14s %14s %14s %14s",
       "(0)", "(1)", "(2)", "(3)", "(4)", "(5)", "(6)", "(7)", "(8)", "(9)",
       "(10)", "(11)", "(12)", "(13)", "(14)", "(15)", "(16)", "(17)", "(18)",
       "(19)", "(20)", "(21)", "(22)", "(23)", "(24)", "(25)", "(26)", "(27)",
       "(28)", "(29)", "(30)", "(31)", "(32)", "(33)");
+#ifdef MHD_VECPOT
+  fprintf(
+      file,
+      " %14s %14s %14s",
+      "(34)", "(35)", "(36)");
+#endif
+  fprintf(
+      file,"\n");
   fprintf(
       file,
       "#%14s %14s %14s %14s %14s %14s %14s %14s %14s %14s %14s %14s %14s %14s "
       "%14s %14s %14s %14s %14s %14s %14s %14s %14s %14s %14s %14s %14s %14s "
-      "%14s %14s %14s %14s %14s %14s\n",
+      "%14s %14s %14s %14s %14s %14s",
       "Step", "Time", "a", "z", "Total mass", "Gas mass", "DM mass",
       "Sink mass", "Star mass", "BH mass", "Gas Z mass", "Star Z mass",
       "BH Z mass", "Kin. Energy", "Int. Energy", "Pot. energy", "Rad. energy",
@@ -844,6 +875,14 @@ void stats_write_file_header(FILE *file, const struct unit_system *restrict us,
       "Ang. mom. x", "Ang. mom. y", "Ang. mom. z", "BH acc. rate",
       "BH acc. mass", "BH sub. mass", "Gas H mass", "Gas H2 mass",
       "Gas HI mass", "Gas He mass");
+#ifdef MHD_VECPOT
+  fprintf(
+      file,
+      " %14s %14s %14s",
+      "Mag. Energy", "Tot. DivB", "Tot. Mag. Helicity");
+#endif
+  fprintf(
+      file,"\n");
 
   fflush(file);
 }
@@ -870,7 +909,7 @@ void stats_write_to_file(FILE *file, const struct statistics *stats,
       file,
       " %14d %14e %14.7f %14.7f %14e %14e %14e %14e %14e %14e %14e %14e %14e "
       "%14e %14e %14e %14e %14e %14e %14e %14e %14e %14e %14e %14e %14e %14e "
-      "%14e %14e %14e %14e %14e %14e %14e\n",
+      "%14e %14e %14e %14e %14e %14e %14e",
       step, time, a, z, stats->total_mass, stats->gas_mass, stats->dm_mass,
       stats->sink_mass, stats->star_mass, stats->bh_mass, stats->gas_Z_mass,
       stats->star_Z_mass, stats->bh_Z_mass, stats->E_kin, stats->E_int, E_pot,
@@ -880,6 +919,14 @@ void stats_write_to_file(FILE *file, const struct statistics *stats,
       stats->ang_mom[2], stats->bh_accretion_rate, stats->bh_accreted_mass,
       stats->bh_subgrid_mass, stats->gas_H_mass, stats->gas_H2_mass,
       stats->gas_HI_mass, stats->gas_He_mass);
+#ifdef MHD_VECPOT
+  fprintf(
+      file,
+      " %14e %14e %14e",
+      stats->E_mag, stats->DivB, stats->H_mag);
+#endif
+  fprintf(
+      file,"\n");
 
   fflush(file);
 }
