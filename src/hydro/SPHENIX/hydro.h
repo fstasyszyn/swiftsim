@@ -65,9 +65,10 @@ hydro_get_dphi_dt(const struct part *restrict p) {
 #ifdef MHD_VECPOT
 __attribute__((always_inline)) INLINE static float
 hydro_get_dGau_dt(const struct part *restrict p) {
-  return ( - p->divA * p->viscosity.v_sig * p->viscosity.v_sig 
-  		- 2.0f * p->viscosity.v_sig * p->Gau / p->h 
-		- 0.5f * p->Gau * p->viscosity.div_v); 
+  return ( - p->divA * p->viscosity.v_sig * p->viscosity.v_sig * 0.1 * 0.1 
+  		- 2.0f * p->viscosity.v_sig * p->Gau / p->h * 0.1
+	//	- 0.5f * p->Gau * p->viscosity.div_v
+		); 
 }
 #endif
 /**
@@ -496,17 +497,17 @@ __attribute__((always_inline)) INLINE static float hydro_compute_timestep(
   const float CFL_condition = hydro_properties->CFL_condition;
 
   /* CFL condition */
-  const float dt_cfl = 2.f * kernel_gamma * CFL_condition * cosmo->a * p->h /
+  float dt_cfl = 2.f * kernel_gamma * CFL_condition * cosmo->a * p->h /
                        (cosmo->a_factor_sound_speed * p->viscosity.v_sig);
 #ifndef MHD_BASE  
   return dt_cfl;
 #else  
   float dt_divB = p->divB != 0.f ?  CFL_condition * sqrtf( p->rho /(MU0_1*p->divB *p->divB)) : dt_cfl;
+  dt_cfl = min(dt_cfl,dt_divB);
 #ifdef MHD_VECPOT // CHECK IF NEEDED
-//  dt_divB = p->divA != 0.f ? 2.f * p->h * sqrtf( p->rho /(MU0_1*p->divA *p->divA)) : dt_cfl;
-//  const float deta= 0.002;
-//  const float dt_eta = 2.0 * CFL_condition * p->h * p->h / deta;
-//  dt_divB = min(dt_eta,dt_divB);
+  const float Deta= 0.0005f;
+  const float dt_eta = CFL_condition * p->h * p->h / Deta * 0.5;
+  dt_divB = min(dt_eta,dt_divB);
 #endif
   return min(dt_cfl,dt_divB);
 #endif
@@ -730,9 +731,6 @@ __attribute__((always_inline)) INLINE static void hydro_prepare_gradient(
   p->Bfld[0] = 0.f;
   p->Bfld[1] = 0.f;
   p->Bfld[2] = 0.f;
-  p->dAdt[0] = 0.f;
-  p->dAdt[1] = 0.f;
-  p->dAdt[2] = 0.f;
   p->Q0      = 0.f;
 #endif
 }
@@ -773,8 +771,8 @@ __attribute__((always_inline)) INLINE static void hydro_end_gradient(
 #ifdef MHD_VECPOT
 // Self Contribution
   for (int i = 0; i < 3; i++) 
-     p->Bfld[i] += kernel_root * p->BPred[i];
-  p->Q0+=kernel_root;
+     p->Bfld[i] += p->mass * kernel_root * p->BPred[i];
+  p->Q0+= p->mass * kernel_root;
   for (int i = 0; i < 3; i++) 
      p->Bfld[i] /= p->Q0;
      //p->Bfld[i] *= h_inv_dim / p->rho;
@@ -966,7 +964,10 @@ __attribute__((always_inline)) INLINE static void hydro_prepare_force(
 #ifdef MHD_BASE
   const float b2 = (p->BPred[0]*p->BPred[0] + p->BPred[1]*p->BPred[1] + p->BPred[2]*p->BPred[2] );
   p->Q0 = pressure/(b2/2.0f*MU0_1) ; // Beta
-  p->Q0 = p->Q0 < 10.0f ? 1.0f :  1.f ;
+  p->Q0 = p->Q0 < 10.0f ? 1.0f :  0.0f ;
+  const float ACC_corr = fabs(p->divB * sqrt(b2)); // this should go with a /p->h but it the part inside the kernel normalized
+  const float ACC_mhd  = b2/(p->h);
+  p->Q0 = ACC_corr > ACC_mhd ? p->Q0/ACC_corr*p->h : p->Q0;  
 #endif
 }
 

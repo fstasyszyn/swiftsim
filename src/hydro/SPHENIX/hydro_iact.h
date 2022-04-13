@@ -336,11 +336,11 @@ __attribute__((always_inline)) INLINE static void runner_iact_gradient(
   pj->force.alpha_visc_max_ngb = max(pj->force.alpha_visc_max_ngb, alpha_i);
 #ifdef MHD_VECPOT
   for(int i=0;i<3;i++){
-     pi->Bfld[i] +=  wi * pj->BPred[i];
-     pj->Bfld[i] +=  wj * pi->BPred[i];
+     pi->Bfld[i] +=  pj->mass * wi * pj->BPred[i];
+     pj->Bfld[i] +=  pi->mass * wj * pi->BPred[i];
      }
-  pi->Q0 += wi;
-  pj->Q0 += wj;
+  pi->Q0 += pj->mass * wi;
+  pj->Q0 += pi->mass * wj;
 #endif
 #ifdef SWIFT_HYDRO_DENSITY_CHECKS
   pi->n_gradient += wi;
@@ -418,8 +418,8 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_gradient(
   pi->force.alpha_visc_max_ngb = max(pi->force.alpha_visc_max_ngb, alpha_j);
 #ifdef MHD_VECPOT  
   for(int i=0;i<3;i++)
-     pi->Bfld[i] += wi * pj->BPred[i];
-  pi->Q0 += wi;
+     pi->Bfld[i] += pj->mass * wi * pj->BPred[i];
+  pi->Q0 += pj->mass * wi;
 #endif
 #ifdef SWIFT_HYDRO_DENSITY_CHECKS
   pi->n_gradient += wi;
@@ -665,24 +665,35 @@ __attribute__((always_inline)) INLINE static void runner_iact_force(
   float dA[3];
   for(int i=0;i<3;i++)
      dA[i] = pi->APred[i] - pj->APred[i];
+     //dA[i] = pi->APred[i]/(rhoi*rhoi) + pj->APred[i]/(rhoj*rhoj);
   const float SourceAi = -(dA[0]*pi->v[0] + dA[1]*pi->v[1] + dA[2]*pi->v[2]);
   const float SourceAj = -(dA[0]*pj->v[0] + dA[1]*pj->v[1] + dA[2]*pj->v[2]);
   float SAi = SourceAi + (pi->GauPred - pj->GauPred);
   float SAj = SourceAj + (pi->GauPred - pj->GauPred);
+///  float SAi = (pi->GauPred - pj->GauPred);
+//  float SAj = (pi->GauPred - pj->GauPred);
+     
   for(int i=0;i<3;i++)
   {
+//     pi->dAdt[i] += mj *mag_Indi* (
+//         pi->v[(i+1)%3]*(dA[(i+1)%3]*dx[i] - dA[i]*dx[(i+1)%3])
+//       - pi->v[(i+2)%3]*(dA[(i+2)%3]*dx[i] - dA[i]*dx[(i+2)%3]) );
+//     pj->dAdt[i] += mi *mag_Indj* (
+//         pj->v[(i+1)%3]*(dA[(i+1)%3]*dx[i] - dA[i]*dx[(i+1)%3])
+//       - pj->v[(i+2)%3]*(dA[(i+2)%3]*dx[i] - dA[i]*dx[(i+2)%3]) );
+     
      pi->dAdt[i] += mj *mag_Indi* SAi *dx[i];
      pj->dAdt[i] += mi *mag_Indj* SAj *dx[i];
   }
   //Dissipation
-/*  const float deta = 0.0;
+  const float Deta = 0.0005f;
   const float mag_Disi = wi_dr * r_inv * rhoi / (rho_ij * rho_ij);
   const float mag_Disj = wj_dr * r_inv * rhoj / (rho_ij * rho_ij);
   for(int i=0;i<3;i++)
   {
-     pi->dAdt[i] += mj * deta * mag_Disi* dA[i];
-     pj->dAdt[i] += mi * deta * mag_Disj* dA[i];
-  }*/
+     pi->dAdt[i] += mj * 2.0 * Deta * mag_Disi* dA[i];
+     pj->dAdt[i] += mi * 2.0 * Deta * mag_Disj* dA[i];
+  }
 #endif
 }
 
@@ -899,16 +910,22 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_force(
   float dA[3];
   for(int i=0;i<3;i++)
      dA[i] = pi->APred[i] - pj->APred[i];
+     //dA[i] = pi->APred[i]/(rhoi*rhoi) + pj->APred[i]/(rhoj*rhoj);
+  //const float SourceAi = -(rhoi*rhoi)*(dA[0]*pi->v[0] + dA[1]*pi->v[1] + dA[2]*pi->v[2]);
   const float SourceAi = -(dA[0]*pi->v[0] + dA[1]*pi->v[1] + dA[2]*pi->v[2]);
   float SAi = SourceAi + (pi->GauPred - pj->GauPred);
+  //for(int i=0;i<3;i++)
+  //   pi->dAdt[i] += mj *mag_Indi* (
+  //      pi->v[(i+1)%3]*(dA[(i+1)%3]*dx[i] - dA[i]*dx[(i+1)%3])
+  //    - pi->v[(i+2)%3]*(dA[(i+2)%3]*dx[i] - dA[i]*dx[(i+2)%3]));
+  //float SAi = (pi->GauPred - pj->GauPred);
   for(int i=0;i<3;i++)
      pi->dAdt[i] += mj *mag_Indi* SAi *dx[i];
   //Dissipation
-/*  const float deta = 0.002;
+  const float Deta = 0.0005f;
   const float mag_Disi = wi_dr * r_inv * rhoi / (rho_ij * rho_ij);
   for(int i=0;i<3;i++)
-     pi->dAdt[i] += mj * deta * mag_Disi* dA[i];
-*/
+     pi->dAdt[i] += mj * 2.0 * Deta * mag_Disi* dA[i];
 #endif
 }
 #endif /* SWIFT_SPHENIX_HYDRO_IACT_H */
