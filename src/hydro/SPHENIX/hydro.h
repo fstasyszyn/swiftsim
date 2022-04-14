@@ -505,7 +505,7 @@ __attribute__((always_inline)) INLINE static float hydro_compute_timestep(
   float dt_divB = p->divB != 0.f ?  CFL_condition * sqrtf( p->rho /(MU0_1*p->divB *p->divB)) : dt_cfl;
   dt_cfl = min(dt_cfl,dt_divB);
 #ifdef MHD_VECPOT // CHECK IF NEEDED
-  const float Deta= 0.0005f;
+  const float Deta= 0.001f;
   const float dt_eta = CFL_condition * p->h * p->h / Deta * 0.5;
   dt_divB = min(dt_eta,dt_divB);
 #endif
@@ -958,7 +958,6 @@ __attribute__((always_inline)) INLINE static void hydro_prepare_force(
   float const DBDT_Corr = (p->phi/p->h);
   const float b2 = (p->BPred[0]*p->BPred[0] + p->BPred[1]*p->BPred[1] + p->BPred[2]*p->BPred[2] );
   float const DBDT_True = b2*sqrt(1.f/p->rho*MU0_1/2.f)/p->h;
-  //->p->dBdt[0] * p->dBdt[0]   + p->dBdt[1] *p->dBdt[1]    + p->dBdt[2] * p->dBdt[2] );
   p->Q1 = DBDT_Corr/ DBDT_True > 0.5f ? 0.5f/DBDT_Corr : 1.0f;
 #endif
 #ifdef MHD_BASE

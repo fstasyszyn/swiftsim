@@ -503,6 +503,9 @@ __attribute__((always_inline)) INLINE static void runner_iact_force(
   const float cj = pj->force.soundspeed;
 #ifndef MHD_BASE
   const float v_sig = ci + cj - const_viscosity_beta * mu_ij;
+  /* Balsara term */
+  const float balsara_i = pi->force.balsara;
+  const float balsara_j = pj->force.balsara;
 #else
   const float b2_i = (pi->BPred[0]*pi->BPred[0] + pi->BPred[1]*pi->BPred[1] + pi->BPred[2]*pi->BPred[2] );
   const float b2_j = (pj->BPred[0]*pj->BPred[0] + pj->BPred[1]*pj->BPred[1] + pj->BPred[2]*pj->BPred[2] ); 
@@ -522,12 +525,9 @@ __attribute__((always_inline)) INLINE static void runner_iact_force(
   pi->viscosity.v_sig = max(pi->viscosity.v_sig, v_sig);
   pj->viscosity.v_sig = max(pj->viscosity.v_sig, v_sig);
   /* Grab balsara switches */
-  //const float balsara_i = 1.f;
-  //const float balsara_j = 1.f;
+  const float balsara_i = 1.f;
+  const float balsara_j = 1.f;
 #endif
-  /* Balsara term */
-  const float balsara_i = pi->force.balsara;
-  const float balsara_j = pj->force.balsara;
 
   /* Variable smoothing length term */
   const float f_ij = 1.f - pi->force.f / mj;
@@ -686,9 +686,9 @@ __attribute__((always_inline)) INLINE static void runner_iact_force(
      pj->dAdt[i] += mi *mag_Indj* SAj *dx[i];
   }
   //Dissipation
-  const float Deta = 0.0005f;
-  const float mag_Disi = wi_dr * r_inv * rhoi / (rho_ij * rho_ij);
-  const float mag_Disj = wj_dr * r_inv * rhoj / (rho_ij * rho_ij);
+  const float Deta = 0.001f;
+  const float mag_Disi = (wi_dx+wj_dx)/2.f * r_inv * rhoi / (rho_ij * rho_ij);
+  const float mag_Disj = (wj_dx+wi_dx)/2.f * r_inv * rhoj / (rho_ij * rho_ij);
   for(int i=0;i<3;i++)
   {
      pi->dAdt[i] += mj * 2.0 * Deta * mag_Disi* dA[i];
@@ -764,6 +764,9 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_force(
   const float cj = pj->force.soundspeed;
 #ifndef MHD_BASE
   const float v_sig = ci + cj - const_viscosity_beta * mu_ij;
+  /* Grab balsara switches */
+  const float balsara_i = pi->force.balsara;
+  const float balsara_j = pj->force.balsara;
 #else
   const float b2_i = (pi->BPred[0]*pi->BPred[0] + pi->BPred[1]*pi->BPred[1] + pi->BPred[2]*pi->BPred[2] );
   const float b2_j = (pj->BPred[0]*pj->BPred[0] + pj->BPred[1]*pj->BPred[1] + pj->BPred[2]*pj->BPred[2] ); 
@@ -783,12 +786,9 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_force(
   /* Update if we need to */
   pi->viscosity.v_sig = max(pi->viscosity.v_sig, v_sig);
   /* Grab balsara switches */
-  //const float balsara_i = 1.f;
-  //const float balsara_j = 1.f;
+  const float balsara_i = 1.f;
+  const float balsara_j = 1.f;
 #endif
-  /* Grab balsara switches */
-  const float balsara_i = pi->force.balsara;
-  const float balsara_j = pj->force.balsara;
 
 
   /* Variable smoothing length term */
@@ -922,8 +922,8 @@ __attribute__((always_inline)) INLINE static void runner_iact_nonsym_force(
   for(int i=0;i<3;i++)
      pi->dAdt[i] += mj *mag_Indi* SAi *dx[i];
   //Dissipation
-  const float Deta = 0.0005f;
-  const float mag_Disi = wi_dr * r_inv * rhoi / (rho_ij * rho_ij);
+  const float Deta = 0.001f;
+  const float mag_Disi = (wi_dx+wj_dx)/2.f * r_inv * rhoi / (rho_ij * rho_ij);
   for(int i=0;i<3;i++)
      pi->dAdt[i] += mj * 2.0 * Deta * mag_Disi* dA[i];
 #endif
