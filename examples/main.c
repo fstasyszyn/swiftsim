@@ -1,7 +1,7 @@
 /*******************************************************************************
  * This file is part of SWIFT.
  * Copyright (c) 2012 Pedro Gonnet (pedro.gonnet@durham.ac.uk),
- *                    Matthieu Schaller (matthieu.schaller@durham.ac.uk)
+ *                    Matthieu Schaller (schaller@strw.leidenuniv.nl)
  *               2015 Peter W. Draper (p.w.draper@durham.ac.uk)
  *                    Angus Lepper (angus.lepper@ed.ac.uk)
  *               2016 John A. Regan (john.a.regan@durham.ac.uk)
@@ -1344,10 +1344,11 @@ int main(int argc, char *argv[]) {
     /* Initialise the gravity properties */
     bzero(&gravity_properties, sizeof(struct gravity_props));
     if (with_self_gravity)
-      gravity_props_init(
-          &gravity_properties, params, &prog_const, &cosmo, with_cosmology,
-          with_external_gravity, with_baryon_particles, with_DM_particles,
-          with_neutrinos, with_DM_background_particles, periodic, s.dim);
+      gravity_props_init(&gravity_properties, params, &prog_const, &cosmo,
+                         with_cosmology, with_external_gravity,
+                         with_baryon_particles, with_DM_particles,
+                         with_neutrinos, with_DM_background_particles, periodic,
+                         s.dim, s.cdim);
 
     /* Initialize the neutrino response if used */
     bzero(&neutrino_response, sizeof(struct neutrino_response));
