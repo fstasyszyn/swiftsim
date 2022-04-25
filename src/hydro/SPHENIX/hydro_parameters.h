@@ -71,8 +71,11 @@
 #define hydro_props_default_viscosity_alpha_min 0.0f
 
 /*! Maximal value for the viscosity alpha in variable schemes. */
+#ifndef MHD_BASE
 #define hydro_props_default_viscosity_alpha_max 2.0f
-
+#else
+#define hydro_props_default_viscosity_alpha_max 4.0f
+#endif
 /*! Decay length for the viscosity scheme. This is scheme dependent. */
 #define hydro_props_default_viscosity_length 0.05f
 
