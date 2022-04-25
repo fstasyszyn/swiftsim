@@ -23,6 +23,7 @@ from numpy import *
 
 # Generates a swift IC file for the BrioWu in a periodic box
 times = 16 # Number pf Cubes smashed in each side
+times = 8 # Number pf Cubes smashed in each side
 
 # Parameters
 gamma = 2.          # Gas adiabatic index
@@ -40,10 +41,10 @@ fileName = "BrioWu.hdf5"
 #---------------------------------------------------
 boxSide = (x_max - x_min)
 
-#glass_L = h5py.File("glassCube_64.hdf5", "r")
-#glass_R = h5py.File("glassCube_32.hdf5", "r")
-glass_L = h5py.File("glassCube_32.hdf5", "r")
-glass_R = h5py.File("glassCube_16.hdf5", "r")
+glass_L = h5py.File("glassCube_64.hdf5", "r")
+glass_R = h5py.File("glassCube_32.hdf5", "r")
+#glass_L = h5py.File("glassCube_32.hdf5", "r")
+#glass_R = h5py.File("glassCube_16.hdf5", "r")
 
 pos_L = glass_L["/PartType0/Coordinates"][:,:] 
 pos_R = glass_R["/PartType0/Coordinates"][:,:]
@@ -77,6 +78,7 @@ vol_R = 1.0*1.0*boxSide/2.
 # Generate extra arrays
 v   = zeros((numPart, 3))
 b   = zeros((numPart, 3))
+vp  = zeros((numPart, 3))
 epa = zeros(numPart)
 epb = zeros(numPart)
 
@@ -96,6 +98,9 @@ for i in range(numPart):
         b[i,2] =  0.0
         epa[i] = pos[i,2]
         epb[i] = -0.75*pos[i,1]+pos[i,0]
+        vp[i,0] = 0.0
+        vp[i,1] = 0.0
+        vp[i,2] = - pos[i,0] + 0.75 * pos[i,1]
     else:     #right
         u[i] = P_R / (rho_R * (gamma - 1.))
         m[i] = rho_R * vol_R / numPart_R
@@ -105,6 +110,9 @@ for i in range(numPart):
         b[i,2] =  0.0 
         epa[i] = pos[i,2]
         epb[i] = -0.75*pos[i,1]-pos[i,0]
+        vp[i,0] = 0.0
+        vp[i,1] = 0.0
+        vp[i,2] =  pos[i,0] + 0.75 * pos[i,1]
         
 # Shift particles
 pos[:,0] -= x_min
@@ -142,6 +150,7 @@ grp.create_dataset('InternalEnergy', data=u, dtype='f')
 grp.create_dataset('ParticleIDs', data=ids, dtype='L')
 grp.create_dataset("Bfield", data = b, dtype = 'f')
 #grp.create_dataset("MagneticFluxDensity", data = b, dtype = 'f')
+grp.create_dataset("VecPot", data = vp, dtype = 'f')
 grp.create_dataset("EPalpha", data = epa, dtype = 'f')
 grp.create_dataset("EPbeta" , data = epb, dtype = 'f')
 
